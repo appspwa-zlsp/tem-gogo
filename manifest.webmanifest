@@ -1,0 +1,32 @@
+{
+  "name": "Tem Gogó — Karaokê da Galera",
+  "short_name": "Tem Gogó",
+  "description": "Tem Gogó: sua TV vira palco, seu celular vira microfone e o VOX apresenta a festa!",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#160d26",
+  "theme_color": "#21112f",
+  "lang": "pt-BR",
+  "categories": [
+    "entertainment",
+    "music",
+    "social"
+  ],
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
