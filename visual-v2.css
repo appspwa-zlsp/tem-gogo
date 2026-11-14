@@ -138,7 +138,7 @@ select option{background:#2c173b;color:#fff}input::placeholder{color:#b8abc4}
 @media(max-width:600px){.final-number span{font-size:12px;margin-left:3px}}
 
 
-/* TEM GOGÓ 3.0 — convite, PIN, proteção da festa e nova identidade. */
+/* Tem Gogó — convite direto, identidade e acesso à festa. */
 .brand{font-family:'Outfit',sans-serif;font-weight:950;font-style:italic;letter-spacing:-.072em;white-space:nowrap;transform:skew(-5deg)}
 .brand .brand-highlight{color:var(--lime);text-shadow:3px 3px 0 rgba(229,70,170,.4)}
 .landing .brand{font-size:clamp(24px,2.8vw,36px)}
@@ -157,8 +157,8 @@ select option{background:#2c173b;color:#fff}input::placeholder{color:#b8abc4}
 .pin-create-row{display:flex;align-items:stretch;gap:8px}
 .pin-create-row input{flex:1;min-width:0;letter-spacing:.18em;font-weight:800}
 .pin-create-row button{white-space:nowrap;font-size:12px;padding:10px}
-.pin-helper{font-size:11px;color:var(--muted);line-height:1.45;margin:8px 0 13px}
-#guest-pin{letter-spacing:.2em;font-weight:800}
+.invite-helper{font-size:11px;color:var(--muted);line-height:1.45;margin:8px 0 13px}
+#guest-code{letter-spacing:.07em;font-weight:800}
 #guest-code{text-transform:uppercase;letter-spacing:.1em}
 #invite-continue{margin-top:4px}
 #pin-change-form .button-primary{margin-top:18px}
@@ -230,7 +230,7 @@ body.invite-active .landing-footer,body.entry-active .landing-footer{padding-top
 .hub-room-info strong{font-size:14px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.hub-room-info small{font-size:11px;color:var(--muted)}
 .hub-room-arrow{font-size:20px;color:var(--lime)}
 .hub-create-area{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}
-.hub-create-area .field-label{margin-bottom:7px}.hub-create-area .pin-helper{font-size:12px;line-height:1.45;color:var(--muted);margin-top:9px}
+.hub-create-area .field-label{margin-bottom:7px}.hub-create-area .invite-helper{font-size:12px;line-height:1.45;color:var(--muted);margin-top:9px}
 .hub-create-area .button{margin-top:16px}
 #hub-join-room{margin-top:11px}.hub-security{font-size:11px;color:var(--muted);margin:13px 0 0;text-align:center}
 .credential-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}
@@ -294,3 +294,16 @@ body.invite-active .landing-footer,body.entry-active .landing-footer{padding-top
 .more-external button{font-size:12px}
 @media(max-width:800px){.stage-hit-library{padding:14px}.history-song-card img{width:66px;height:45px}}
 @media(max-width:390px){.history-add{padding:8px!important;font-size:10px!important}.history-song-card{gap:6px}.history-song-card img{width:58px;height:42px}}
+
+/* v9 • limite de buscas e alternativa manual */
+.quota-fallback{padding:1.15rem;border:2px solid rgba(253,199,85,.65);border-radius:18px;background:linear-gradient(125deg,rgba(251,158,39,.16),rgba(215,48,141,.12));color:var(--text,#fff);display:grid;gap:.65rem}
+.quota-fallback h3{font-size:1.1rem;margin:0;line-height:1.2}
+.quota-fallback p{margin:0;line-height:1.5}
+.quota-actions{display:flex;flex-wrap:wrap;gap:.55rem}
+.quota-actions .button{flex:1 1 180px;min-height:42px}
+@media(max-width:600px){.quota-fallback{padding:.9rem}.quota-actions{flex-direction:column}}
+
+/* Convites únicos de 12 caracteres e atalhos de instalação */
+.qr-code-text{font-size:clamp(10px,1vw,14px)!important;letter-spacing:.015em!important;white-space:nowrap}
+@media(max-width:600px){.qr-code-text{font-size:10px!important}.invite-code-note strong{overflow-wrap:anywhere}}
+.guest-install-shortcut{margin:6px 0 12px;width:100%}

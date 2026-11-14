@@ -1,4 +1,4 @@
-/* Tem Gogó v8 — edição brasileira: palco, VOX e reações GIPHY (opcional) — aplicativo estático (PWA + Supabase + WebRTC + YouTube IFrame API).
+/* Tem Gogó v9 — edição brasileira: palco, VOX e reações GIPHY (opcional) — aplicativo estático (PWA + Supabase + WebRTC + YouTube IFrame API).
  * Os vídeos são reproduzidos pelo YouTube; nenhum áudio do YouTube é extraído.
  * Microfones são transportados diretamente via WebRTC quando houver conexão.
  */
@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, playMetrics: null
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, playMetrics: null
   };
 
   function toast(message, error = false) {
@@ -112,15 +112,12 @@
     for(let i=0;i<62;i++) {const el=document.createElement('i'); el.style.left=Math.random()*100+'%'; el.style.animationDelay=Math.random()*1.2+'s'; el.style.animationDuration=(2.2+Math.random()*1.5)+'s'; box.append(el);}
     setTimeout(() => box.replaceChildren(),4800);
   }
-  function sixDigitPin(){
-    const nums=new Uint32Array(1); crypto.getRandomValues(nums);
-    return String(100000+(nums[0]%900000));
-  }
   function isStandalone(){return matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;}
-  function normalizeRoom(value){return String(value||'').trim().toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8);}
+  function normalizeRoom(value){return String(value||'').trim().toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,12);}
+  function validRoom(code){return /^(?:[A-F0-9]{8}|[A-F0-9]{12})$/.test(String(code||''));}
   function holdInvitation(code){
     const clean=normalizeRoom(code);
-    if(clean.length===8) localStorage.setItem('tem-gogo-pending-room',clean);
+    if(validRoom(clean)) localStorage.setItem('tem-gogo-pending-room',clean);
     return clean;
   }
   function showInvite(code){
@@ -138,7 +135,7 @@
     $('invite-install-help').hidden=false;
     show('landing');
   }
-  function showPinEntry(code){
+  function showGuestEntry(code){
     const clean=normalizeRoom(code);
     state.inviteRoom=clean||null;
     document.body.classList.remove('invite-active');
@@ -147,14 +144,14 @@
     $('access-tabs').hidden=false;
     openGuestEntry(clean);
     show('landing');
-    $('guest-pin').focus({preventScroll:true});
+    $('guest-code').focus({preventScroll:true});
   }
   async function installFromInvite(){
     holdInvitation(state.inviteRoom);
     if(state.pendingInstall){
       state.pendingInstall.prompt();
       const outcome=await state.pendingInstall.userChoice;
-      if(outcome?.outcome==='accepted')toast('Instalação solicitada! Se o convite não abrir no app, informe o código da TV.');
+      if(outcome?.outcome==='accepted')toast('Instalação solicitada! O convite continua disponível no Tem Gogó.');
       state.pendingInstall=null;
       return;
     }
@@ -195,8 +192,8 @@
     const savedRoom=normalizeRoom(localStorage.getItem('tem-gogo-pending-room'));
     const targetRoom=linkRoom||savedRoom;
     if(targetRoom){
-      if(!isStandalone()&&linkRoom)showInvite(targetRoom);
-      else showPinEntry(targetRoom);
+      showInvite(targetRoom);
+      $('invite-welcome').querySelector('p')?.replaceChildren(document.createTextNode('🎟️ Estamos abrindo a festa. Se não entrar, use o código do convite abaixo.'));
     }
     if (!configured()) {
       $('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';
@@ -208,10 +205,12 @@
       const {data:{session},error}=await state.client.auth.getSession(); if(error)throw error;
       state.user=session?.user||null;
       if(targetRoom){
+        // QR é convite suficiente: tenta retomar uma associação existente e,
+        // se ainda não for participante, faz entrada anônima e registra a sala.
         const resumed=await tryResumeMembership(targetRoom);
-        if(!resumed && isStandalone())showPinEntry(targetRoom);
+        if(!resumed)await joinRoomByCode(targetRoom,{auto:true});
       }else if(state.user) await openLobby();
-      else if(isStandalone())showPinEntry('');
+      else if(isStandalone())showGuestEntry('');
     }catch(err){toast(humanError(err),true);}
     state.client.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;});
   }
@@ -223,7 +222,7 @@
     $('tab-host').classList.remove('active');$('tab-host').setAttribute('aria-selected','false');
     $('tab-guest').classList.add('active');$('tab-guest').setAttribute('aria-selected','true');
     $('host-access').hidden=true;$('guest-access').hidden=false;
-    $('guest-code').value=String(roomCode||'').toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8);
+    $('guest-code').value=normalizeRoom(roomCode);
     $('guest-name').value=localStorage.getItem('tem-gogo-display-name')||'';
   }
   async function openLobby() {
@@ -270,7 +269,7 @@
     await stopSession();
     history.replaceState(null,'',new URL('./',location.href).href);
     if(state.user)await openLobby();
-    else showPinEntry('');
+    else showGuestEntry('');
   }
   async function login(event) {
     event.preventDefault();if(!checkBackend())return;
@@ -323,36 +322,56 @@
     event.preventDefault();if(!checkBackend())return;
     const button=event.target.querySelector('[type=submit]');setLoading(button,true,'Montando seu palco…');
     try {
-      const pin=sixDigitPin();
-      const data=await callRPC('karaoke_create_room',{p_title:$('room-title').value.trim(),p_pin:pin});
+      const data=await callRPC('karaoke_create_room',{p_title:$('room-title').value.trim()});
       if(!data?.length)throw new Error('Não foi possível criar a festa.');
       const room={id:data[0].room_id,code:data[0].room_code,title:data[0].room_title,owner_id:state.user.id};
-      state.readyRoom={room,pin};
+      state.readyRoom={room};
       $('ready-code').textContent=room.code;
-      $('ready-pin').textContent=pin;
       $('room-ready-dialog').showModal();
       await loadMyRooms();
     }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
   }
-  async function joinParty(event) {
-    event.preventDefault();if(!checkBackend())return;
-    const code=$('guest-code').value.trim().toUpperCase();const name=$('guest-name').value.trim();
-    const pin=$('guest-pin').value.trim();
-    if(!/^[0-9]{6}$/.test(pin)){toast('Digite os seis números da senha da sala.',true);return;}
-    if(!/^[A-F0-9]{8}$/.test(code)){toast('Confira os 8 caracteres do código da TV.',true);return;}
-    const button=event.target.querySelector('[type=submit]');setLoading(button,true,'Entrando na festa...');
+  function chooseStageName(){
+    const saved=(localStorage.getItem('tem-gogo-display-name')||'').trim();
+    if(saved.length>=2&&saved.length<=24)return saved;
+    const rand=new Uint16Array(1);crypto.getRandomValues(rand);
+    const chosen='Estrela '+String(rand[0]%10000).padStart(4,'0');
+    localStorage.setItem('tem-gogo-display-name',chosen);
+    return chosen;
+  }
+  async function joinRoomByCode(rawCode,{auto=false}={}){
+    if(!checkBackend())return false;
+    const code=normalizeRoom(rawCode);
+    if(!validRoom(code)){if(!auto)toast('Confira o código da festa no QR ou na TV.',true);return false;}
+    let name=($('guest-name').value||'').trim();
+    if(name.length<2)name=chooseStageName();
+    if(name.length>24)name=name.slice(0,24);
     try{
-      if(!state.user){const {data,error}=await state.client.auth.signInAnonymously();if(error)throw error;state.user=data.user;}
-      const result=await callRPC('karaoke_join_room',{p_code:code,p_name:name,p_pin:pin});
-      if(result?.[0]?.error_code==='full')throw new Error('A festa atingiu o limite de 40 participantes.');
-      if(result?.[0]?.error_code==='locked')throw new Error('Muitas senhas incorretas. Tente novamente em 15 minutos.');
-      if(result?.[0]?.error_code)throw new Error('Senha incorreta ou festa indisponível. Confira com o anfitrião.');
-      if(!result?.length)throw new Error('A sala não respondeu. Tente novamente.');
+      if(!state.user){
+        const {data,error}=await state.client.auth.signInAnonymously();
+        if(error)throw error;
+        state.user=data.user;
+      }
+      const result=await callRPC('karaoke_join_room',{p_code:code,p_name:name});
+      const codeError=result?.[0]?.error_code;
+      if(codeError==='full')throw new Error('Esta festa já tem 40 participantes.');
+      if(codeError==='rate_limited')throw new Error('Muitos convites tentados. Aguarde 10 minutos para tentar novamente.');
+      if(codeError)throw new Error('Festa não encontrada, encerrada ou convite inválido. Peça o QR atualizado.');
+      if(!result?.[0]?.room_id)throw new Error('Não foi possível validar o convite da festa.');
       localStorage.setItem('tem-gogo-display-name',name);
       localStorage.setItem('tem-gogo-pending-room',code);
-      $('guest-pin').value='';
       const r=result[0];await enterRoomAsGuest({id:r.room_id,code:r.room_code,title:r.room_title,owner_id:r.owner_id},name);
-    }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
+      return true;
+    }catch(err){
+      toast(humanError(err),true);
+      if(auto){showGuestEntry(code);$('guest-name').value=chooseStageName();}
+      return false;
+    }
+  }
+  async function joinParty(event) {
+    event.preventDefault();
+    const button=event.target.querySelector('[type=submit]');setLoading(button,true,'Entrando na festa...');
+    try{await joinRoomByCode($('guest-code').value);}finally{setLoading(button,false);}
   }
 
   async function enterRoomAsHost(room) {
@@ -365,14 +384,14 @@
       catch(err){toast(humanError(err),true);}
       await unlockWakeLock();
       updateVoxLine('opening');
-      toast('VOX NO AR! Mostre o QR e passe a senha só para seus convidados. 🎉');
+      toast('VOX NO AR! Mostre o QR: ele já dá acesso direto à festa. 🎉');
     }catch(err){toast(humanError(err),true);}
   }
   async function enterRoomAsGuest(room,name) {
     await stopSession();
     document.body.classList.remove('invite-active','entry-active');
     state.room=room;state.role='guest';setSyncStatus('sync');$('guest-display-name').textContent=name;$('guest-room-code').textContent=room.code;
-    $('guest-room-title').textContent=room.title;show('guest');updateVoxLine('opening');
+    $('guest-room-title').textContent=room.title;show('guest');$('guest-install').hidden=isStandalone();updateVoxLine('opening');
     history.replaceState(null,'',currentURL(room.code));
     localStorage.setItem('tem-gogo-pending-room',room.code);
     switchMobileTab('queue');
@@ -388,8 +407,8 @@
         const entries=await callRPC('karaoke_resume_room',{p_code:code});
         if(entries?.length)return;
         await stopSession();
-        showPinEntry(code);
-        toast('O acesso a esta festa mudou. Peça a nova senha ao anfitrião. 🔐',true);
+        showGuestEntry(code);
+        toast('Você saiu desta festa ou ela foi encerrada. Peça um novo convite ao anfitrião.',true);
       }catch(err){console.warn('Verificação de acesso adiada:',err.message);}
     },12000);
   }
@@ -765,7 +784,7 @@
       body:{action:'check',videoId,roomId:state.room.id}
     });
     if(error){
-      let msg='Não foi possível verificar o vídeo. Configure a função YouTube no Supabase.';
+      let msg='Não foi possível consultar a verificação no Supabase. Você pode tentar adicionar o link mesmo assim.';
       try{const body=await error.context?.json?.();if(body?.error)msg=body.error;}catch{}
       throw new Error(msg);
     }
@@ -1135,6 +1154,32 @@
       card.append(image,info,button);results.append(card);
     });
   }
+  function showExternalFallback(results,host,query,reason){
+    results.replaceChildren();
+    const box=document.createElement('div');box.className='quota-fallback';
+    const heading=document.createElement('h3');heading.textContent='🚫 Busca externa temporariamente pausada';
+    const expl=document.createElement('p');expl.textContent=reason+' O VOX ainda tem soluções: escolha um hit do histórico ou cole um link do YouTube.';
+    const actions=document.createElement('div');actions.className='quota-actions';
+    const history=document.createElement('button');history.className='button button-primary';history.type='button';history.textContent='🔥 Usar as mais pedidas';
+    history.addEventListener('click',()=>{
+      const target=$(host?'stage-library':'guest-library');
+      if(host)$('song-dialog').close();
+      if(!host)switchMobileTab('queue');
+      target?.scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    const direct=document.createElement('button');direct.className='button button-soft';direct.type='button';direct.textContent='🔗 Tenho um link do YouTube';
+    direct.addEventListener('click',()=>{
+      const details=document.querySelector(host?'.host-manual':'#guest-queue-panel .manual-song');
+      if(!details)return;
+      details.open=true;
+      const urlInput=$(host?'host-url':'guest-video-url');
+      const title=$(host?'host-song-title':'guest-song-title');
+      if(title&&!title.value)title.value=query.slice(0,120);
+      details.scrollIntoView({behavior:'smooth',block:'center'});
+      urlInput?.focus({preventScroll:true});
+    });
+    actions.append(history,direct);box.append(heading,expl,actions);results.append(box);
+  }
   async function searchYoutube(host,forceExternal=false) {
     const search=$(host?'host-search':'youtube-search');
     const results=$(host?'host-results':'search-results');
@@ -1159,6 +1204,7 @@
         return;
       }finally{setLoading(button,false);}
     }
+    if(state.externalSearchBlocked){showExternalFallback(results,host,query,'O servidor indicou que a cota não está disponível.');return;}
     const key=query.toLocaleLowerCase('pt-BR');
     const cached=searchMemory.get(key);
     if(cached&&Date.now()-cached.date<5*60*1000){renderYoutubeResults(cached.items,results,host);return;}
@@ -1169,10 +1215,24 @@
         body:{ query,roomId:state.room.id }
       });
       if(error){
-        // As mensagens do backend podem vir em Response; o fallback orienta a configuração.
-        let detail='Busca externa indisponível. Configure SERPAPI_KEY no Supabase ou escolha um hit do acervo.';
-        try{const j=await error.context?.json?.();if(j?.error)detail=j.error;}catch{}
+        let detail='Não consegui consultar a SerpApi. Confira a Edge Function youtube-search no Supabase.';
+        let code='';
+        try{
+          const response=error.context;
+          if(response?.json){const j=await response.clone().json();detail=j.error||j.message||detail;code=j.code||'';}
+          if(response?.status===429&&code==='')code='RATE_LIMIT';
+        }catch{}
+        if(code==='QUOTA_EXHAUSTED'||code==='QUOTA_UNAVAILABLE'){
+          state.externalSearchBlocked=true;
+          showExternalFallback(results,host,query,detail);
+          return;
+        }
         throw new Error(detail);
+      }
+      if(data?.code==='QUOTA_EXHAUSTED'||data?.code==='QUOTA_UNAVAILABLE'){
+        state.externalSearchBlocked=true;
+        showExternalFallback(results,host,query,data.error||'A cota externa acabou.');
+        return;
       }
       if(data?.error)throw new Error(data.error);
       if(!Array.isArray(data?.items))throw new Error('Resposta inválida da busca. Tente novamente.');
@@ -1237,7 +1297,7 @@
     if(room&&user)state.client.from('karaoke_members').delete().eq('room_id',room).eq('user_id',user).then(({error})=>{if(error)console.warn(error);});
     history.replaceState(null,'',new URL('./',location.href).href);
     localStorage.removeItem('tem-gogo-pending-room');
-    if(state.user)await openLobby();else showPinEntry('');
+    if(state.user)await openLobby();else showGuestEntry('');
   }
   async function exitStage(){
     if(state.role!=='host')return;
@@ -1251,45 +1311,26 @@
     if(state.client){const {error}=await state.client.auth.signOut();if(error){toast(humanError(error),true);return;}}
     await stopSession();state.user=null;show('landing');toast('Saiu da sua conta.');
   }
-  async function changeRoomPin(event){
-    event.preventDefault();
-    if(state.role!=='host'||!state.room)return;
-    const pin=$('new-room-pin').value.trim();
-    if(!/^[0-9]{6}$/.test(pin)){toast('Use uma senha com seis números.',true);return;}
-    const button=event.target.querySelector('[type=submit]');setLoading(button,true,'Protegendo...');
-    try{
-      if(!window.confirm('Trocar a senha? Os convidados atuais perderão acesso e precisarão entrar novamente.'))return;
-      await callRPC('karaoke_change_pin',{p_room:state.room.id,p_pin:pin});
-      for(const id of [...state.peers.keys()])closePeer(id);
-      $('new-room-pin').value='';$('pin-dialog').close();
-      toast('Senha trocada! Repasse apenas aos convidados. 🔐');
-      await fetchMembers();renderAll();
-    }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
-  }
   function attachEvents(){
     $('invite-install').addEventListener('click',installFromInvite);
-    $('invite-continue').addEventListener('click',()=>showPinEntry(state.inviteRoom));
-    $('regen-pin').addEventListener('click',()=>{$('new-room-pin').value=sixDigitPin();});
-    $('change-pin').addEventListener('click',()=>{$('pin-dialog').showModal();});
-    $('pin-close').addEventListener('click',()=>$('pin-dialog').close());
-    $('pin-change-form').addEventListener('submit',changeRoomPin);
-    $('hub-join-room').addEventListener('click',()=>showPinEntry(''));
+    $('guest-install').addEventListener('click',installFromInvite);
+    $('invite-continue').addEventListener('click',()=>showGuestEntry(state.inviteRoom));
+    $('hub-join-room').addEventListener('click',()=>showGuestEntry(''));
     $('guest-switch').addEventListener('click',goToMyRooms);
     $('stage-switch').addEventListener('click',goToMyRooms);
     $('copy-room-invite').addEventListener('click',async()=>{
       if(!state.readyRoom)return;
-      const {room,pin}=state.readyRoom;
-      const text=`🎤 Tem Gogó — ${room.title}\nConvite: ${currentURL(room.code)}\nCódigo: ${room.code}\nSenha da festa: ${pin}\n(Não é a senha da sua conta.)`;
+      const {room}=state.readyRoom;
+      const text=`🎤 Tem Gogó — ${room.title}\nEntre direto: ${currentURL(room.code)}\nCódigo: ${room.code}\nBasta escanear, sem senha!`;
       try{await navigator.clipboard.writeText(text);toast('Convite copiado! Envie só para quem foi chamado. 🎟️');}
-      catch{toast('Copiar indisponível; copie o código e a senha mostrados na tela.',true);}
+      catch{toast('Copiar indisponível; compartilhe o endereço ou o QR do palco.',true);}
     });
     $('ready-open-stage').addEventListener('click',async()=>{
       const saved=state.readyRoom;
       $('room-ready-dialog').close();state.readyRoom=null;
-      $('ready-pin').textContent='••••••';
       if(saved)await enterRoomAsHost(saved.room);
     });
-    $('room-ready-dialog').addEventListener('cancel',e=>{e.preventDefault();toast('Use Abrir palco para continuar. A senha só aparece agora.');});
+    $('room-ready-dialog').addEventListener('cancel',e=>{e.preventDefault();toast('Toque em Abrir palco para mostrar o QR da festa.');});
     $('video-error-close').addEventListener('click',()=>$('video-error-dialog').close());
     $('video-replace').addEventListener('click',()=>{
       const s=state.failedVideoSong||state.currentSong;
