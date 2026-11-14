@@ -307,3 +307,42 @@ body.invite-active .landing-footer,body.entry-active .landing-footer{padding-top
 .qr-code-text{font-size:clamp(10px,1vw,14px)!important;letter-spacing:.015em!important;white-space:nowrap}
 @media(max-width:600px){.qr-code-text{font-size:10px!important}.invite-code-note strong{overflow-wrap:anywhere}}
 .guest-install-shortcut{margin:6px 0 12px;width:100%}
+
+/* Tem Gogó 10: seleção solo/dueto e estado inequívoco de sincronização */
+.duet-choice{margin:18px 0 16px;border:1px solid rgba(228,189,255,.3);border-radius:18px;padding:14px;color:var(--text,#fff);background:rgba(255,255,255,.035)}
+.duet-choice legend{font-size:.88rem;font-weight:800;padding:0 6px}
+.duet-pills{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.duet-pills label{display:flex;align-items:center;justify-content:center;gap:6px;padding:13px 6px;border-radius:12px;background:rgba(255,255,255,.07);font-weight:800;cursor:pointer}
+.duet-pills label:has(input:checked){background:#dcff57;color:#191126}
+.duet-pills input{accent-color:#ed5bc4;width:16px;height:16px}
+.duet-person{display:grid;gap:7px;margin-top:12px}
+.duet-person[hidden]{display:none}
+.duet-person label{font-weight:700;font-size:.9rem}
+.duet-person select{width:100%;background:#33213d;color:white;border:1px solid #98719e;border-radius:12px;padding:12px;min-height:48px}
+.duet-person small{line-height:1.5;opacity:.82}
+.mic-score-sync{margin:14px auto;padding:12px;border:1px solid rgba(220,255,87,.42);border-radius:14px;color:#e8ffb3;line-height:1.45;font-weight:700;font-size:.86rem}
+.final-duet-details{display:grid;gap:6px;margin:8px 0;text-align:center}
+.final-duet-details[hidden]{display:none}
+.duet-result-line{background:rgba(255,255,255,.11);padding:8px 10px;border-radius:10px;font-size:.9rem;font-weight:800}
+
+.playlist-import{padding:15px 3px;color:inherit}.playlist-import summary{cursor:pointer;font-weight:850;padding:8px 0}.playlist-import p,.playlist-import small{line-height:1.5;font-size:.85rem}.playlist-import textarea{width:100%;min-height:114px;border-radius:14px;border:1px solid #9e7aa8;background:#2d1d39;color:white;padding:12px;font:inherit;margin:10px 0}.playlist-import small{display:block;opacity:.83;padding:6px 0}
+
+/* Tem Gogó v11 • Cerimônia final da festa (beta) */
+.party-recap-modal{width:min(630px,calc(100vw - 20px));max-height:min(92dvh,900px);padding:0;border:1px solid rgba(232,244,99,.28);border-radius:24px;background:#160a29;color:white;box-shadow:0 30px 100px #000b;overflow:auto}
+.party-recap-modal::backdrop{background:rgba(6,3,15,.88);backdrop-filter:blur(10px)}
+.recap-inner{padding:clamp(18px,4vw,34px);display:flex;flex-direction:column;gap:14px;text-align:center}
+.recap-eyebrow{font-size:11px;letter-spacing:.18em;font-weight:900;color:#c7f55b}
+.recap-inner h2{font-size:clamp(23px,6vw,38px);line-height:1.03;color:white;text-transform:uppercase;margin:0}
+.recap-room-name{color:#ffd8f7;font-size:15px;margin:0}
+.recap-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.recap-stats>div{background:rgba(255,255,255,.075);border:1px solid #ffffff1e;border-radius:15px;padding:12px 5px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.recap-stats strong{font-size:clamp(22px,7vw,37px);font-weight:950;color:#d9ff65;line-height:1}
+.recap-stats span{font-size:11px;line-height:1.2;color:#e7dafa}
+.recap-heading{font-size:13px;font-weight:900;letter-spacing:.09em;color:#f4e4ff;margin-top:6px}
+.recap-podium{display:flex;flex-direction:column;gap:8px}
+.recap-winner{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;padding:12px;background:linear-gradient(115deg,#6e2da733,#ff2caa22);border:1px solid rgba(255,255,255,.12);border-radius:14px}
+.recap-medal{font-size:28px}.recap-winner div{display:flex;flex-direction:column;gap:2px;min-width:0}.recap-winner b{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.recap-winner small{font-size:11px;color:#c7bbd8}.recap-winner>strong{font-size:20px;color:#d7ff69}
+.recap-flop{background:linear-gradient(120deg,#ff56a322,#ffe86d13);border:1px solid #ffca7a6b;padding:14px;border-radius:16px;display:flex;flex-direction:column;gap:4px}
+.recap-flop[hidden]{display:none}.recap-flop>span{font-size:11px;font-weight:900;letter-spacing:.1em;color:#ffca7a}.recap-flop>b{font-size:21px;color:white}.recap-flop>small{font-size:16px;color:#d9ff65}.recap-flop>p{font-size:12px;color:#fce4fa;margin:4px 0 0}
+.recap-muted,.recap-disclaimer{font-size:12px;line-height:1.45;color:#ded1f0;margin:0}
+@media(prefers-reduced-motion:reduce){.party-recap-modal *{animation:none!important;transition:none!important}}

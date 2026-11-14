@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, playMetrics: null
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0
   };
 
   function toast(message, error = false) {
@@ -406,9 +406,19 @@
       try{
         const entries=await callRPC('karaoke_resume_room',{p_code:code});
         if(entries?.length)return;
+        const lastRoom=state.room?.id;
+        let recap=null;
+        try{recap=await callRPC('karaoke_get_party_recap',{p_room:lastRoom});}catch{}
+        if(!state.room || state.room.id!==lastRoom)return;
         await stopSession();
-        showGuestEntry(code);
-        toast('Você saiu desta festa ou ela foi encerrada. Peça um novo convite ao anfitrião.',true);
+        if(recap){
+          localStorage.removeItem('tem-gogo-pending-room');
+          history.replaceState(null,'',new URL('./',location.href).href);
+          show('landing');showPartyRecap(recap);
+        } else {
+          showGuestEntry(code);
+          toast('Você saiu desta festa ou ela foi encerrada. Peça um novo convite ao anfitrião.',true);
+        }
       }catch(err){console.warn('Verificação de acesso adiada:',err.message);}
     },12000);
   }
@@ -445,7 +455,15 @@
     if(state.room?.id!==requestedRoom)return;
     if(error)throw error;
     state.room={...state.room,...data};
-    if(state.role==='guest' && (data.status!=='open'||new Date(data.expires_at)<new Date())) {toast('Esta sala foi encerrada.',true);await leaveGuest();return;}
+    if(state.role==='guest' && (data.status!=='open'||new Date(data.expires_at)<new Date())) {
+      let recap=null;
+      try{recap=await callRPC('karaoke_get_party_recap',{p_room:requestedRoom});}catch(e){console.warn('Recap convidado:',e);}
+      // Não apagar a associação: os participantes podem rever o placar enquanto autorizados.
+      await stopSession();localStorage.removeItem('tem-gogo-pending-room');
+      history.replaceState(null,'',new URL('./',location.href).href);
+      show('landing'); if(recap)showPartyRecap(recap);else toast('A festa terminou. Até o próximo show! 🎤');
+      return;
+    }
     const found=state.songs.find(s=>s.id===data.current_song_id);
     if(state.role==='guest') setGuestNowPlaying(found||null);
   }
@@ -463,29 +481,56 @@
     const {data,error}=await state.client.from('karaoke_members').select('user_id,display_name,joined_at')
       .eq('room_id',requestedRoom).order('joined_at',{ascending:true});
     if(state.room?.id!==requestedRoom)return;if(error)throw error;
-    state.members=data||[];
+    state.members=data||[];refreshDuetOptions();
   }
   async function fetchScores(){if(!state.room)return;const requestedRoom=state.room.id;const {data,error}=await state.client.from('karaoke_scores').select('*').eq('room_id',requestedRoom).order('created_at',{ascending:false}).limit(250);if(state.room?.id!==requestedRoom)return;if(error)throw error;state.scores=data||[];}
   function memberName(userId) {if(userId===state.room?.owner_id)return 'Anfitrião';return state.members.find(m=>m.user_id===userId)?.display_name || 'Artista';}
+  function songSingers(song){return [song?.user_id,song?.duet_partner_id].filter(Boolean);}
+  function songSingerLabel(song){return songSingers(song).map(memberName).join(' + ')||'Artista';}
+  function isSinger(song,uid){return Boolean(uid&&songSingers(song).includes(uid));}
+  function preferredPartner(host){
+    const el=$(host?'host-duet-partner':'guest-duet-partner');
+    if(!el||el.closest('.duet-choice')?.querySelector('input[value="solo"]:checked'))return null;
+    const user=el.value;
+    if(!user||user===state.user?.id||!state.members.some(m=>m.user_id===user)){
+      throw new Error('Escolha uma pessoa da mesma sala para fazer o dueto.');
+    }
+    return user;
+  }
+  function refreshDuetOptions(){
+    for(const host of [false,true]){
+      const el=$(host?'host-duet-partner':'guest-duet-partner');if(!el)continue;
+      const previous=el.value;
+      const choices=state.members.filter(m=>m.user_id!==state.user?.id);
+      el.replaceChildren(new Option(choices.length?'Escolha o outro cantor':'Ainda não há outra pessoa na sala',''));
+      for(const m of choices)el.add(new Option(m.display_name,m.user_id));
+      if(choices.some(m=>m.user_id===previous))el.value=previous;
+    }
+  }
+  async function enqueueSelectedVideo(video,title,host){
+    const partner=preferredPartner(host);
+    if(partner)return callRPC('karaoke_enqueue_duet',{p_room:state.room.id,p_video:video,p_title:title,p_partner:partner});
+    return callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title});
+  }
   function renderAll(){renderQueue();renderMembers();if(state.role==='host')renderMics();}
   function renderMembers(){if(state.role==='host')$('stage-count').textContent=`👥 ${state.members.length+1} na festa`;}
   function renderQueue() {
     const songs=state.songs.filter(s=>s.status==='playing'||s.status==='queued');
     if(state.role==='host') {
       $('queue-counter').textContent=`${songs.filter(s=>s.status==='queued').length} MÚSICAS`;
-      $('queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="queue-item ${s.status==='playing'?'playing':''}"><div class="queue-num">${s.status==='playing'?'♫':String(i+1).padStart(2,'0')}</div><div class="queue-text"><strong>${escapeHTML(s.title)}</strong><small>${s.status==='playing'?'● Tocando • ':''}${escapeHTML(memberName(s.user_id))}</small></div>${s.status==='queued'?`<span class="queue-actions"><button class="queue-play" type="button" data-play-song="${s.id}" aria-label="Tocar esta música">▶</button><button class="queue-remove" type="button" data-remove-song="${s.id}" aria-label="Remover esta música">✕</button></span>`:'<span class="queue-play">ON</span>'}</div>`).join(''):'<div class="queue-empty">A fila ainda tá vazia. Mostre o QR Code! 🎶</div>';
+      $('queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="queue-item ${s.status==='playing'?'playing':''}"><div class="queue-num">${s.status==='playing'?'♫':String(i+1).padStart(2,'0')}</div><div class="queue-text"><strong>${escapeHTML(s.title)}</strong><small>${s.status==='playing'?'● Tocando • ':''}${escapeHTML(songSingerLabel(s))}</small></div>${s.status==='queued'?`<span class="queue-actions"><button class="queue-play" type="button" data-play-song="${s.id}" aria-label="Tocar esta música">▶</button><button class="queue-remove" type="button" data-remove-song="${s.id}" aria-label="Remover esta música">✕</button></span>`:'<span class="queue-play">ON</span>'}</div>`).join(''):'<div class="queue-empty">A fila ainda tá vazia. Mostre o QR Code! 🎶</div>';
     }
     if(state.role==='guest') {
-      $('guest-queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="mobile-queue-item"><span class="number">${s.status==='playing'?'♫':i+1}</span><span class="title"><strong>${escapeHTML(s.title)}</strong><small>${escapeHTML(memberName(s.user_id))}</small></span><span>${s.status==='playing'?'🔊':'🎵'}</span></div>`).join(''):'<p style="color:var(--muted);font-size:13px">Sem músicas ainda. Que tal escolher a primeira? 🎤</p>';
+      $('guest-queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="mobile-queue-item"><span class="number">${s.status==='playing'?'♫':i+1}</span><span class="title"><strong>${escapeHTML(s.title)}</strong><small>${escapeHTML(songSingerLabel(s))}</small></span><span>${s.status==='playing'?'🔊':'🎵'}</span></div>`).join(''):'<p style="color:var(--muted);font-size:13px">Sem músicas ainda. Que tal escolher a primeira? 🎤</p>';
       setGuestNowPlaying(songs.find(s=>s.status==='playing')||null);
       syncGuestTurn(songs.find(s=>s.status==='playing')||null);
     }
   }
-  function setGuestNowPlaying(song){$('guest-now-playing').textContent=song?.title || 'O palco tá pronto pra você!';$('guest-now-singer').textContent=song?'Escolhida por '+memberName(song.user_id):'Escolha um hit na aba ao lado.';}
-  function isMyTurn(){return state.role==='guest'&&Boolean(state.user?.id)&&state.songs.some(song=>song.status==='playing'&&song.user_id===state.user.id);}
+  function setGuestNowPlaying(song){$('guest-now-playing').textContent=song?.title || 'O palco tá pronto pra você!';$('guest-now-singer').textContent=song?'Com '+songSingerLabel(song):'Escolha um hit na aba ao lado.';}
+  function isMyTurn(){return state.role==='guest'&&Boolean(state.user?.id)&&state.songs.some(song=>song.status==='playing'&&isSinger(song,state.user.id));}
   function syncGuestTurn(playing){
     if(state.role!=='guest')return;
-    const mine=Boolean(playing&&playing.user_id===state.user?.id);
+    const mine=Boolean(playing&&isSinger(playing,state.user?.id));
     $('your-turn-banner').hidden=!mine;$('mic-turn-kicker').hidden=!mine;
     $('mic-card').classList.toggle('my-turn',mine);
     $('mobile-tab-mic').classList.toggle('turn-highlight',mine);
@@ -498,11 +543,11 @@
         $('mic-headline').textContent=state.localStream?'Seu mic tá preparado!':'É sua vez, estrela! 🎤';
         $('mic-description').textContent=state.localStream?'Conectando seu som com a TV...':'Toque no microfone e autorize o uso. As barras vão mostrar sua voz de verdade.';
         toast('🎤 É SUA VEZ! O VOX convocou seu microfone.');
-        if(state.localStream&&!state.localPeer)void connectMicToStage();
+        if(state.localStream){if(state.micActivity?.songId!==playing.id)resetLocalMicActivity(playing.id);if(!state.localPeer)void connectMicToStage();}
         if(navigator.vibrate)navigator.vibrate([100,60,100]);
       }else if(wasMine){
         // Privacidade: ao terminar a apresentação, fecha a captura e a conexão.
-        if(state.localStream)void stopMicrophone(true);
+        if(state.localStream)void syncMicActivity(true).finally(()=>stopMicrophone(true));
         toast('Apresentação encerrada! O microfone foi desligado. 👏');
       }
     }
@@ -611,7 +656,7 @@
     if(state.role==='host'){
       if(signal.kind==='offer') {
         const singer=state.songs.find(s=>s.status==='playing');
-        if(!singer||singer.user_id!==from){await sendSignal(from,'notice',{message:'Seu microfone entra ao vivo somente na sua música. Aguarde sua vez. 🎤'});return;}
+        if(!singer||!isSinger(singer,from)){await sendSignal(from,'notice',{message:'Seu microfone entra ao vivo somente na sua música. Aguarde sua vez. 🎤'});return;}
         const limit=Number(cfg.MAX_ACTIVE_MICS)||8;
         if(!state.peers.has(from)&&state.peers.size>=limit){await sendSignal(from,'notice',{message:`O palco já tem ${limit} microfones. Aguarde alguém sair.`});return;}
         closePeer(from);
@@ -672,7 +717,7 @@
       updateGuestMicState('preview');
       $('mic-capture-state').textContent='🎙️ Microfone ligado • fale ou cante para testar';
       $('mic-volume-title').textContent='NÍVEL DO SOM • CAPTAÇÃO LOCAL';
-      if(isMyTurn())await connectMicToStage();
+      if(isMyTurn()){const playing=state.songs.find(s=>s.status==='playing');if(playing)resetLocalMicActivity(playing.id);await connectMicToStage();}
     }catch(err){console.error(err);toast(humanError(err),true);await stopMicrophone(false);}finally{btn.disabled=false;}
   }
   async function connectMicToStage(){
@@ -700,6 +745,7 @@
     }
   }
   async function stopMicrophone(notifyHost=true){
+    if(state.micActivity?.samples>state.micActivity?.lastSentSamples)void syncMicActivity(true);
     if(notifyHost&&state.room&&state.user){sendSignal(state.room.owner_id,'bye').catch(console.warn);}
     try{state.localPeer?.close();}catch{}state.localPeer=null;
     state.localStream?.getTracks().forEach(track=>track.stop());state.localStream=null;
@@ -730,7 +776,7 @@
     $('mic-toggle').classList.toggle('voice-detected',capturing);
     if(capturing!==state.captureSeen){
       state.captureSeen=capturing;
-      $('mic-capture-state').textContent=!state.localStream?'🔒 Microfone desligado':capturing?'🎵 SOM CAPTADO! Sua voz está chegando ao microfone':'🎙️ Microfone ligado • fale ou cante para testar';
+      $('mic-capture-state').textContent=!state.localStream?'🔒 Microfone desligado':capturing?'🎵 VOZ CAPTADA NO CELULAR! Confira também o estado da TV e da pontuação.':'🎙️ Microfone ligado • fale ou cante para testar';
       $('mic-volume-title').textContent=capturing?'NÍVEL DO SOM • RECEBENDO ÁUDIO':'NÍVEL DO SOM • SEM ÁUDIO DETECTADO';
     }
   }
@@ -743,27 +789,93 @@
   function renderMics(){
     if(state.role!=='host')return;
     const entries=[...state.peers.entries()];
-    $('active-mic-count').textContent=`${entries.filter(([_,m])=>m.connection==='connected').length} conectados`;
+    // Exibe também cantores com participação sincronizada, mesmo se a voz WebRTC falhar.
+    for(const uid of songSingers(state.currentSong)){
+      if(!state.peers.has(uid) && state.cloudMicStats.has(uid))
+        entries.push([uid,{level:0,connection:'cloud'}]);
+    }
+    const audioCount=entries.filter(([_,m])=>m.connection==='connected').length;
+    const cloudCount=entries.filter(([_,m])=>m.connection==='cloud').length;
+    $('active-mic-count').textContent=`${audioCount} voz(es) na TV • ${songSingers(state.currentSong).filter(id=>state.cloudMicStats.get(id)?.samples>=8).length} nota(s) sincronizada(s)`;
     $('mic-list').innerHTML=entries.length?entries.map(([uid,record])=>{
-      const score=liveScore(state.micStats.get(uid),state.songFrames||0);
-      return `<div class="mic-person"><div class="mic-person-top"><span>🎙️ ${escapeHTML(memberName(uid))}</span><b>${score} pts</b></div><div class="mic-level"><span id="meter-${uid}" style="width:${Math.min(100,record.level*800)}%"></span></div><small style="display:block;margin-top:7px;color:var(--muted);font-size:10px">${escapeHTML(record.connection==='connected'?'● Ao vivo':record.connection==='failed'?'⚠ Conexão falhou':'○ Conectando...')}</small></div>`;
+      const status=scoreForSinger(uid);const score=status?.score;
+      return `<div class="mic-person"><div class="mic-person-top"><span>🎙️ ${escapeHTML(memberName(uid))}</span><b>${score==null?'Aguardando sinal':score+' pts'}</b></div><div class="mic-level"><span id="meter-${uid}" style="width:${Math.min(100,record.level*800)}%"></span></div><small style="display:block;margin-top:7px;color:var(--muted);font-size:10px">${escapeHTML(record.connection==='connected'?'● Áudio ao vivo na TV':record.connection==='cloud'?'☁ Nota recebida do celular • áudio da TV sem conexão':record.connection==='failed'?'⚠ Áudio não chegou à TV':'○ Conectando...' )}</small></div>`;
     }).join(''):'<div class="mic-empty">Quando alguém ativar o microfone, aparece aqui. ✨</div>';
   }
   function sampleAudio(){
-    if(state.role==='guest'&&state.localAnalyzer)drawMobileLevels(calculateRMS(state.localAnalyzer));
+    if(state.role==='guest'&&state.localAnalyzer){const rms=calculateRMS(state.localAnalyzer);drawMobileLevels(rms);collectLocalMicActivity(rms);}
     if(state.role!=='host')return;
     if(state.isPlaying&&state.currentSong)state.songFrames=(state.songFrames||0)+1;
     state.peers.forEach((entry,uid)=>{
       const rms=calculateRMS(entry.analyser);entry.level=rms;
       const meter=document.getElementById('meter-'+uid);if(meter)meter.style.width=Math.min(100,rms*800)+'%';
-      if(state.isPlaying&&state.currentSong&&uid===state.currentSong.user_id&&entry.connection==='connected'){
-        const stat=state.micStats.get(uid)||{sung:0,intensity:0};
-        if(rms>.017){stat.sung++;stat.intensity+=Math.min(1,(rms-.017)/.082);}
-        state.micStats.set(uid,stat);
-      }
+      // Apenas volume para visualização no palco, sem criar notas aqui.
+      // Todas as notas nascem das amostras agregadas reportadas pelo CELULAR.
+
     });
   }
 
+  // ---- Pontuação resiliente: relatório de atividade vocal do celular via Supabase.
+  // O sinal local não substitui o som WebRTC na TV; é apenas um respaldo para a nota.
+  function resetLocalMicActivity(songId){
+    state.micActivity={songId, samples:0,vocalSamples:0,intensitySum:0,
+      lastSampleAt:0,lastSentSamples:0,lastSyncAt:0,lastAttemptAt:0};
+  }
+  function collectLocalMicActivity(rms){
+    if(state.role!=='guest'||!state.localStream||!isMyTurn())return;
+    const song=state.songs.find(s=>s.status==='playing');if(!song)return;
+    if(state.micActivity?.songId!==song.id)resetLocalMicActivity(song.id);
+    const a=state.micActivity;const now=performance.now();
+    if(now-a.lastSampleAt<250)return;
+    a.lastSampleAt=now;
+    a.samples++;
+    if(rms>.012){a.vocalSamples++;a.intensitySum+=Math.round(Math.min(1,(rms-.012)/.085)*1000);}
+    if(now-a.lastAttemptAt>3500&&a.samples>a.lastSentSamples)void syncMicActivity();
+  }
+  async function syncMicActivity(force=false){
+    const a=state.micActivity;
+    if(!a||!state.room||state.role!=='guest'||state.micActivitySyncing||a.samples<=a.lastSentSamples)return;
+    const now=performance.now();if(!force&&now-a.lastAttemptAt<3000)return;
+    a.lastAttemptAt=now;state.micActivitySyncing=true;
+    try{
+      const saved=await callRPC('karaoke_report_mic_activity',{
+        p_room:state.room.id,p_song:a.songId,p_samples:a.samples,
+        p_vocal_samples:a.vocalSamples,p_intensity_sum:a.intensitySum
+      });
+      if(saved){a.lastSentSamples=a.samples;a.lastSyncAt=Date.now();
+        const label=$('mic-score-sync');if(label)label.textContent='✅ Dados do microfone enviados • aguardando placar do palco';
+      }
+    }catch(err){
+      console.warn('Não foi possível sincronizar os dados de pontuação:',err.message);
+      const label=$('mic-score-sync');if(label)label.textContent='⚠ Pontuação sem sincronização. Confira a internet ou atualize o banco.';
+    }finally{state.micActivitySyncing=false;}
+  }
+  async function fetchMicActivity(){
+    if(!state.room)return;
+    const requestedRoom=state.room.id;
+    const song=state.currentSong||state.songs.find(s=>s.status==='playing');
+    if(!song)return;
+    const {data,error}=await state.client.from('karaoke_mic_activity')
+      .select('user_id,samples,vocal_samples,intensity_sum')
+      .eq('room_id',requestedRoom).eq('song_id',song.id);
+    if(error){console.warn('Pontuação sincronizada indisponível:',error.message);return;}
+    if(state.room?.id!==requestedRoom)return;
+    state.cloudMicStats=new Map((data||[]).map(x=>[x.user_id,x]));
+  }
+  function scoreForSinger(uid){
+    // Nunca use microfone do notebook nem amostras do WebRTC para pontuar.
+    // WebRTC transporta apenas o som dos celulares para as caixas do palco.
+    const frames=state.songFrames||0;
+    const cloud=state.cloudMicStats.get(uid);
+    if(frames<=0 || !cloud || Number(cloud.samples)<8)return null;
+    const observedSeconds=frames*.14;
+    if(observedSeconds<1)return null;
+    const sungSeconds=Math.min(observedSeconds,Math.max(0,Number(cloud.vocal_samples)||0)*.25);
+    const volume=Number(cloud.vocal_samples)>0
+      ?Math.min(1,Math.max(0,Number(cloud.intensity_sum)||0)/(Number(cloud.vocal_samples)*1000)):0;
+    const score=Math.round(Math.min(100,Math.max(0,(sungSeconds/observedSeconds)*72+volume*28)));
+    return {score,sungSeconds,observedSeconds,source:'somente celular (Supabase)'};
+  }
   // ----- YouTube e avaliação de atividade vocal (não de afinação). -----
   function loadYouTubeAPI(){
     if(window.YT?.Player){state.playerAPIReady=true;return Promise.resolve();}
@@ -834,10 +946,10 @@
     $('play-pause').textContent=state.isPlaying?'⏸ Pausar':'▶ Reproduzir';
     if(event.data===window.YT.PlayerState.ENDED&&!state.finishing&&state.currentSong)finishSong(false);
   }
-  function resetSongMetrics(){state.micStats=new Map();state.songFrames=0;state.isPlaying=false;state.playMetrics=null;}
+  function resetSongMetrics(){state.micStats=new Map();state.cloudMicStats=new Map();state.songFrames=0;state.isPlaying=false;state.playMetrics=null;}
   function setNowPlaying(song){
     $('now-title').textContent=song?.title||'O palco tá esperando você! 🎶';
-    $('now-by').textContent=song?'Escolhida por '+memberName(song.user_id):'Adicione a primeira música pelo celular ou pelo painel.';
+    $('now-by').textContent=song?'Com '+songSingerLabel(song):'Adicione a primeira música pelo celular ou pelo painel.';
     $('song-pill').textContent=song?'✦ Faça barulho!':'✦ Prontos para o show?';
     $('video-placeholder').hidden=!!song;
   }
@@ -865,13 +977,39 @@
     catch(err){toast(humanError(err),true);}
   }
   function getScoreResults(){
-    // Apenas a pessoa que escolheu a música recebe a avaliação desta apresentação.
-    const uids=new Set(state.currentSong?.user_id?[state.currentSong.user_id]:[]);
-    const seconds=Number(((state.songFrames||0)*.14).toFixed(2));
-    return [...uids].slice(0,12).map(uid=>{
-      const stat=state.micStats.get(uid)||{sung:0,intensity:0};
-      return {user_id:uid,score:liveScore(stat,state.songFrames||0),sung_seconds:Number((stat.sung*.14).toFixed(2)),observed_seconds:seconds};
-    });
+    return songSingers(state.currentSong).map(uid=>{
+      const result=scoreForSinger(uid);
+      if(!result)return null; // Sem dados: nunca invente nota zero.
+      return {user_id:uid,score:result.score,
+        sung_seconds:Number(result.sungSeconds.toFixed(2)),
+        observed_seconds:Number(result.observedSeconds.toFixed(2))};
+    }).filter(Boolean);
+  }
+  function showPerformanceResults(results,singers){
+    if(!results.length){
+      clearGif();$('final-overlay').hidden=false;
+      $('final-meme').textContent='📡';$('final-person').textContent=singers.map(memberName).join(' + ')||'Artista';
+      $('final-number').innerHTML='—<span>/100</span>';
+      $('final-stars').textContent='☆☆☆☆☆';
+      $('final-caption').textContent='A voz pode ter sido captada no celular, mas não chegou ao placar. Confira a conexão e a sincronização antes de tentar novamente.';
+      $('final-duet-details').hidden=true;
+      return;
+    }
+    const mean=Math.round(results.reduce((total,r)=>total+r.score,0)/results.length);
+    showFinal({score:mean,user_id:results[0].user_id});
+    $('final-person').textContent=singers.map(memberName).join(' + ');
+    const detail=$('final-duet-details');
+    if(singers.length>1){
+      detail.hidden=false;
+      detail.replaceChildren();
+      for(const uid of singers){
+        const result=results.find(r=>r.user_id===uid);
+        const entry=document.createElement('div');entry.className='duet-result-line';
+        entry.textContent=memberName(uid)+' • '+(result?result.score+' pontos':'Sem sinal para avaliação');
+        detail.append(entry);
+      }
+      $('final-caption').textContent=results.length===singers.length?'Dueto do povo! A nota do time é a média das duas avaliações. 💕':'Uma das vozes ficou sem dados. Nota provisória só de quem teve sinal; não é uma avaliação completa do dueto.';
+    }else detail.hidden=true;
   }
   /* Um veredito bem brasileiro. Os textos são originais, sem copiar falas de artistas. */
   const memes=[
@@ -962,8 +1100,10 @@
   async function finishSong(skipped=false,showResults=true){
     if(!state.currentSong||state.finishing)return;
     state.finishing=true;
-    const results=skipped?[]:getScoreResults();
     try {
+      if(!skipped){await fetchMembers();await wait(2400);await fetchMicActivity();}
+      const singers=songSingers(state.currentSong);
+      const results=skipped?[]:getScoreResults();
       await callRPC('karaoke_finish_song',{p_room:state.room.id,p_skipped:skipped,p_results:results});
       state.isPlaying=false;
       if(skipped){try{state.player?.stopVideo();}catch{}}
@@ -971,7 +1111,7 @@
       // Privacidade: feche os microfones ao fim do show.
       for(const uid of [...state.peers.keys()]){void sendSignal(uid,'bye').catch(console.warn);closePeer(uid);}
       if(!skipped&&showResults){
-        showFinal([...results].sort((a,b)=>b.score-a.score)[0]||{score:0,user_id:null});
+        showPerformanceResults(results,singers);
         state.scoreOverlayTimer=setTimeout(()=>{if(state.role==='host')advanceSong();},14000);
       }
       $('play-pause').textContent='▶ Reproduzir';queueChanged();
@@ -1045,7 +1185,7 @@
       try{playable=await checkVideoAvailability(video);}
       catch{toast('Não consegui verificar o link agora. Vou adicioná-lo, mas pode haver restrição de reprodução.',true);}
       if(playable===false)throw new Error('Este link não permite reprodução incorporada no Brasil. Procure outra versão.');
-      await callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title.value.trim()});
+      await enqueueSelectedVideo(video,title.value.trim(),host);
       input.value='';title.value='';await fetchSongs();renderQueue();
       if(host && $('song-dialog').open)$('song-dialog').close();
       toast('Música adicionada! Agora é só ensaiar o refrão. 🎶');
@@ -1083,7 +1223,7 @@
     const cover=document.createElement('img');cover.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';cover.alt='';cover.loading='lazy';cover.width=95;cover.height=54;
     const info=document.createElement('div');info.className='history-song-info';
     const title=document.createElement('strong');title.textContent=item.title;
-    const tiny=document.createElement('small');tiny.textContent=`🔥 ${Number(item.plays)||0} apresentação(ões) no Tem Gogó`;
+    const tiny=document.createElement('small');tiny.textContent=Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões) no Tem Gogó`:'📚 Sugestão da playlist • ainda não testada no palco';
     info.append(title,tiny);
     const button=document.createElement('button');button.type='button';button.className='button button-primary history-add';button.textContent='+ FILA';
     button.setAttribute('aria-label','Adicionar '+item.title+' à fila');
@@ -1120,15 +1260,35 @@
     if(!youtubeId(item.id)){toast('Vídeo indisponível. Escolha outro.',true);return;}
     setLoading(button,true,'Entrando na fila...');
     try {
-      await callRPC('karaoke_enqueue',{
-        p_room:state.room.id, p_video:item.id, p_title:item.title.slice(0,120)
-      });
+      await enqueueSelectedVideo(item.id,item.title.slice(0,120),host);
       await fetchSongs();renderQueue();
       if(host && $('song-dialog').open)$('song-dialog').close();
       else {const feedback=results.closest('.search-results')||results;if(feedback.id==='search-results')makeSearchMessage(feedback,'💚 Entrou na fila! Pode escolher outro hit se quiser.');}
       toast('🎤 '+item.title.slice(0,65)+' entrou na fila. VOX tá de olho!');
     }catch(err){toast(humanError(err),true);}
     finally{setLoading(button,false);}
+  }
+  // Importação com links e títulos confirmados pelo usuário: sem SerpApi.
+  // Não atribui reprodução antes de o YouTube tocar ao menos 50% do vídeo.
+  async function importPlaylistManual(){
+    if(state.role!=='host'||!state.room){toast('Só o anfitrião pode importar a playlist.',true);return;}
+    const input=$('playlist-import-lines');const lines=input.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    if(lines.length<1||lines.length>60){toast('Cole de 1 a 60 músicas, uma por linha.',true);return;}
+    const items=[];
+    for(const line of lines){
+      const cut=line.lastIndexOf('|');
+      if(cut<0){toast('Cada linha deve ter Título | URL do YouTube.',true);return;}
+      const title=line.slice(0,cut).trim(), video_id=youtubeId(line.slice(cut+1).trim());
+      if(!video_id||title.length<3||title.length>120){toast('Corrija a linha: '+line.slice(0,35),true);return;}
+      items.push({video_id,title});
+    }
+    const btn=$('playlist-import-submit');setLoading(btn,true,'Importando...');
+    try{
+      const saved=await callRPC('karaoke_seed_playlist',{p_room:state.room.id,p_items:items});
+      toast('🎤 '+saved+' indicações cadastradas! A reprodução será verificada durante a festa.');
+      input.value='';$('playlist-import-panel').open=false;await loadCatalog(true);
+    }catch(err){toast('Falha ao importar: '+humanError(err),true);}
+    finally{setLoading(btn,false);}
   }
   function renderYoutubeResults(hits,results,host){
     results.replaceChildren();
@@ -1268,6 +1428,7 @@
       if(!state.room)return;
       sampleAudio();cycles++;
       if(cycles%7===0){updateVideoProgress();if(state.role==='host')renderMics();}
+      if(cycles%28===0 && state.role==='host' && state.isPlaying)void fetchMicActivity();
     },140);
   }
   async function stopSession(){
@@ -1288,7 +1449,7 @@
       const el=document.createElement('div');el.id='youtube-player';el.className='youtube-player';frame.prepend(el);
     }
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
-    state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.catalog=[];state.catalogFetchedAt=0;state.currentSong=null;state.room=null;state.role=null;
+    state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.currentSong=null;state.room=null;state.role=null;
     state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.isPlaying=false;state.finishing=false;
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
@@ -1301,13 +1462,51 @@
     localStorage.removeItem('tem-gogo-pending-room');
     if(state.user)await openLobby();else showGuestEntry('');
   }
+  function recapText(data){
+    const podium=Array.isArray(data?.podium)?data.podium:[];
+    const rows=podium.map((p,i)=>`${['🥇','🥈','🥉'][i]} ${p.name} — ${p.best_score}/100 (melhor nota, ${p.songs_scored} apresentação(ões))`);
+    const flop=data?.perrengue;
+    return `🎤 TEM GOGÓ — ${data?.room_title||'Nossa festa'}\n`+
+      `🎵 ${Number(data?.songs_completed)||0} músicas concluídas • ${Number(data?.songs_scored)||0} com nota\n`+
+      `🏆 TOP 3\n${rows.join('\n')||'Ainda sem notas.'}\n`+
+      (flop?`🫠 Perrengue da noite: ${flop.name} — ${flop.score}/100\n`:'')+
+      'Nota divertida de participação e volume no microfone do celular; não mede afinação.';
+  }
+  function showPartyRecap(data){
+    state.latestRecap=data;
+    $('recap-room-title').textContent=data?.room_title||'A festa de milhões';
+    $('recap-total').textContent=String(Number(data?.songs_completed)||0);
+    $('recap-scored').textContent=String(Number(data?.songs_scored)||0);
+    $('recap-duets').textContent=String(Number(data?.duets_completed)||0);
+    const ranked=Array.isArray(data?.podium)?data.podium:[];
+    $('recap-podium').innerHTML=ranked.length?ranked.map((row,i)=>`<div class="recap-winner"><span class="recap-medal">${['🥇','🥈','🥉'][i]}</span><div><b>${escapeHTML(row.name||'Artista')}</b><small>Melhor nota • ${Number(row.songs_scored)||1} apresentação(ões)</small></div><strong>${Number(row.best_score)||0}/100</strong></div>`).join(''):'<p class="recap-muted">Sem notas válidas nesta festa. Ninguém vai levar zero por falha de sinal!</p>';
+    const flop=data?.perrengue;
+    $('recap-flop').hidden=!flop;
+    if(flop){$('recap-flop-name').textContent=flop.name||'Estrela';$('recap-flop-score').textContent=(Number(flop.score)||0)+'/100';}
+    const dlg=$('party-recap-dialog');if(!dlg.open)dlg.showModal();
+    if(ranked.length)confetti();
+  }
+  async function reopenLastRecap(){
+    if(!state.client || !state.user){toast('Faça login para rever o placar.',true);return;}
+    const roomId=localStorage.getItem('tem-gogo-last-recap-room');
+    if(!roomId){toast('Ainda não há festa encerrada neste aparelho.',true);return;}
+    try{
+      const data=await callRPC('karaoke_get_party_recap',{p_room:roomId});
+      if(!data)throw new Error('Este placar não está disponível.');
+      showPartyRecap(data);
+    }catch(error){toast(humanError(error),true);}
+  }
   async function exitStage(){
-    if(state.role!=='host')return;
-    const agreed=window.confirm('Encerrar a festa para todas as pessoas? A fila deixa de aceitar músicas.');
-    if(!agreed)return;
-    const id=state.room?.id;
-    try{await callRPC('karaoke_close_room',{p_room:id});await stopSession();await openLobby();toast('Festa encerrada. Até o próximo show! 👑');}
-    catch(err){toast(humanError(err),true);}
+    if(state.role!=='host'||!state.room)return;
+    if(!window.confirm('Encerrar a festa e apresentar o TOP 3? A fila será encerrada.'))return;
+    const id=state.room.id;
+    try{
+      // Uma música ainda tocando será registrada como interrompida, sem nota inventada.
+      const recap=await callRPC('karaoke_finalize_party',{p_room:id});
+      localStorage.setItem('tem-gogo-last-recap-room',id);
+      try{state.player?.stopVideo();}catch{}
+      await stopSession();await openLobby();showPartyRecap(recap);
+    }catch(err){toast('Não foi possível encerrar: '+humanError(err),true);}
   }
   async function logout(){
     if(state.client){const {error}=await state.client.auth.signOut();if(error){toast(humanError(error),true);return;}}
@@ -1362,6 +1561,13 @@
       ['signup-password','signup-confirm'].forEach(id=>$(id).type=event.target.checked?'text':'password');
     });
     $('guest-entry-form').addEventListener('submit',joinParty);$('create-room-form').addEventListener('submit',makeRoom);
+    document.querySelectorAll('.duet-choice').forEach(group=>{
+      group.addEventListener('change',()=>{
+        const partner=group.querySelector('.duet-person');
+        partner.hidden=group.querySelector('input[value="solo"]').checked;
+        if(!partner.hidden)refreshDuetOptions();
+      });
+    });
     $('logout-button').addEventListener('click',logout);
     $('stage-exit').addEventListener('click',exitStage);
     $('start-audio').addEventListener('click',unlockSound);
@@ -1399,7 +1605,11 @@
       const button=e.target.closest('[data-play-song]');if(button){const song=state.songs.find(s=>s.id===button.dataset.playSong);if(song)startSong(song);}
     });
     $('open-add-song').addEventListener('click',()=>$('song-dialog').showModal());
+    $('playlist-import-submit').addEventListener('click',importPlaylistManual);
     $('open-scoreboard').addEventListener('click',openScoreboard);
+    $('reopen-recap').addEventListener('click',reopenLastRecap);
+    $('recap-copy').addEventListener('click',async()=>{const content=recapText(state.latestRecap);try{await navigator.clipboard.writeText(content);toast('Placar copiado! Compartilha com o povo! 🏆');}catch{toast('Não foi possível copiar automaticamente.',true);}});
+    $('recap-done').addEventListener('click',()=>$('party-recap-dialog').close());
     document.querySelectorAll('[data-close-score]').forEach(btn=>btn.addEventListener('click',()=>$('score-dialog').close()));
     $('host-song-form').addEventListener('submit',e=>{e.preventDefault();enqueue(e.target,true);});
     $('guest-song-form').addEventListener('submit',e=>{e.preventDefault();enqueue(e.target,false);});
