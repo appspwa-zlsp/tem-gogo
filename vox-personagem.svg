@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 255" role="img" aria-labelledby="voxTitle">
+<title id="voxTitle">VOX, apresentador do Tem Gogó: microfone com óculos pink e sorriso</title>
+<defs>
+ <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fcf8ff"/><stop offset=".45" stop-color="#b79fe1"/><stop offset="1" stop-color="#77539f"/></linearGradient>
+ <linearGradient id="stem" x1="0" x2="1"><stop stop-color="#f99fdf"/><stop offset=".55" stop-color="#de40a8"/><stop offset="1" stop-color="#9b246e"/></linearGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="11" stdDeviation="9" flood-color="#0c0012" flood-opacity=".55"/></filter>
+</defs>
+<g filter="url(#shadow)">
+ <path d="M108 174h14v48h-14z" fill="url(#stem)" stroke="#280f38" stroke-width="4"/>
+ <path d="M82 227h65l18 10H66z" fill="#d5ff4c" stroke="#2b1040" stroke-width="6" stroke-linejoin="round"/>
+ <rect x="57" y="27" width="115" height="155" rx="56" fill="url(#body)" stroke="#361447" stroke-width="7"/>
+ <g opacity=".24" stroke="#45265d" stroke-width="2" stroke-linecap="round">
+ <path d="M76 46h75M72 58h85M70 70h90M69 82h91M70 94h90M70 106h90M73 118h84"/>
+ </g>
+ <path d="M54 91c-19-14-29 8-12 22" fill="none" stroke="#d5ff4c" stroke-width="7" stroke-linecap="round"/>
+ <path d="M176 91c20-14 29 8 12 22" fill="none" stroke="#d5ff4c" stroke-width="7" stroke-linecap="round"/>
+ <path d="M72 104c-5-11 4-19 18-17h18c9 0 13 4 13 11-3 18-16 23-31 19-10-3-16-6-18-13z" fill="#ff60c1" stroke="#300d36" stroke-width="5"/>
+ <path d="M122 98c0-7 5-11 15-11h17c14-1 22 8 17 18-4 9-12 13-26 13-14-1-22-8-23-20z" fill="#ff60c1" stroke="#300d36" stroke-width="5"/>
+ <path d="M119 101h7" stroke="#300d36" stroke-width="6"/>
+ <path d="M81 93l13 7M134 94l12 7" stroke="#ffeffb" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+ <path d="M96 135c9 17 28 22 40 0" fill="#2d1038" stroke="#2d1038" stroke-width="4" stroke-linecap="round"/>
+ <path d="M102 142c10 6 20 8 29-2" fill="none" stroke="#ff87d4" stroke-width="6" stroke-linecap="round"/>
+ <path d="M81 16l5-14 7 13 14 4-14 6-5 13-6-14-14-5z" fill="#d5ff4c"/>
+ <path d="M193 48l5-14 7 13 13 4-13 5-6 14-5-14-13-5z" fill="#ff64c4"/>
+ <path d="M55 153l-14-13-4 21 13 13z" fill="#d5ff4c" stroke="#2d1038" stroke-width="4"/>
+ <path d="M175 154l14-13 4 21-13 13z" fill="#d5ff4c" stroke="#2d1038" stroke-width="4"/>
+ <path d="M95 183l21 15 21-15" fill="none" stroke="#d5ff4c" stroke-width="9" stroke-linecap="round"/>
+</g>
+</svg>

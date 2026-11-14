@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0
   };
 
   function toast(message, error = false) {
@@ -78,6 +78,7 @@
   function updateVoxLine(moment='opening'){
     const text=chooseDifferent(voxMoments[moment]||voxMoments.opening);
     if($('vox-line'))$('vox-line').textContent=`“${text}”`;
+    if($('vox-idle-line'))$('vox-idle-line').textContent=`“${text}”`;
     if($('vox-guest-line'))$('vox-guest-line').textContent=`“${text}” — VOX`;
   }
   function applyTheme(theme,announce=false){
@@ -384,6 +385,8 @@
       catch(err){toast(humanError(err),true);}
       await unlockWakeLock();
       updateVoxLine('opening');
+      clearInterval(state.voxTimer);
+      state.voxTimer=setInterval(()=>{if(state.role==='host'&&!state.isPlaying&&!state.currentSong)updateVoxLine('opening');},14000);
       toast('VOX NO AR! Mostre o QR: ele já dá acesso direto à festa. 🎉');
     }catch(err){toast(humanError(err),true);}
   }
@@ -1193,52 +1196,143 @@
   }
   // A pesquisa externa usa Edge Function autenticada e segredo SerpApi no Supabase.
   // Nunca abrir outra aba nem exigir colar um URL quando a busca estiver habilitada.
-  // Catálogo coletivo de vídeos já tocados pelo menos 50%, sem SerpApi e sem dados pessoais.
-  async function loadCatalog(force=false){
-    if(!state.client||!state.room)return;
-    if(!force && Date.now()-state.catalogFetchedAt<45000)return;
-    const roomId=state.room.id;
-    try{
-      const {data,error}=await state.client.rpc('karaoke_catalog_search',{p_query:'',p_limit:10});
+
+// Catálogo coletivo: sugestões da playlist + reproduções confirmadas.
+// RLS da migração 008 permite apenas SELECT a usuários autenticados (inclusive convidados da sala).
+// Consultas do acervo nunca chamam a SerpApi.
+const CATALOG_PAGE_SIZE = 18;
+function normalizedMusic(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+}
+function wordNear(a,b){
+  if(!a||!b)return false;
+  if(b.length>=3&&b.includes(a))return true;
+  if(b.length>=4&&a.includes(b)&&b.length/a.length>=.65)return true;
+  // Corrige pequenos erros de digitação sem mostrar resultados completamente diferentes.
+  if(a.length<4||Math.abs(a.length-b.length)>2)return false;
+  const max=a.length>=5?2:1;
+  const previous=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    let last=previous[0];previous[0]=i;
+    let rowMin=previous[0];
+    for(let j=1;j<=b.length;j++){
+      const old=previous[j];
+      previous[j]=Math.min(previous[j]+1,previous[j-1]+1,last+(a[i-1]===b[j-1]?0:1));
+      last=old;rowMin=Math.min(rowMin,previous[j]);
+    }
+    if(rowMin>max)return false;
+  }
+  return previous[b.length]<=max;
+}
+function matchesMusic(item,query){
+  const tokens=normalizedMusic(query).split(' ').filter(Boolean);
+  if(!tokens.length)return true;
+  const title=normalizedMusic(item.title),words=title.split(' ');
+  return tokens.every(token=>title.includes(token)||words.some(word=>wordNear(token,word)));
+}
+function catalogResults(query='',filter='all'){
+  const records=state.catalog.filter(song=>(filter==='played'?Number(song.plays)>0:
+    filter==='suggested'?Number(song.plays)===0:true)&&matchesMusic(song,query));
+  return records.sort((a,b)=>Number(b.plays)-Number(a.plays)||a.title.localeCompare(b.title,'pt-BR'));
+}
+async function loadCatalog(force=false){
+  if(!state.client||!state.room)return [];
+  if(state.catalogLoading)return state.catalogLoading;
+  if(!force&&Date.now()-state.catalogFetchedAt<180000)return state.catalog;
+  const roomId=state.room.id;
+  const task=(async()=>{
+    const loaded=[],batch=200,maxRecords=5000;
+    for(let offset=0;offset<maxRecords;offset+=batch){
+      const {data,error}=await state.client.from('karaoke_video_catalog')
+        .select('video_id,title,plays,last_qualified_play')
+        .order('plays',{ascending:false}).order('last_qualified_play',{ascending:false})
+        .range(offset,offset+batch-1);
       if(error)throw error;
-      if(!state.room || state.room.id!==roomId)return;
-      state.catalog=(data||[]).filter(x=>youtubeId(x.video_id));
-      state.catalogFetchedAt=Date.now();
-      renderCatalog();
-    }catch(err){
-      console.warn('Catálogo indisponível. Execute MIGRACAO_008_HISTORICO.sql:',err.message);
-      document.querySelectorAll('.hit-library-list').forEach(el=>{el.textContent='O acervo estará disponível após instalar a atualização do banco. 🎶';});
+      const rows=(data||[]).filter(x=>youtubeId(x.video_id));
+      loaded.push(...rows);
+      if((data||[]).length<batch)break;
     }
+    if(!state.room||state.room.id!==roomId)return [];
+    state.catalog=loaded;
+    state.catalogError=null;
+    state.catalogFetchedAt=Date.now();
+    renderCatalog();
+    if($('catalog-dialog')?.open)renderFullCatalog();
+    return loaded;
+  })();
+  state.catalogLoading=task;
+  try{return await task;}
+  catch(err){
+    state.catalogError=err;
+    console.warn('Falha ao ler o catálogo do Supabase:',err.message);
+    if(!state.catalog.length)document.querySelectorAll('.hit-library-list').forEach(el=>{
+      el.textContent='Não consegui carregar o catálogo. Confira a conexão ou tente novamente.';
+    });
+    return state.catalog;
+  }finally{if(state.catalogLoading===task)state.catalogLoading=null;}
+}
+async function queryLocalCatalog(query){
+  await loadCatalog();
+  if(state.catalog.length||!state.catalogError)return catalogResults(query).slice(0,40);
+  // Recurso de compatibilidade caso a tabela não esteja acessível diretamente.
+  const {data,error}=await state.client.rpc('karaoke_catalog_search',{p_query:query,p_limit:20});
+  if(error)throw error;
+  return (data||[]).filter(x=>youtubeId(x.video_id));
+}
+function catalogCard(item,host){
+  const videoId=youtubeId(item.video_id);
+  if(!videoId)return null;
+  const card=document.createElement('article');card.className='history-song-card';
+  const cover=document.createElement('img');cover.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';cover.alt='';cover.loading='lazy';cover.width=95;cover.height=54;
+  const info=document.createElement('div');info.className='history-song-info';
+  const title=document.createElement('strong');title.textContent=item.title;
+  const tiny=document.createElement('small');tiny.textContent=Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões) no Tem Gogó`:'📚 Sugestão da playlist • ainda não testada no palco';
+  info.append(title,tiny);
+  const button=document.createElement('button');button.type='button';button.className='button button-primary history-add';button.textContent='+ FILA';
+  button.setAttribute('aria-label','Adicionar '+item.title+' à fila');
+  button.addEventListener('click',()=>addSearchedVideo({id:videoId,title:item.title},host,button,card));
+  card.append(cover,info,button);return card;
+}
+function renderCatalog(){
+  const groups=[['guest-library',false],['stage-library',true]];
+  for(const [id,host] of groups){
+    const holder=$(id);if(!holder)continue;
+    holder.replaceChildren();
+    if(!state.catalog.length){holder.textContent='Catálogo ainda vazio. O primeiro hit pode ser seu! 🎤';continue;}
+    state.catalog.slice(0,host?4:6).forEach(item=>{const card=catalogCard(item,host);if(card)holder.append(card);});
   }
-  async function queryLocalCatalog(query){
-    if(!state.client)return [];
-    const {data,error}=await state.client.rpc('karaoke_catalog_search',{p_query:query,p_limit:12});
-    if(error)throw error;
-    return (data||[]).filter(x=>youtubeId(x.video_id));
+  document.querySelectorAll('[data-catalog-open]').forEach(btn=>{
+    btn.setAttribute('aria-label',`Abrir catálogo completo de ${state.catalog.length} músicas`);
+  });
+}
+async function openFullCatalog(){
+  if(!state.room){toast('Entre em uma festa para ver o catálogo.',true);return;}
+  if($('song-dialog')?.open)$('song-dialog').close();
+  state.catalogPage=1;state.catalogQuery='';state.catalogFilter='all';
+  $('catalog-search').value='';$('catalog-filter').value='all';
+  $('catalog-dialog').showModal();
+  $('catalog-list').textContent='Abrindo a biblioteca do povo... 🎶';
+  await loadCatalog();renderFullCatalog();
+  $('catalog-search').focus({preventScroll:true});
+}
+function renderFullCatalog(){
+  if(!$('catalog-dialog')?.open)return;
+  const items=catalogResults(state.catalogQuery,state.catalogFilter);
+  const total=state.catalog.length;
+  $('catalog-total').textContent=`${items.length} de ${total} música(s) do acervo${state.catalogQuery?' para sua busca':''}`;
+  const list=$('catalog-list');list.replaceChildren();
+  if(!items.length){
+    const note=document.createElement('p');note.className='catalog-no-results';
+    note.textContent=state.catalogError?'O catálogo está indisponível agora. Confira sua conexão e tente novamente.':
+      'Nenhuma música com essas palavras aqui. Experimente só o artista ou parte do título.';
+    list.append(note);
   }
-  function catalogCard(item,host){
-    const videoId=youtubeId(item.video_id);
-    if(!videoId)return null;
-    const card=document.createElement('article');card.className='history-song-card';
-    const cover=document.createElement('img');cover.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';cover.alt='';cover.loading='lazy';cover.width=95;cover.height=54;
-    const info=document.createElement('div');info.className='history-song-info';
-    const title=document.createElement('strong');title.textContent=item.title;
-    const tiny=document.createElement('small');tiny.textContent=Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões) no Tem Gogó`:'📚 Sugestão da playlist • ainda não testada no palco';
-    info.append(title,tiny);
-    const button=document.createElement('button');button.type='button';button.className='button button-primary history-add';button.textContent='+ FILA';
-    button.setAttribute('aria-label','Adicionar '+item.title+' à fila');
-    button.addEventListener('click',()=>addSearchedVideo({id:videoId,title:item.title},host,button,card));
-    card.append(cover,info,button);return card;
+  for(const item of items.slice(0,state.catalogPage*CATALOG_PAGE_SIZE)){
+    const card=catalogCard(item,state.role==='host');if(card)list.append(card);
   }
-  function renderCatalog(){
-    const groups=[['guest-library',false],['stage-library',true]];
-    for(const [id,host] of groups){
-      const holder=$(id);if(!holder)continue;
-      holder.replaceChildren();
-      if(!state.catalog.length){holder.textContent='Ainda não temos hits confirmados. O primeiro sucesso pode ser seu! 🎤';continue;}
-      state.catalog.slice(0,host?5:10).forEach(item=>{const card=catalogCard(item,host);if(card)holder.append(card);});
-    }
-  }
+  $('catalog-more').hidden=state.catalogPage*CATALOG_PAGE_SIZE>=items.length;
+}
   function showMoreExternal(results,host,query){
     const panel=document.createElement('div');panel.className='more-external';
     const info=document.createElement('span');info.textContent='Não achou seu hit? A busca externa usa uma consulta da cota mensal.';
@@ -1262,6 +1356,7 @@
     try {
       await enqueueSelectedVideo(item.id,item.title.slice(0,120),host);
       await fetchSongs();renderQueue();
+      if($('catalog-dialog')?.open)$('catalog-dialog').close();
       if(host && $('song-dialog').open)$('song-dialog').close();
       else {const feedback=results.closest('.search-results')||results;if(feedback.id==='search-results')makeSearchMessage(feedback,'💚 Entrou na fila! Pode escolher outro hit se quiser.');}
       toast('🎤 '+item.title.slice(0,65)+' entrou na fila. VOX tá de olho!');
@@ -1433,6 +1528,7 @@
   }
   async function stopSession(){
     clearInterval(state.ticker);state.ticker=null;
+    clearInterval(state.voxTimer);state.voxTimer=null;
     clearInterval(state.signalCleaner);state.signalCleaner=null;
     clearInterval(state.memberVerifier);state.memberVerifier=null;
     clearInterval(state.roomPoller);state.roomPoller=null;clearInterval(state.signalPoller);state.signalPoller=null;state.realtimeOk=false;state.syncQueued=false;
@@ -1449,7 +1545,7 @@
       const el=document.createElement('div');el.id='youtube-player';el.className='youtube-player';frame.prepend(el);
     }
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
-    state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.currentSong=null;state.room=null;state.role=null;
+    state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
     state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.isPlaying=false;state.finishing=false;
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
@@ -1613,6 +1709,18 @@
     document.querySelectorAll('[data-close-score]').forEach(btn=>btn.addEventListener('click',()=>$('score-dialog').close()));
     $('host-song-form').addEventListener('submit',e=>{e.preventDefault();enqueue(e.target,true);});
     $('guest-song-form').addEventListener('submit',e=>{e.preventDefault();enqueue(e.target,false);});
+    document.querySelectorAll('[data-catalog-open]').forEach(btn=>btn.addEventListener('click',openFullCatalog));
+    $('catalog-close').addEventListener('click',()=>$('catalog-dialog').close());
+    let catalogDebounce=null;
+    $('catalog-search').addEventListener('input',e=>{
+      clearTimeout(catalogDebounce);catalogDebounce=setTimeout(()=>{
+        state.catalogQuery=e.target.value;state.catalogPage=1;renderFullCatalog();
+      },100);
+    });
+    $('catalog-filter').addEventListener('change',e=>{
+      state.catalogFilter=e.target.value;state.catalogPage=1;renderFullCatalog();
+    });
+    $('catalog-more').addEventListener('click',()=>{state.catalogPage++;renderFullCatalog();});
     $('search-youtube').addEventListener('click',()=>searchYoutube(false));
     $('host-search-button').addEventListener('click',()=>searchYoutube(true));
     $('youtube-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchYoutube(false);}});
