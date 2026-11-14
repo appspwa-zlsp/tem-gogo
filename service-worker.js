@@ -1,4 +1,4 @@
-const CACHE='tem-gogo-shell-v4-1-flat';
+const CACHE='tem-gogo-shell-v7-1-realtime-mic';
 const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));

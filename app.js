@@ -1,4 +1,4 @@
-/* Tem Gogó v3 — edição brasileira: palco, VOX e reações GIPHY (opcional) — aplicativo estático (PWA + Supabase + WebRTC + YouTube IFrame API).
+/* Tem Gogó v7 — edição brasileira: palco, VOX e reações GIPHY (opcional) — aplicativo estático (PWA + Supabase + WebRTC + YouTube IFrame API).
  * Os vídeos são reproduzidos pelo YouTube; nenhum áudio do YouTube é extraído.
  * Microfones são transportados diretamente via WebRTC quando houver conexão.
  */
@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, failedVideoSong: null
   };
 
   function toast(message, error = false) {
@@ -166,6 +166,9 @@
   async function tryResumeMembership(code){
     if(!state.client||!state.user||!code)return false;
     try{
+      const own=await state.client.from('karaoke_rooms').select('id,code,title,owner_id')
+        .eq('code',code).eq('owner_id',state.user.id).eq('status','open').gt('expires_at',new Date().toISOString()).maybeSingle();
+      if(own.data){await enterRoomAsHost(own.data);return true;}
       const rows=await callRPC('karaoke_resume_room',{p_code:code});
       if(!rows?.length)return false;
       const r=rows[0];
@@ -195,7 +198,6 @@
       if(!isStandalone()&&linkRoom)showInvite(targetRoom);
       else showPinEntry(targetRoom);
     }
-    $('room-pin').value=sixDigitPin();
     if (!configured()) {
       $('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';
       return;
@@ -208,7 +210,7 @@
       if(targetRoom){
         const resumed=await tryResumeMembership(targetRoom);
         if(!resumed && isStandalone())showPinEntry(targetRoom);
-      }else if(state.user && !isAnonymous(state.user)) await openLobby();
+      }else if(state.user) await openLobby();
       else if(isStandalone())showPinEntry('');
     }catch(err){toast(humanError(err),true);}
     state.client.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;});
@@ -226,19 +228,49 @@
   }
   async function openLobby() {
     document.body.classList.remove('invite-active','entry-active');
-    show('lobby'); await loadMyRooms();
+    show('lobby');
+    $('host-create-area').hidden=!state.user || isAnonymous(state.user);
+    await loadMyRooms();
   }
   async function loadMyRooms() {
-    if(!state.client || !state.user)return;
-    const {data,error}=await state.client.from('karaoke_rooms').select('id,title,code,status,expires_at,created_at')
-      .eq('owner_id',state.user.id).eq('status','open').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).limit(5);
-    if(error){console.warn(error);return;}
-    $('existing-rooms').innerHTML=(data||[]).length?'<div class="field-label">Ou continue uma sala aberta:</div>':'';
-    (data||[]).forEach(room=>{
-      const button=document.createElement('button');button.className='existing-room-button';button.type='button';
-      button.innerHTML=`<span>📺 ${escapeHTML(room.title)}</span><span>${escapeHTML(room.code)} ↗</span>`;
-      button.addEventListener('click',()=>enterRoomAsHost(room));$('existing-rooms').append(button);
-    });
+    const container=$('existing-rooms');
+    container.replaceChildren();
+    if(!state.client||!state.user)return;
+    try {
+      // RLS: a consulta só mostra salas que o usuário possui ou das quais é membro.
+      const {data,error}=await state.client.from('karaoke_rooms')
+        .select('id,title,code,status,expires_at,created_at,owner_id')
+        .eq('status','open').gt('expires_at',new Date().toISOString())
+        .order('created_at',{ascending:false}).limit(60);
+      if(error)throw error;
+      const rooms=(data||[]);
+      const membership=await state.client.from('karaoke_members')
+        .select('room_id,display_name').eq('user_id',state.user.id).limit(60);
+      if(membership.error)throw membership.error;
+      const names=new Map((membership.data||[]).map(m=>[m.room_id,m.display_name]));
+      const heading=document.createElement('h3');heading.className='my-rooms-heading';heading.textContent='🎟️ Minhas festas ('+rooms.length+')';container.append(heading);
+      if(!rooms.length){const p=document.createElement('p');p.className='hub-empty';p.textContent='Ainda não tem festa por aqui. Crie uma ou entre com o convite de alguém!';container.append(p);return;}
+      for(const room of rooms){
+        const host=room.owner_id===state.user.id;
+        const card=document.createElement('button');card.type='button';card.className='hub-room-card';
+        const description=host?'👑 Você apresenta':'🎤 Você participa';
+        card.innerHTML='<span class="hub-room-icon">'+(host?'📺':'🎙️')+'</span><span class="hub-room-info"><strong>'+escapeHTML(room.title)+'</strong><small>'+description+' · '+escapeHTML(room.code)+'</small></span><span class="hub-room-arrow">↗</span>';
+        card.addEventListener('click',async()=>{
+          if(host)await enterRoomAsHost(room);
+          else await enterRoomAsGuest(room,names.get(room.id)||localStorage.getItem('tem-gogo-display-name')||'Estrela');
+        });
+        container.append(card);
+      }
+    }catch(err){
+      const p=document.createElement('p');p.className='hub-empty';p.textContent='Não consegui carregar suas festas: '+humanError(err);container.append(p);
+    }
+  }
+  async function goToMyRooms(){
+    if(state.role==='host' && state.currentSong && !confirm('Ao trocar de sala neste aparelho, o vídeo e o som do palco serão interrompidos. Sua festa continuará aberta. Deseja sair desta tela?'))return;
+    await stopSession();
+    history.replaceState(null,'',new URL('./',location.href).href);
+    if(state.user)await openLobby();
+    else showPinEntry('');
   }
   async function login(event) {
     event.preventDefault();if(!checkBackend())return;
@@ -248,27 +280,58 @@
       if(error)throw error; state.user=data.user; await openLobby();
     }catch(err){$('auth-state').textContent=humanError(err);toast(humanError(err),true);}finally{setLoading(button,false);}
   }
-  async function signup() {
+  function openSignup() {
+    $('signup-feedback').textContent='';
+    $('signup-form').reset();
+    $('signup-email').value=$('auth-email').value.trim();
+    $('signup-dialog').showModal();
+    $('signup-name').focus();
+  }
+  function closeSignup(){ $('signup-dialog').close(); }
+  async function signup(event) {
+    event.preventDefault();
     if(!checkBackend())return;
-    const email=$('auth-email').value.trim(),password=$('auth-password').value;
-    if(!email || password.length<10 || !/[A-Za-zÀ-ÿ]/.test(password) || !/[0-9]/.test(password)){toast('Para criar conta, use senha de 10 ou mais caracteres com letras e números.',true);return;}
-    const button=$('signup-button');setLoading(button,true,'Criando sua conta...');
+    const name=$('signup-name').value.trim();
+    const email=$('signup-email').value.trim().toLowerCase();
+    const password=$('signup-password').value;
+    const confirm=$('signup-confirm').value;
+    const feedback=$('signup-feedback');
+    if(name.length<2){feedback.textContent='Conte para a gente seu nome de palco. ✨';return;}
+    if(password.length<10||!/[A-Za-zÀ-ÿ]/.test(password)||!/[0-9]/.test(password)){
+      feedback.textContent='Sua senha precisa ter pelo menos 10 caracteres, com letras e números.';return;
+    }
+    if(password!==confirm){feedback.textContent='As senhas não são iguais. Confere, estrela!';return;}
+    const button=$('signup-submit');setLoading(button,true,'Criando sua conta...');
+    feedback.textContent='';
     try{
-      const {data,error}=await state.client.auth.signUp({email,password,options:{emailRedirectTo:new URL('./',location.href).href}});
+      const {data,error}=await state.client.auth.signUp({
+        email,password,
+        options:{ data:{display_name:name}, emailRedirectTo:new URL('./',location.href).href }
+      });
       if(error)throw error;
-      if(data.session){state.user=data.user;await openLobby();}
-      else {toast('Conta solicitada! Confira seu e-mail para confirmar o cadastro.');$('auth-state').textContent='📬 Confirme o cadastro por e-mail e depois entre com sua senha.';}
-    }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
+      $('auth-email').value=email;
+      if(data.session){state.user=data.user;closeSignup();await openLobby();toast('Conta criada! Agora o palco é seu. 🌟');}
+      else {
+        // O Supabase pode não revelar quando um endereço já existe. Não prometer conta nova.
+        feedback.textContent='📬 Se o cadastro puder ser concluído, você receberá um e-mail de confirmação. Confira também o spam; depois entre com sua senha.';
+        $('signup-form').querySelectorAll('input[type=password]').forEach(i=>i.value='');
+      }
+    }catch(err){feedback.textContent=humanError(err);toast(humanError(err),true);}
+    finally{setLoading(button,false);}
   }
   async function makeRoom(event) {
     event.preventDefault();if(!checkBackend())return;
-    const button=event.target.querySelector('[type=submit]');setLoading(button,true,'Criando...');
-    try{
-      const pin=$('room-pin').value.trim();
-      if(!/^[0-9]{6}$/.test(pin))throw new Error('Crie uma senha de seis números para sua festa.');
+    const button=event.target.querySelector('[type=submit]');setLoading(button,true,'Montando seu palco…');
+    try {
+      const pin=sixDigitPin();
       const data=await callRPC('karaoke_create_room',{p_title:$('room-title').value.trim(),p_pin:pin});
-      $('room-pin').value=sixDigitPin();
-      await enterRoomAsHost({id:data[0].room_id,code:data[0].room_code,title:data[0].room_title,owner_id:state.user.id});
+      if(!data?.length)throw new Error('Não foi possível criar a festa.');
+      const room={id:data[0].room_id,code:data[0].room_code,title:data[0].room_title,owner_id:state.user.id};
+      state.readyRoom={room,pin};
+      $('ready-code').textContent=room.code;
+      $('ready-pin').textContent=pin;
+      $('room-ready-dialog').showModal();
+      await loadMyRooms();
     }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
   }
   async function joinParty(event) {
@@ -294,7 +357,7 @@
 
   async function enterRoomAsHost(room) {
     await stopSession();
-    state.room=room;state.role='host';$('stage-room-title').textContent=room.title;
+    state.room=room;state.role='host';setSyncStatus('sync');$('stage-room-title').textContent=room.title;
     $('room-code').textContent=room.code;show('stage');drawQR();
     try{await hydrateRoom();await subscribeRoom();startTicker();
       try{await loadYouTubeAPI();if(state.room?.current_song_id)await resumeExistingSong();}
@@ -307,7 +370,7 @@
   async function enterRoomAsGuest(room,name) {
     await stopSession();
     document.body.classList.remove('invite-active','entry-active');
-    state.room=room;state.role='guest';$('guest-display-name').textContent=name;$('guest-room-code').textContent=room.code;
+    state.room=room;state.role='guest';setSyncStatus('sync');$('guest-display-name').textContent=name;$('guest-room-code').textContent=room.code;
     $('guest-room-title').textContent=room.title;show('guest');updateVoxLine('opening');
     history.replaceState(null,'',currentURL(room.code));
     localStorage.setItem('tem-gogo-pending-room',room.code);
@@ -329,11 +392,36 @@
       }catch(err){console.warn('Verificação de acesso adiada:',err.message);}
     },12000);
   }
-  async function hydrateRoom() {await Promise.all([fetchRoom(),fetchSongs(),fetchMembers(),fetchScores()]);renderAll();}
+  function setSyncStatus(mode){
+    const label=mode==='live'?'● Ao vivo':mode==='fallback'?'◌ Atualizando a fila':mode==='offline'?'⚠ Sem internet':'◌ Sincronizando';
+    for(const id of ['stage-sync-status','guest-sync-status']){
+      const el=$(id); if(!el)continue;el.textContent=label;el.dataset.status=mode;
+    }
+  }
+  async function hydrateRoom() {await fetchRoom();if(!state.room)return;await fetchSongs();await fetchMembers();await fetchScores();renderAll();}
+  async function refreshRoomSnapshot(){
+    if(!state.room||state.syncRunning){state.syncQueued=true;return;}
+    state.syncRunning=true;const roomId=state.room.id;
+    try{
+      await fetchRoom();if(state.room?.id!==roomId)return;
+      await fetchSongs();if(state.room?.id!==roomId)return;
+      await fetchMembers();if(state.room?.id!==roomId)return;
+      await fetchScores();if(state.room?.id!==roomId)return;
+      renderAll();setSyncStatus(navigator.onLine?(state.realtimeOk?'live':'fallback'):'offline');
+    }catch(err){console.warn('Falha ao sincronizar sala:',err);setSyncStatus('offline');}
+    finally{state.syncRunning=false;if(state.syncQueued){state.syncQueued=false;if(state.room?.id===roomId)queueChanged();}}
+  }
+  function startSyncFallback(){
+    clearInterval(state.roomPoller);clearInterval(state.signalPoller);
+    state.roomPoller=setInterval(()=>{if(state.room&&navigator.onLine)void refreshRoomSnapshot();},5500);
+    state.signalPoller=setInterval(()=>{if(state.room&&navigator.onLine&&(state.role==='host'||state.localPeer))void fetchRecentSignals();},3200);
+  }
+
   async function fetchRoom() {
-    if(!state.room)return;
+    if(!state.room)return;const requestedRoom=state.room.id;
     const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,status,current_song_id,expires_at')
-      .eq('id',state.room.id).single();
+      .eq('id',requestedRoom).single();
+    if(state.room?.id!==requestedRoom)return;
     if(error)throw error;
     state.room={...state.room,...data};
     if(state.role==='guest' && (data.status!=='open'||new Date(data.expires_at)<new Date())) {toast('Esta sala foi encerrada.',true);await leaveGuest();return;}
@@ -341,20 +429,22 @@
     if(state.role==='guest') setGuestNowPlaying(found||null);
   }
   async function fetchSongs() {
-    if(!state.room)return;
-    const {data,error}=await state.client.from('karaoke_songs').select('*').eq('room_id',state.room.id)
+    if(!state.room)return;const requestedRoom=state.room.id;
+    const {data,error}=await state.client.from('karaoke_songs').select('*').eq('room_id',requestedRoom)
       .in('status',['queued','playing']).order('created_at',{ascending:true}).limit(150);
+    if(state.room?.id!==requestedRoom)return;
     if(error)throw error;
     state.songs=data||[];
     if(state.role==='guest')setGuestNowPlaying(state.songs.find(s=>s.id===state.room?.current_song_id)||null);
   }
   async function fetchMembers() {
-    if(!state.room)return;
+    if(!state.room)return;const requestedRoom=state.room.id;
     const {data,error}=await state.client.from('karaoke_members').select('user_id,display_name,joined_at')
-      .eq('room_id',state.room.id).order('joined_at',{ascending:true});if(error)throw error;
+      .eq('room_id',requestedRoom).order('joined_at',{ascending:true});
+    if(state.room?.id!==requestedRoom)return;if(error)throw error;
     state.members=data||[];
   }
-  async function fetchScores(){if(!state.room)return;const {data,error}=await state.client.from('karaoke_scores').select('*').eq('room_id',state.room.id).order('created_at',{ascending:false}).limit(250);if(error)throw error;state.scores=data||[];}
+  async function fetchScores(){if(!state.room)return;const requestedRoom=state.room.id;const {data,error}=await state.client.from('karaoke_scores').select('*').eq('room_id',requestedRoom).order('created_at',{ascending:false}).limit(250);if(state.room?.id!==requestedRoom)return;if(error)throw error;state.scores=data||[];}
   function memberName(userId) {if(userId===state.room?.owner_id)return 'Anfitrião';return state.members.find(m=>m.user_id===userId)?.display_name || 'Artista';}
   function renderAll(){renderQueue();renderMembers();if(state.role==='host')renderMics();}
   function renderMembers(){if(state.role==='host')$('stage-count').textContent=`👥 ${state.members.length+1} na festa`;}
@@ -367,15 +457,41 @@
     if(state.role==='guest') {
       $('guest-queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="mobile-queue-item"><span class="number">${s.status==='playing'?'♫':i+1}</span><span class="title"><strong>${escapeHTML(s.title)}</strong><small>${escapeHTML(memberName(s.user_id))}</small></span><span>${s.status==='playing'?'🔊':'🎵'}</span></div>`).join(''):'<p style="color:var(--muted);font-size:13px">Sem músicas ainda. Que tal escolher a primeira? 🎤</p>';
       setGuestNowPlaying(songs.find(s=>s.status==='playing')||null);
+      syncGuestTurn(songs.find(s=>s.status==='playing')||null);
     }
   }
   function setGuestNowPlaying(song){$('guest-now-playing').textContent=song?.title || 'O palco tá pronto pra você!';$('guest-now-singer').textContent=song?'Escolhida por '+memberName(song.user_id):'Escolha um hit na aba ao lado.';}
+  function isMyTurn(){return state.role==='guest'&&Boolean(state.user?.id)&&state.songs.some(song=>song.status==='playing'&&song.user_id===state.user.id);}
+  function syncGuestTurn(playing){
+    if(state.role!=='guest')return;
+    const mine=Boolean(playing&&playing.user_id===state.user?.id);
+    $('your-turn-banner').hidden=!mine;$('mic-turn-kicker').hidden=!mine;
+    $('mic-card').classList.toggle('my-turn',mine);
+    $('mobile-tab-mic').classList.toggle('turn-highlight',mine);
+    if(mine){$('your-turn-track').textContent=playing.title;}
+    if(state.lastMySong!==playing?.id){
+      const wasMine=Boolean(state.lastMySong);
+      state.lastMySong=mine?playing.id:null;
+      if(mine){
+        switchMobileTab('mic');
+        $('mic-headline').textContent=state.localStream?'Seu mic tá preparado!':'É sua vez, estrela! 🎤';
+        $('mic-description').textContent=state.localStream?'Conectando seu som com a TV...':'Toque no microfone e autorize o uso. As barras vão mostrar sua voz de verdade.';
+        toast('🎤 É SUA VEZ! O VOX convocou seu microfone.');
+        if(state.localStream&&!state.localPeer)void connectMicToStage();
+        if(navigator.vibrate)navigator.vibrate([100,60,100]);
+      }else if(wasMine){
+        // Privacidade: ao terminar a apresentação, fecha a captura e a conexão.
+        if(state.localStream)void stopMicrophone(true);
+        toast('Apresentação encerrada! O microfone foi desligado. 👏');
+      }
+    }
+  }
   function drawQR() {
     const holder=$('stage-qr');holder.replaceChildren();
     if(window.QRCode){new window.QRCode(holder,{text:currentURL(state.room.code),width:240,height:240,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});}
     else {holder.textContent='QR indisponível';toast('Biblioteca de QR Code não carregou. Compartilhe o código da sala.',true);}
   }
-  function queueChanged(){clearTimeout(state.roomReloadTimer);state.roomReloadTimer=setTimeout(async()=>{if(!state.room)return;try{await Promise.all([fetchSongs(),fetchMembers(),fetchRoom(),fetchScores()]);renderAll();}catch(err){console.warn(err);}},220);}
+  function queueChanged(){clearTimeout(state.roomReloadTimer);state.roomReloadTimer=setTimeout(()=>{void refreshRoomSnapshot();},180);}
   async function subscribeRoom(){
     if(!state.room)return;
     const uid=state.user.id;
@@ -386,11 +502,19 @@
       .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_rooms',filter:`id=eq.${state.room.id}`},queueChanged)
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_scores',filter:`room_id=eq.${state.room.id}`},queueChanged)
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_signals',filter:`receiver_id=eq.${uid}`},payload=>receiveSignal(payload.new));
-    await new Promise((resolve,reject)=>{
-      const timeout=setTimeout(()=>reject(new Error('O canal ao vivo não conectou. Verifique Realtime no Supabase.')),15000);
+    startSyncFallback();setSyncStatus('fallback');
+    await new Promise(resolve=>{
+      let resolved=false;
+      const done=()=>{if(!resolved){resolved=true;resolve();}};
+      const timeout=setTimeout(()=>{state.realtimeOk=false;setSyncStatus('fallback');done();},9000);
       state.channel.subscribe(status=>{
-        if(status==='SUBSCRIBED'){clearTimeout(timeout);resolve();}
-        if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){clearTimeout(timeout);reject(new Error('Erro no canal ao vivo (Realtime).'));}
+        if(state.channel===null)return;
+        if(status==='SUBSCRIBED'){
+          clearTimeout(timeout);state.realtimeOk=true;setSyncStatus('live');done();
+          void refreshRoomSnapshot();void fetchRecentSignals();
+        }else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){
+          state.realtimeOk=false;setSyncStatus('fallback');done();
+        }
       });
     });
     await fetchRecentSignals();
@@ -400,7 +524,7 @@
   }
   async function fetchRecentSignals(){
     if(!state.room)return;
-    const since=new Date(Date.now()-25000).toISOString();
+    const since=new Date(Date.now()-90000).toISOString();
     const {data,error}=await state.client.from('karaoke_signals').select('*').eq('receiver_id',state.user.id)
       .eq('room_id',state.room.id).gte('created_at',since).order('id',{ascending:true}).limit(70);
     if(error){console.warn('Inbox:',error);return;}
@@ -425,7 +549,7 @@
     pc.onicecandidate=ev=>{if(ev.candidate)sendSignal(peerId,'candidate',ev.candidate.toJSON()).catch(console.warn);};
     pc.onconnectionstatechange=()=>{
       if(hostSide){const item=state.peers.get(peerId);if(item){item.connection=pc.connectionState;renderMics();}}
-      else updateGuestMicState(pc.connectionState);
+      else {updateGuestMicState(pc.connectionState);if(['failed','closed'].includes(pc.connectionState)){state.localPeer=null;}}
     };
     if(hostSide) {
       const record={pc,analyser:null,source:null,gain:null,stream:null,connection:'connecting',level:0};
@@ -465,6 +589,8 @@
     const from=signal.sender_id,data=signal.payload||{};
     if(state.role==='host'){
       if(signal.kind==='offer') {
+        const singer=state.songs.find(s=>s.status==='playing');
+        if(!singer||singer.user_id!==from){await sendSignal(from,'notice',{message:'Seu microfone entra ao vivo somente na sua música. Aguarde sua vez. 🎤'});return;}
         const limit=Number(cfg.MAX_ACTIVE_MICS)||8;
         if(!state.peers.has(from)&&state.peers.size>=limit){await sendSignal(from,'notice',{message:`O palco já tem ${limit} microfones. Aguarde alguém sair.`});return;}
         closePeer(from);
@@ -498,35 +624,59 @@
     try{entry.pc.close();entry.source?.disconnect();entry.analyser?.disconnect();entry.gain?.disconnect();}catch{}
     state.peers.delete(uid);renderMics();
   }
-  async function toggleMic(){if(state.localStream)await stopMicrophone(true);else await startMicrophone();}
+  function openMicPermission(){
+    if(state.role!=='guest')return;
+    if(state.localStream){void stopMicrophone(true);return;}
+    if(!navigator.mediaDevices?.getUserMedia){toast('Microfone exige HTTPS, permissão e navegador compatível.',true);return;}
+    $('mic-permission-dialog').showModal();
+  }
+  async function toggleMic(){openMicPermission();}
   async function startMicrophone(){
     if(!state.room||state.role!=='guest')return;
     if(!navigator.mediaDevices?.getUserMedia){toast('Microfone exige HTTPS (ou localhost) e navegador compatível.',true);return;}
     const btn=$('mic-toggle');btn.disabled=true;
     try{
+      // A permissão real do navegador só é solicitada após um clique explícito.
       const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false,channelCount:1},video:false});
+      if(state.role!=='guest'||!state.room){stream.getTracks().forEach(t=>t.stop());return;}
       state.localStream=stream;
-      stream.getAudioTracks().forEach(track=>track.onended=()=>{if(state.localStream)stopMicrophone(true);});
+      stream.getAudioTracks().forEach(track=>track.onended=()=>{if(state.localStream)void stopMicrophone(true);});
       const ctx=new (window.AudioContext||window.webkitAudioContext)();state.localAudioContext=ctx;
       const analyser=ctx.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=.65;
       ctx.createMediaStreamSource(stream).connect(analyser);state.localAnalyzer=analyser;
       await ctx.resume();
+      btn.classList.add('active');btn.setAttribute('aria-label','Desligar microfone');
+      $('mic-headline').textContent=isMyTurn()?'A TV tá te esperando! 🎤':'Seu mic foi autorizado!';
+      $('mic-description').textContent=isMyTurn()?'Seu som será enviado ao palco. Confira a conexão e cante!':'Teste o volume aqui. O áudio só será transmitido quando chegar sua música.';
+      updateGuestMicState('preview');
+      $('mic-capture-state').textContent='🎙️ Microfone ligado • fale ou cante para testar';
+      $('mic-volume-title').textContent='NÍVEL DO SOM • CAPTAÇÃO LOCAL';
+      if(isMyTurn())await connectMicToStage();
+    }catch(err){console.error(err);toast(humanError(err),true);await stopMicrophone(false);}finally{btn.disabled=false;}
+  }
+  async function connectMicToStage(){
+    if(!isMyTurn()||!state.localStream||state.localPeer||state.micConnecting)return;
+    state.micConnecting=true;
+    try{
+      updateGuestMicState('connecting');
       const pc=makePeer(state.room.owner_id,false);state.localPeer=pc;
-      stream.getTracks().forEach(track=>pc.addTrack(track,stream));
+      state.localStream.getTracks().forEach(track=>pc.addTrack(track,state.localStream));
       const offer=await pc.createOffer();await pc.setLocalDescription(offer);
       await sendSignal(state.room.owner_id,'offer',pc.localDescription.toJSON());
-      btn.classList.add('active');btn.setAttribute('aria-label','Desligar microfone');
-      $('mic-headline').textContent='Seu mic tá no ar! 🔥';
-      $('mic-description').textContent='Cante virado para a TV. Toque no microfone para desligar.';
-      updateGuestMicState('connecting');
-    }catch(err){console.error(err);toast(humanError(err),true);await stopMicrophone(false);}finally{btn.disabled=false;}
+    }catch(err){console.warn('Conexão de microfone:',err);try{state.localPeer?.close();}catch{}state.localPeer=null;updateGuestMicState('failed');toast('A TV não recebeu seu microfone. Verifique Wi-Fi/TURN e tente novamente.',true);}
+    finally{state.micConnecting=false;}
   }
   function updateGuestMicState(connection){
     const badge=$('mic-status');if(!badge)return;
-    const text={new:'● Conectando',connecting:'● Conectando',connected:'● Conectado',disconnected:'● Sem conexão',failed:'● Falhou',closed:'● Desligado'};
+    const text={new:'● Conectando',connecting:'◌ Ligando ao palco',connected:'● PALCO CONECTADO',preview:'◉ Teste local',disconnected:'⚠ Desconectado',failed:'⚠ Falha no palco',closed:'● Desligado'};
     badge.textContent=text[connection]||'● '+connection;
     badge.classList.toggle('active',connection==='connected');
-    if(connection==='failed')toast('WebRTC falhou. Tente reconectar ou configure um servidor TURN.',true);
+    badge.dataset.status=connection;
+    $('mic-card').classList.toggle('stage-connected',connection==='connected');
+    if(connection==='failed')toast('WebRTC falhou. Confira a conexão ou configure um servidor TURN.',true);
+    if(connection==='disconnected'||connection==='failed'){
+      $('mic-capture-state').textContent='⚠ O celular capta, mas não está conectado à TV.';
+    }
   }
   async function stopMicrophone(notifyHost=true){
     if(notifyHost&&state.room&&state.user){sendSignal(state.room.owner_id,'bye').catch(console.warn);}
@@ -534,9 +684,12 @@
     state.localStream?.getTracks().forEach(track=>track.stop());state.localStream=null;
     try{await state.localAudioContext?.close();}catch{}
     state.localAudioContext=null;state.localAnalyzer=null;
-    const btn=$('mic-toggle');btn.classList.remove('active');btn.setAttribute('aria-label','Ativar microfone');
-    $('mic-headline').textContent='Preparado pro seu momento?';
-    $('mic-description').textContent='Toque para permitir o microfone. O áudio vai direto para o palco pelo WebRTC.';
+    const btn=$('mic-toggle');btn.classList.remove('active','voice-detected');btn.setAttribute('aria-label','Ativar microfone');
+    $('mic-headline').textContent=isMyTurn()?'É sua vez! Ative seu microfone 🎤':'Preparado pro seu momento?';
+    $('mic-description').textContent='Toque para autorizar o microfone. Antes da sua música, o som fica apenas no celular.';
+    $('mic-volume-title').textContent='NÍVEL DO SOM • AGUARDANDO PERMISSÃO';
+    $('mic-capture-state').textContent='🔒 Microfone desligado — toque para autorizar';
+    state.captureSeen=false;state.micConnecting=false;
     updateGuestMicState('closed');drawMobileLevels(0);
   }
   function calculateRMS(analyser){
@@ -547,8 +700,18 @@
   }
   function drawMobileLevels(value){
     const bars=$('guest-levels')?.children||[];
-    const count=Math.round(Math.min(1,value/.16)*bars.length);
-    Array.from(bars).forEach((bar,i)=>{bar.classList.toggle('lit',i<count);bar.style.height=(17+(i<count?Math.min(85,value*550)+Math.random()*15:Math.random()*10))+'%';});
+    const count=Math.round(Math.min(1,value/.12)*bars.length);
+    Array.from(bars).forEach((bar,i)=>{
+      const active=i<count;bar.classList.toggle('lit',active);
+      bar.style.height=(active?Math.min(100,18+Math.max(0,value)*490+(i%3)*7):8)+'%';
+    });
+    const capturing=Boolean(state.localStream&&value>.017);
+    $('mic-toggle').classList.toggle('voice-detected',capturing);
+    if(capturing!==state.captureSeen){
+      state.captureSeen=capturing;
+      $('mic-capture-state').textContent=!state.localStream?'🔒 Microfone desligado':capturing?'🎵 SOM CAPTADO! Sua voz está chegando ao microfone':'🎙️ Microfone ligado • fale ou cante para testar';
+      $('mic-volume-title').textContent=capturing?'NÍVEL DO SOM • RECEBENDO ÁUDIO':'NÍVEL DO SOM • SEM ÁUDIO DETECTADO';
+    }
   }
   function liveScore(stat,frames){
     if(!stat||frames<=0||stat.sung<=0)return 0;
@@ -572,7 +735,7 @@
     state.peers.forEach((entry,uid)=>{
       const rms=calculateRMS(entry.analyser);entry.level=rms;
       const meter=document.getElementById('meter-'+uid);if(meter)meter.style.width=Math.min(100,rms*800)+'%';
-      if(state.isPlaying&&state.currentSong){
+      if(state.isPlaying&&state.currentSong&&uid===state.currentSong.user_id&&entry.connection==='connected'){
         const stat=state.micStats.get(uid)||{sung:0,intensity:0};
         if(rms>.017){stat.sung++;stat.intensity+=Math.min(1,(rms-.017)/.082);}
         state.micStats.set(uid,stat);
@@ -592,6 +755,42 @@
     });
     return loadYouTubeAPI.promise;
   }
+  // A Edge Function valida disponibilidade antes de tocar ou aceitar links manuais.
+  // Mesmo uma resposta positiva não é garantia: a política do YouTube pode mudar.
+  async function checkVideoAvailability(videoId){
+    if(!state.client || !state.room)throw new Error('Entre na festa primeiro.');
+    const {data,error}=await state.client.functions.invoke('youtube-search',{
+      body:{action:'check',videoId,roomId:state.room.id}
+    });
+    if(error){
+      let msg='Não foi possível verificar o vídeo. Configure a função YouTube no Supabase.';
+      try{const body=await error.context?.json?.();if(body?.error)msg=body.error;}catch{}
+      throw new Error(msg);
+    }
+    if(data?.error)throw new Error(data.error);
+    return Boolean(data?.playable);
+  }
+  function showVideoError(message,song=null){
+    state.isPlaying=false;
+    state.failedVideoSong=song||state.currentSong||null;
+    $('video-error-text').textContent=message;
+    if(!$('video-error-dialog').open)$('video-error-dialog').showModal();
+    toast('Vídeo bloqueado. Escolha outra versão ou pule sem pontuar.',true);
+  }
+  async function skipFailedVideo(){
+    $('video-error-dialog').close();
+    const failed=state.failedVideoSong;
+    if(failed&&state.role==='host'&&state.currentSong?.id!==failed.id){
+      // Vídeo novo recusado antes da troca: preserve o vídeo que já estava tocando.
+      try{await callRPC('karaoke_remove_song',{p_room:state.room.id,p_song:failed.id});await fetchSongs();renderQueue();toast('Versão indisponível removida. O show atual continua!');}
+      catch(err){toast(humanError(err),true);}
+    }else if(state.currentSong){await advanceSong();}
+    else if(failed&&state.role==='host'){
+      try{await callRPC('karaoke_remove_song',{p_room:state.room.id,p_song:failed.id});await advanceSong();}
+      catch(err){toast(humanError(err),true);}
+    }
+    state.failedVideoSong=null;
+  }
   async function ensurePlayer(id) {
     await loadYouTubeAPI();
     if(state.playerReady&&state.player)return state.player;
@@ -601,7 +800,7 @@
       state.player=new window.YT.Player('youtube-player',{
         videoId:id,playerVars:{playsinline:1,controls:1,rel:0,origin:location.origin,cc_load_policy:0},
         events:{onReady:e=>{clearTimeout(timeout);state.playerReady=true;resolve(e.target);},onStateChange:onPlayerState,
-          onError:e=>{const codes={2:'Link de vídeo inválido.',5:'Vídeo não pode ser reproduzido.',100:'Vídeo removido ou privado.',101:'O dono do vídeo proibiu incorporação.',150:'O dono do vídeo proibiu incorporação.'};toast(codes[e.data]||'O YouTube recusou este vídeo.',true);state.isPlaying=false;},
+          onError:e=>{const codes={2:'Link inválido.',5:'Este vídeo não pôde ser reproduzido no player.',100:'Vídeo removido ou privado.',101:'O dono ou detentor dos direitos bloqueou a incorporação.',150:'O dono ou detentor dos direitos bloqueou a incorporação.'};showVideoError(codes[e.data]||'O YouTube recusou este vídeo.');},
           onAutoplayBlocked:()=>toast('O navegador bloqueou o início automático. Clique em “Reproduzir”.')}
       });
     });
@@ -609,6 +808,7 @@
   function onPlayerState(event) {
     if(state.role!=='host')return;
     state.isPlaying=event.data===window.YT.PlayerState.PLAYING;
+    if(state.isPlaying && $('video-error-dialog').open)$('video-error-dialog').close();
     $('play-pause').textContent=state.isPlaying?'⏸ Pausar':'▶ Reproduzir';
     if(event.data===window.YT.PlayerState.ENDED&&!state.finishing&&state.currentSong)finishSong(false);
   }
@@ -622,6 +822,11 @@
   async function startSong(song) {
     if(!song||state.role!=='host'||state.finishing)return;
     try {
+      // Valide ANTES de remover a música anterior da tela ou marcar a nova como em reprodução.
+      let playable=null;
+      try{playable=await checkVideoAvailability(song.video_id);}
+      catch(err){toast('Não foi possível pré-verificar o YouTube. Vou tentar reproduzir normalmente; se falhar, trocamos o vídeo.',true);}
+      if(playable===false){showVideoError('Este vídeo não está liberado para reprodução incorporada no Brasil. Escolha outra versão.',song);return;}
       if(state.currentSong)await finishSong(true,false);
       await callRPC('karaoke_start_song',{p_room:state.room.id,p_song:song.id});
       state.currentSong={...song,status:'playing'};state.room.current_song_id=song.id;
@@ -638,8 +843,8 @@
     catch(err){toast(humanError(err),true);}
   }
   function getScoreResults(){
-    const uids=new Set([...state.micStats.keys()]);
-    if(state.currentSong?.user_id)uids.add(state.currentSong.user_id);
+    // Apenas a pessoa que escolheu a música recebe a avaliação desta apresentação.
+    const uids=new Set(state.currentSong?.user_id?[state.currentSong.user_id]:[]);
     const seconds=Number(((state.songFrames||0)*.14).toFixed(2));
     return [...uids].slice(0,12).map(uid=>{
       const stat=state.micStats.get(uid)||{sung:0,intensity:0};
@@ -741,6 +946,8 @@
       state.isPlaying=false;
       if(skipped){try{state.player?.stopVideo();}catch{}}
       state.currentSong=null;state.room.current_song_id=null;
+      // Privacidade: feche os microfones ao fim do show.
+      for(const uid of [...state.peers.keys()]){void sendSignal(uid,'bye').catch(console.warn);closePeer(uid);}
       if(!skipped&&showResults){
         showFinal([...results].sort((a,b)=>b.score-a.score)[0]||{score:0,user_id:null});
         state.scoreOverlayTimer=setTimeout(()=>{if(state.role==='host')advanceSong();},14000);
@@ -776,41 +983,97 @@
     if(!video){toast('Cole um link válido de vídeo do YouTube.',true);return;}
     const button=form.querySelector('[type=submit]');setLoading(button,true,'Entrando na fila...');
     try{
+      let playable=null;
+      try{playable=await checkVideoAvailability(video);}
+      catch{toast('Não consegui verificar o link agora. Vou adicioná-lo, mas pode haver restrição de reprodução.',true);}
+      if(playable===false)throw new Error('Este link não permite reprodução incorporada no Brasil. Procure outra versão.');
       await callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title.value.trim()});
       input.value='';title.value='';await fetchSongs();renderQueue();
       if(host)$('song-dialog').close();
       toast('Música adicionada! Agora é só ensaiar o refrão. 🎶');
     }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
   }
-  async function searchYoutube(host){
-    const search=$(host?'host-search':'youtube-search');const results=$(host?'host-results':'search-results');
-    const query=search.value.trim();if(!query){toast('Digite o nome da música para buscar.',true);return;}
-    const key=cfg.YOUTUBE_API_KEY?.trim();
-    if(!key){
-      window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(query+' karaokê'),'_blank','noopener,noreferrer');
-      toast('A busca abriu no YouTube. Copie o link do vídeo desejado e cole aqui.');return;
-    }
-    results.innerHTML='<p class="subtle">Procurando hits... 🎧</p>';
-    try{
-      const url=new URL('https://www.googleapis.com/youtube/v3/search');
-      url.search=new URLSearchParams({part:'snippet',type:'video',videoEmbeddable:'true',maxResults:'7',q:query+' karaoke',key}).toString();
-      const response=await fetch(url.toString());const json=await response.json();
-      if(!response.ok)throw new Error(json.error?.message||'Falha na API do YouTube.');
-      const hits=(json.items||[]).filter(v=>youtubeId(v.id?.videoId));
-      results.replaceChildren();
-      if(!hits.length){results.innerHTML='<p class="subtle">Nenhum vídeo encontrado. Experimente outra busca.</p>';return;}
-      hits.forEach(item=>{
-        const videoId=youtubeId(item.id.videoId);
-        const button=document.createElement('button');button.type='button';button.className='search-hit';
-        const img=document.createElement('img');img.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';img.alt='Miniatura de vídeo';img.loading='lazy';
-        const label=document.createElement('span');label.textContent=item.snippet.title;
-        button.append(img,label);button.addEventListener('click',()=>{
-          $(host?'host-url':'guest-video-url').value='https://www.youtube.com/watch?v='+videoId;
-          $(host?'host-song-title':'guest-song-title').value=item.snippet.title.slice(0,120);
-          results.replaceChildren();toast('Vídeo selecionado. Agora é só adicionar!');
-        });results.append(button);
+  // A pesquisa usa somente a Edge Function autenticada (a chave do Google fica no Supabase).
+  // Nunca abrir outra aba nem exigir colar um URL quando a busca estiver habilitada.
+  const searchMemory = new Map();
+  function decodedYouTubeText(value) {
+    const t=document.createElement('textarea');t.innerHTML=String(value||'');return t.value;
+  }
+  function makeSearchMessage(results,message,kind='info') {
+    results.replaceChildren();
+    const node=document.createElement('div');node.className='search-feedback '+(kind==='error'?'search-error':'');
+    node.textContent=message;results.append(node);
+  }
+  async function addSearchedVideo(item,host,button,results) {
+    if(!state.room || !state.client){toast('Entre numa festa antes de adicionar músicas.',true);return;}
+    if(!youtubeId(item.id)){toast('Vídeo indisponível. Escolha outro.',true);return;}
+    setLoading(button,true,'Entrando na fila...');
+    try {
+      await callRPC('karaoke_enqueue',{
+        p_room:state.room.id, p_video:item.id, p_title:item.title.slice(0,120)
       });
-    }catch(err){results.textContent='Não foi possível buscar no YouTube. Cole o link manualmente.';toast(humanError(err),true);}
+      await fetchSongs();renderQueue();
+      if(host)$('song-dialog').close();
+      else makeSearchMessage(results,'💚 Entrou na fila! Pode escolher outro hit se quiser.');
+      toast('🎤 '+item.title.slice(0,65)+' entrou na fila. VOX tá de olho!');
+    }catch(err){toast(humanError(err),true);}
+    finally{setLoading(button,false);}
+  }
+  function renderYoutubeResults(hits,results,host){
+    results.replaceChildren();
+    if(!hits.length){makeSearchMessage(results,'Nenhum karaokê encontrado. Tente outro nome ou artista.');return;}
+    const caption=document.createElement('div');caption.className='search-count';
+    caption.textContent=`🎶 ${hits.length} versões com incorporação permitida na consulta · pode mudar`;
+    results.append(caption);
+    hits.forEach(hit=>{
+      const videoId=youtubeId(hit.id);
+      if(!videoId)return;
+      const card=document.createElement('div');card.className='youtube-result-card';
+      const image=document.createElement('img');
+      image.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';
+      image.loading='lazy';image.alt='Capa do vídeo '+hit.title;image.width=120;image.height=68;
+      const info=document.createElement('div');info.className='youtube-result-info';
+      const title=document.createElement('strong');title.textContent=decodedYouTubeText(hit.title);
+      const channel=document.createElement('small');channel.textContent=decodedYouTubeText(hit.channel||'Canal no YouTube');
+      info.append(title,channel);
+      const button=document.createElement('button');button.type='button';
+      button.className='button button-primary youtube-add';
+      button.textContent='+ FILA';button.setAttribute('aria-label','Adicionar '+hit.title+' à fila');
+      button.addEventListener('click',()=>addSearchedVideo({id:videoId,title:decodedYouTubeText(hit.title)},host,button,results));
+      card.append(image,info,button);results.append(card);
+    });
+  }
+  async function searchYoutube(host) {
+    const search=$(host?'host-search':'youtube-search');
+    const results=$(host?'host-results':'search-results');
+    const button=$(host?'host-search-button':'search-youtube');
+    const query=search.value.trim().replace(/\s+/g,' ');
+    if(query.length<2){makeSearchMessage(results,'Escreva o nome da música ou artista para buscar.');search.focus();return;}
+    if(!state.client||!state.room){makeSearchMessage(results,'Entre numa festa antes de buscar músicas.','error');return;}
+    const key=query.toLocaleLowerCase('pt-BR');
+    const cached=searchMemory.get(key);
+    if(cached&&Date.now()-cached.date<5*60*1000){renderYoutubeResults(cached.items,results,host);return;}
+    setLoading(button,true,'Buscando...');
+    makeSearchMessage(results,'🔎 Procurando o hino perfeito no YouTube...');
+    try {
+      const {data,error}=await state.client.functions.invoke('youtube-search',{
+        body:{ query,roomId:state.room.id }
+      });
+      if(error){
+        // As mensagens do backend podem vir em Response; o fallback orienta a configuração.
+        let detail='Busca ainda não disponível. O anfitrião precisa ativar a API do YouTube nas configurações do projeto.';
+        try{const j=await error.context?.json?.();if(j?.error)detail=j.error;}catch{}
+        throw new Error(detail);
+      }
+      if(data?.error)throw new Error(data.error);
+      if(!Array.isArray(data?.items))throw new Error('Resposta inválida da busca. Tente novamente.');
+      const hits=data.items.filter(i=>i&&youtubeId(i.id)&&typeof i.title==='string').slice(0,8);
+      searchMemory.set(key,{date:Date.now(),items:hits});
+      if(searchMemory.size>30)searchMemory.delete(searchMemory.keys().next().value);
+      renderYoutubeResults(hits,results,host);
+    }catch(err){
+      makeSearchMessage(results,humanError(err)+' Você ainda pode usar a opção “Tenho um link” abaixo.','error');
+    }finally{setLoading(button,false);}
   }
   function openScoreboard(){
     const rankings=new Map();
@@ -840,8 +1103,10 @@
     clearInterval(state.ticker);state.ticker=null;
     clearInterval(state.signalCleaner);state.signalCleaner=null;
     clearInterval(state.memberVerifier);state.memberVerifier=null;
+    clearInterval(state.roomPoller);state.roomPoller=null;clearInterval(state.signalPoller);state.signalPoller=null;state.realtimeOk=false;state.syncQueued=false;
     clearTimeout(state.roomReloadTimer);clearTimeout(state.scoreOverlayTimer);
     if(state.localStream)await stopMicrophone(true);
+    if(state.role==='host'){for(const uid of state.peers.keys())void sendSignal(uid,'bye').catch(console.warn);}
     for(const uid of [...state.peers.keys()])closePeer(uid);
     try{if(state.channel&&state.client)await state.client.removeChannel(state.channel);}catch{}
     state.channel=null;
@@ -853,7 +1118,7 @@
     }
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
     state.songFrames=0;state.micStats.clear();state.currentSong=null;state.room=null;state.role=null;
-    state.songs=[];state.members=[];state.scores=[];state.isPlaying=false;state.finishing=false;
+    state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.isPlaying=false;state.finishing=false;
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
   async function leaveGuest(){
@@ -863,7 +1128,7 @@
     if(room&&user)state.client.from('karaoke_members').delete().eq('room_id',room).eq('user_id',user).then(({error})=>{if(error)console.warn(error);});
     history.replaceState(null,'',new URL('./',location.href).href);
     localStorage.removeItem('tem-gogo-pending-room');
-    show('landing');showPinEntry('');
+    if(state.user)await openLobby();else showPinEntry('');
   }
   async function exitStage(){
     if(state.role!=='host')return;
@@ -895,11 +1160,40 @@
   function attachEvents(){
     $('invite-install').addEventListener('click',installFromInvite);
     $('invite-continue').addEventListener('click',()=>showPinEntry(state.inviteRoom));
-    $('generate-pin').addEventListener('click',()=>{$('room-pin').value=sixDigitPin();});
     $('regen-pin').addEventListener('click',()=>{$('new-room-pin').value=sixDigitPin();});
     $('change-pin').addEventListener('click',()=>{$('pin-dialog').showModal();});
     $('pin-close').addEventListener('click',()=>$('pin-dialog').close());
     $('pin-change-form').addEventListener('submit',changeRoomPin);
+    $('hub-join-room').addEventListener('click',()=>showPinEntry(''));
+    $('guest-switch').addEventListener('click',goToMyRooms);
+    $('stage-switch').addEventListener('click',goToMyRooms);
+    $('copy-room-invite').addEventListener('click',async()=>{
+      if(!state.readyRoom)return;
+      const {room,pin}=state.readyRoom;
+      const text=`🎤 Tem Gogó — ${room.title}\nConvite: ${currentURL(room.code)}\nCódigo: ${room.code}\nSenha da festa: ${pin}\n(Não é a senha da sua conta.)`;
+      try{await navigator.clipboard.writeText(text);toast('Convite copiado! Envie só para quem foi chamado. 🎟️');}
+      catch{toast('Copiar indisponível; copie o código e a senha mostrados na tela.',true);}
+    });
+    $('ready-open-stage').addEventListener('click',async()=>{
+      const saved=state.readyRoom;
+      $('room-ready-dialog').close();state.readyRoom=null;
+      $('ready-pin').textContent='••••••';
+      if(saved)await enterRoomAsHost(saved.room);
+    });
+    $('room-ready-dialog').addEventListener('cancel',e=>{e.preventDefault();toast('Use Abrir palco para continuar. A senha só aparece agora.');});
+    $('video-error-close').addEventListener('click',()=>$('video-error-dialog').close());
+    $('video-replace').addEventListener('click',()=>{
+      const s=state.failedVideoSong||state.currentSong;
+      $('video-error-dialog').close();
+      $('host-search').value=(s?.title||'').replace(/karaok[eê]/ig,'').trim().slice(0,90);
+      $('song-dialog').showModal();
+    });
+    $('video-skip').addEventListener('click',skipFailedVideo);
+    $('video-retry').addEventListener('click',()=>{
+      $('video-error-dialog').close();
+      if(state.currentSong?.video_id&&state.playerReady)state.player.loadVideoById(state.currentSong.video_id);
+      else if(state.failedVideoSong)startSong(state.failedVideoSong);
+    });
     $('tab-host').addEventListener('click',()=>{
       $('tab-host').classList.add('active');$('tab-guest').classList.remove('active');
       $('tab-host').setAttribute('aria-selected','true');$('tab-guest').setAttribute('aria-selected','false');
@@ -907,7 +1201,14 @@
       document.body.classList.remove('entry-active');
     });
     $('tab-guest').addEventListener('click',()=>openGuestEntry($('guest-code').value));
-    $('auth-form').addEventListener('submit',login);$('signup-button').addEventListener('click',signup);
+    $('auth-form').addEventListener('submit',login);
+    $('signup-button').addEventListener('click',openSignup);
+    $('signup-form').addEventListener('submit',signup);
+    $('signup-close').addEventListener('click',closeSignup);
+    $('signup-back-login').addEventListener('click',()=>{closeSignup();$('auth-email').focus();});
+    $('signup-show-password').addEventListener('change',event=>{
+      ['signup-password','signup-confirm'].forEach(id=>$(id).type=event.target.checked?'text':'password');
+    });
     $('guest-entry-form').addEventListener('submit',joinParty);$('create-room-form').addEventListener('submit',makeRoom);
     $('logout-button').addEventListener('click',logout);
     $('stage-exit').addEventListener('click',exitStage);
@@ -955,15 +1256,18 @@
     $('youtube-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchYoutube(false);}});
     $('host-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchYoutube(true);}});
     $('mic-toggle').addEventListener('click',toggleMic);
+    $('mic-confirm-permission').addEventListener('click',()=>{$('mic-permission-dialog').close();void startMicrophone();});
+    $('mic-cancel-permission').addEventListener('click',()=>$('mic-permission-dialog').close());
+    $('go-mic-now').addEventListener('click',()=>{switchMobileTab('mic');$('mic-toggle').focus({preventScroll:true});});
     $('leave-party').addEventListener('click',leaveGuest);
     $('mobile-tab-mic').addEventListener('click',()=>switchMobileTab('mic'));
     $('mobile-tab-queue').addEventListener('click',()=>switchMobileTab('queue'));
     $('final-close').addEventListener('click',advanceSong);
     $('qr-bubble').addEventListener('click',()=> $('qr-bubble').classList.toggle('qr-expanded'));
     $('qr-bubble').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('qr-bubble').classList.toggle('qr-expanded');}});
-    document.addEventListener('visibilitychange',()=>{if(state.role==='host'&&document.visibilityState==='visible'&&!state.wakeLock)unlockWakeLock();});
-    window.addEventListener('online',()=>toast('Internet conectada novamente. ✅'));
-    window.addEventListener('offline',()=>toast('Sem internet: a fila e os vídeos podem parar.',true));
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.role==='host'&&!state.wakeLock)unlockWakeLock();void refreshRoomSnapshot();}});
+    window.addEventListener('online',()=>{toast('Internet conectada novamente. ✅');void refreshRoomSnapshot();void fetchRecentSignals();});
+    window.addEventListener('offline',()=>{setSyncStatus('offline');toast('Sem internet: o palco e a fila podem parar.',true);});
   }
   function switchMobileTab(tab){
     const mic=tab==='mic';$('guest-mic-panel').hidden=!mic;$('guest-queue-panel').hidden=mic;
