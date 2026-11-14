@@ -1,12 +1,15 @@
 /**
- * Tem Gogó v9 | Supabase Edge Function: youtube-search
+ * Tem Gogó v9.2 | Supabase Edge Function: youtube-search
  * Secret privado: SERPAPI_KEY (apenas no Supabase).
  * Sem senha da sala. Usuário precisa ser membro OU anfitrião de sala aberta,
  * validado com JWT e RLS. Busca externa bloqueada pelo saldo mensal da SerpApi.
  * Usar no editor Supabase de Edge Functions com nome EXATO youtube-search.
  */
 const ORIGIN='https://appspwa-zlsp.github.io';
-const reRoom=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{12}$/i;
+// Aceita o código de convite (8 ou 12 dígitos) e também o UUID legado.
+// Não confundir room.code com room.id. A consulta RLS autoriza apenas membros.
+const reRoomCode=/^[A-F0-9]{8}(?:[A-F0-9]{4})?$/;
+const reRoomUUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const reVid=/^[A-Za-z0-9_-]{11}$/;
 type Item={id:string;title:string;channel:string};
 const calls=new Map<string,number[]>();
@@ -59,10 +62,15 @@ Deno.serve(async(req:Request)=>{
   if(!/^Bearer\s+[^\s]+$/i.test(auth))return reply({error:'Entre na festa antes de buscar músicas.',code:'AUTH_REQUIRED'},401);
   try{
     const payload=await req.json().catch(()=>null);
-    const roomId=String(payload?.roomId||'');
+    // QR e fila trabalham com um código (ex.: B0679AE967AE),
+    // não obrigatoriamente com o UUID interno.
+    const roomCode=String(payload?.roomCode||'').trim().toUpperCase();
+    const roomId=String(payload?.roomId||'').trim();
+    const validCode=reRoomCode.test(roomCode);
+    const validId=reRoomUUID.test(roomId);
     const action=payload?.action==='check'?'check':'search';
     const query=String(payload?.query||'').normalize('NFKC').replace(/\s+/g,' ').trim();
-    if(!reRoom.test(roomId))return reply({error:'Identificador da sala inválido.'},400);
+    if(!validCode && !validId)return reply({error:'Não foi possível identificar a festa. Volte à Central de salas e entre novamente.',code:'ROOM_REFERENCE_INVALID'},400);
     if(action==='search'&&(query.length<2||query.length>100))return reply({error:'Digite entre 2 e 100 caracteres.'},400);
     if(action==='check'&&!reVid.test(String(payload?.videoId||'')))return reply({error:'ID do vídeo inválido.'},400);
     const headers={'apikey':pub,'Authorization':auth};
@@ -72,12 +80,15 @@ Deno.serve(async(req:Request)=>{
     const user=await logged.json();if(!user?.id)return reply({error:'Sessão inválida.',code:'AUTH_INVALID'},401);
     // RLS aplicada ao token do usuário: só anfitrião ou membro lê esta sala.
     const url=new URL(`${base}/rest/v1/karaoke_rooms`);
-    url.searchParams.set('select','id');url.searchParams.set('id','eq.'+roomId);
+    // Prefere o convite; se houver um UUID legado, mantém a compatibilidade.
+    // O banco só devolve a sala se o JWT tiver acesso a ela via RLS.
+    url.searchParams.set('select','id,code');
+    url.searchParams.set(validCode?'code':'id','eq.'+(validCode?roomCode:roomId));
     url.searchParams.set('status','eq.open');url.searchParams.set('expires_at','gt.'+new Date().toISOString());
     const access=await fetch(url,{headers,signal:AbortSignal.timeout(7000)});
     if(!access.ok)return reply({error:'Falha ao confirmar a participação nesta festa.',code:'ROOM_CHECK_FAILED'},403);
     const rooms=await access.json();
-    if(!Array.isArray(rooms)||rooms.length===0)return reply({error:'Você ainda não está vinculado a uma festa ativa. Reabra o QR para entrar.',code:'ROOM_ACCESS_DENIED'},403);
+    if(!Array.isArray(rooms)||rooms.length===0)return reply({error:'Não foi possível confirmar sua participação nesta festa. Volte ao QR e entre novamente.',code:'ROOM_ACCESS_DENIED'},403);
     if(action==='check')return reply({playable:null,verified:false,reason:'Somente o player YouTube pode confirmar a reprodução.'});
     const q=query.toLocaleLowerCase('pt-BR');
     const cached=hitsCache.get(q);

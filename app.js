@@ -781,7 +781,7 @@
   async function checkVideoAvailability(videoId){
     if(!state.client || !state.room)throw new Error('Entre na festa primeiro.');
     const {data,error}=await state.client.functions.invoke('youtube-search',{
-      body:{action:'check',videoId,roomId:state.room.id}
+      body:{action:'check',videoId,roomId:state.room.id,roomCode:state.room.code}
     });
     if(error){
       let msg='Não foi possível consultar a verificação no Supabase. Você pode tentar adicionar o link mesmo assim.';
@@ -1212,7 +1212,7 @@
     makeSearchMessage(results,'🔎 Procurando o hino perfeito no YouTube...');
     try {
       const {data,error}=await state.client.functions.invoke('youtube-search',{
-        body:{ query,roomId:state.room.id }
+        body:{ query,roomId:state.room.id,roomCode:state.room.code }
       });
       if(error){
         let detail='Não consegui consultar a SerpApi. Confira a Edge Function youtube-search no Supabase.';
@@ -1227,6 +1227,8 @@
           showExternalFallback(results,host,query,detail);
           return;
         }
+        if(code==='ROOM_REFERENCE_INVALID'||/Identificador da sala inválido/i.test(detail))
+          throw new Error('A função de busca ainda usa a validação antiga de sala. Publique a nova youtube-search v9.2 no Supabase.');
         throw new Error(detail);
       }
       if(data?.code==='QUOTA_EXHAUSTED'||data?.code==='QUOTA_UNAVAILABLE'){
