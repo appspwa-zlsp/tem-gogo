@@ -1,5 +1,5 @@
-const CACHE='tem-gogo-shell-v12-catalogo-vox';
-const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./qr-local.js','./vox-personagem.svg','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='tem-gogo-shell-v13-diva-gogo-placar';
+const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./qr-local.js','./diva-gogo.svg','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });

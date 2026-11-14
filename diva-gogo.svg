@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 320" role="img" aria-labelledby="title desc">
+<title id="title">Diva Gogó, a drag queen apresentadora do Tem Gogó</title>
+<desc id="desc">Personagem original de cabelo rosa volumoso, coroa neon, maquiagem marcante, vestido brilhante e microfone.</desc>
+<defs>
+ <radialGradient id="hair" cx=".42" cy=".25" r=".8"><stop stop-color="#ffd0f8"/><stop offset=".36" stop-color="#ff79d2"/><stop offset=".76" stop-color="#cb3cac"/><stop offset="1" stop-color="#6a267a"/></radialGradient>
+ <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8cbb4"/><stop offset=".56" stop-color="#df957d"/><stop offset="1" stop-color="#a95e6c"/></linearGradient>
+ <linearGradient id="dress" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffadf0"/><stop offset=".48" stop-color="#d529ad"/><stop offset="1" stop-color="#632866"/></linearGradient>
+ <linearGradient id="mic" x1="0" y1="0" x2="1" y2=".8"><stop stop-color="#fffaff"/><stop offset=".45" stop-color="#c9a4d4"/><stop offset="1" stop-color="#755681"/></linearGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="170%" height="180%"><feDropShadow dx="0" dy="9" stdDeviation="7" flood-color="#140421" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#shadow)">
+ <path d="M62 243Q38 250 26 299h213q-11-57-60-60l-13-11H87z" fill="url(#dress)" stroke="#471747" stroke-width="6"/>
+ <path d="M92 243q39 50 76 0" fill="none" stroke="#d5ff51" stroke-width="7"/>
+ <path d="M47 134C23 68 63 33 114 38 145 6 210 36 217 103c31 45-1 98-36 126-17 20-102 23-127-13-35-20-40-52-7-82z" fill="url(#hair)" stroke="#7a275f" stroke-width="6"/>
+ <g fill="#ff92df" opacity=".7"><circle cx="54" cy="95" r="23"/><circle cx="197" cy="70" r="19"/><circle cx="205" cy="156" r="24"/><circle cx="56" cy="187" r="19"/></g>
+ <path d="M74 110q8-40 52-45 49-2 57 43l1 67q-13 66-61 75-47-6-59-62z" fill="url(#skin)" stroke="#7c4461" stroke-width="4"/>
+ <path d="M67 126q12-71 72-61 39-8 55 61-8-38-38-43-19-1-35 18-33-9-54 25" fill="url(#hair)"/>
+ <path d="M82 148q20-17 40 0M140 149q17-18 35-2" fill="none" stroke="#442340" stroke-width="8" stroke-linecap="round"/>
+ <path d="M87 148l-12-9m23 5-6-13m20 12-1-13m30 13 1-14m11 13 8-12m5 17 13-9" stroke="#281426" stroke-width="4" stroke-linecap="round"/>
+ <path d="M84 153q20 14 35 0M141 154q18 14 32-1" fill="#fff" stroke="#452039" stroke-width="2"/>
+ <circle cx="106" cy="154" r="5.4" fill="#332039"/><circle cx="154" cy="154" r="5.4" fill="#332039"/>
+ <path d="M127 154l-6 34q9 9 17-1" fill="none" stroke="#9a5658" stroke-width="3"/>
+ <path d="M101 203q11-14 28-7 19-9 31 8-27 29-59-1z" fill="#a5105e" stroke="#63123f" stroke-width="3"/>
+ <path d="M106 204q24 11 49-1" stroke="#fff1ee" stroke-width="3" fill="none"/>
+ <circle cx="61" cy="186" r="8" fill="#d5ff51" stroke="#34153f" stroke-width="3"/><circle cx="192" cy="185" r="8" fill="#d5ff51" stroke="#34153f" stroke-width="3"/>
+ <path d="M61 197l-7 18 7 10 7-10zM192 196l-7 18 7 10 7-10z" fill="#d5ff51" stroke="#311439" stroke-width="3"/>
+ <path d="M97 47L86 20 111 33l21-27 20 29 27-15-6 32z" fill="#d5ff51" stroke="#55264f" stroke-width="5" stroke-linejoin="round"/>
+ <circle cx="131" cy="38" r="7" fill="#fb5ec6"/>
+ <path d="M189 260l27 10 14-28 13 8-15 37-12 12-36-18z" fill="url(#skin)" stroke="#6d3455" stroke-width="4"/>
+ <g transform="rotate(-18 213 235)"><rect x="206" y="219" width="15" height="66" rx="7" fill="#7e529d" stroke="#321541" stroke-width="4"/><rect x="197" y="182" width="32" height="52" rx="15" fill="url(#mic)" stroke="#321541" stroke-width="4"/>
+ <path d="M202 199h22m-22 9h22m-21 9h20" stroke="#75577d" stroke-width="2"/></g>
+ <path d="M26 115l8-18 9 18 18 8-18 7-9 18-8-18-18-7z" fill="#d5ff51"/>
+ <path d="M213 26l7-17 8 17 17 8-17 6-8 17-7-17-18-6z" fill="#ffdb62"/>
+ <path d="M88 273l10 5-10 8-10-8zM160 272l10 5-10 8-10-8zM132 289l9 5-9 8-9-8z" fill="#d5ff51"/>
+</g></svg>

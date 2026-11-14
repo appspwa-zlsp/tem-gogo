@@ -392,3 +392,46 @@ body.invite-active .landing-footer,body.entry-active .landing-footer{padding-top
 @media(max-width:700px){.catalog-modal-shell{padding:15px;max-height:94dvh}.catalog-dialog{width:96vw;max-height:94dvh}.catalog-toolbar{grid-template-columns:1fr}.catalog-list{grid-template-columns:1fr}.catalog-head h2{font-size:27px}.vox-stage-banner{min-height:80px;padding:9px 12px;gap:8px}.vox-banner-mascot{width:58px;height:64px}.vox-stage-banner #vox-line{font-size:13px}.vox-stage-name{font-size:9px}.vox-idle-stage{gap:12px;padding:10px}.vox-idle-character{flex-basis:35%}.vox-idle-character img{max-height:130px}.vox-idle-copy{max-width:60%;gap:5px}.vox-idle-copy strong{font-size:clamp(20px,5vw,36px)}.vox-idle-copy p{font-size:10px}.vox-idle-copy small{font-size:9px}.vox-idle-kicker{font-size:8px}}
 @media(max-width:390px){.catalog-list .history-song-card img{width:56px;height:40px}.catalog-list .history-song-card strong{font-size:11px}.catalog-list .history-song-card small{font-size:9px}.vox-idle-copy strong{font-size:19px}.vox-banner-mascot{width:49px}}
 @media(prefers-reduced-motion:reduce){.vox-banner-mascot,.vox-idle-character,.vox-onair-dot{animation:none!important}}
+
+/* Tem Gogó v13 beta final — Diva Gogó, ranking ao vivo, controles separados. */
+.vox-bubble-avatar{overflow:hidden;background:linear-gradient(135deg,#ff96db,#a94ac8);border:2px solid var(--lime)}
+.vox-bubble-avatar img{height:80px;width:80px;object-fit:contain;transform:translateY(4px) rotate(-4deg)}
+.vox-mini-face{overflow:hidden;background:linear-gradient(140deg,#e34bb0,#9a4eb4)}
+.vox-mini-face img{width:43px;height:43px;object-fit:contain;transform:translateY(6px)}
+.vox-stage-banner{padding:9px 13px;min-height:72px;background:linear-gradient(100deg,rgba(238,58,170,.24),rgba(213,255,81,.07));border-color:rgba(255,104,201,.4)}
+.vox-stage-banner .vox-banner-mascot{width:60px;max-height:72px;object-fit:contain;flex:none;filter:drop-shadow(0 3px 10px rgba(255,83,194,.55))}
+.vox-stage-name{color:var(--lime);white-space:normal;font-size:11px}
+.vox-stage-banner #vox-line{font-size:clamp(12px,1.1vw,16px);line-height:1.4}
+.vox-idle-stage .vox-idle-character img{filter:drop-shadow(0 15px 12px rgba(0,0,0,.4))}
+.stage-rank-panel{margin:10px 0 13px;border:1px solid rgba(213,255,81,.35);background:linear-gradient(160deg,rgba(109,48,132,.3),rgba(25,9,42,.72));border-radius:17px;padding:13px;box-shadow:0 5px 18px rgba(0,0,0,.13)}
+.rank-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;color:var(--lime);font-weight:900;font-size:12px;letter-spacing:.04em}
+.rank-header small{font-size:10px;color:var(--muted);letter-spacing:normal}
+.stage-rank-list{display:grid;gap:5px;max-height:214px;overflow-y:auto;scrollbar-width:thin}
+.mini-rank-item{display:flex;align-items:center;gap:8px;padding:7px 7px;border-radius:11px;background:rgba(255,255,255,.06)}
+.mini-rank-item:first-child{background:rgba(213,255,81,.12);border:1px solid rgba(213,255,81,.23)}
+.rank-medal{width:27px;flex:none;text-align:center;font-weight:900;font-size:17px}
+.mini-rank-name{flex:1;font-weight:800;min-width:0;font-size:12px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.mini-rank-name small{display:block;font-weight:500;color:var(--muted);font-size:9px;margin-top:2px}
+.mini-rank-item strong{color:var(--lime);font-size:18px;white-space:nowrap}
+.mini-rank-item strong small{font-size:9px;color:var(--muted)}
+.rank-empty{color:var(--muted);font-size:12px;line-height:1.45;margin:0 0 7px}
+.rank-full-button{margin-top:11px;width:100%;font-size:11px;padding:10px}
+.live-scoring-card{margin-top:11px;padding:13px;border-radius:16px;border:1px solid rgba(255,98,189,.28);background:linear-gradient(115deg,rgba(255,98,189,.09),rgba(213,255,81,.055));}
+.live-score-label{font-size:10px;letter-spacing:.07em;font-weight:900;color:var(--lime)}
+.live-score-list{margin-top:8px;color:var(--muted);font-size:12px}
+.round-score-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid rgba(255,255,255,.12)}
+.round-score-row:first-child{border-top:0}
+.round-score-row span{min-width:0;display:flex;flex-direction:column;gap:2px}
+.round-score-row span strong{font-size:13px;color:var(--text)}
+.round-score-row span small{font-size:10px;color:var(--muted)}
+.round-score-row>b{font-size:24px;color:var(--lime);white-space:nowrap}
+.round-score-row>b small{font-size:10px;color:var(--muted)}
+.playback-volume,.guest-mic-gain{margin-top:13px;padding:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.045);border-radius:14px}
+.playback-volume label,.guest-mic-gain label{font-weight:900;font-size:12px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.playback-volume label b,.guest-mic-gain strong{color:var(--lime);font-size:13px}
+.playback-volume input,.guest-mic-gain input{width:100%;accent-color:var(--lime);padding:0;background:none;height:23px;margin:10px 0 0;cursor:pointer}
+.playback-volume small,.guest-mic-gain small{display:block;color:var(--muted);font-size:10px;line-height:1.4;margin-top:4px}
+.guest-mic-gain{margin:16px 0 2px;background:rgba(213,255,81,.06);border-color:rgba(213,255,81,.28)}
+@media(max-width:990px){.stage-rank-panel{padding:11px}.mini-rank-item{padding:6px}.vox-stage-banner .vox-banner-mascot{width:48px}.playback-volume{padding:9px}}
+@media(max-width:650px){.stage-rank-panel{margin-top:12px}.stage-rank-list{max-height:none}.vox-stage-banner .vox-banner-mascot{width:42px}.live-scoring-card{padding:10px}}
+@media(prefers-reduced-motion:reduce){.vox-stage-banner .vox-banner-mascot,.vox-idle-stage .vox-idle-character img{animation:none!important}}
