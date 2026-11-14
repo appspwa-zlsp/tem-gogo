@@ -197,7 +197,7 @@
     }
     $('room-pin').value=sixDigitPin();
     if (!configured()) {
-      $('auth-state').textContent='⚙️ Configure assets/config.js e execute db/INSTALAR_TEM_GOGO.sql para ativar as salas.';
+      $('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';
       return;
     }
     if (!window.supabase?.createClient) {toast('Não foi possível carregar a biblioteca Supabase. Verifique a internet.',true);return;}
@@ -214,7 +214,7 @@
     state.client.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;});
   }
   function isAnonymous(user) {return user?.is_anonymous===true || user?.app_metadata?.provider==='anonymous';}
-  function checkBackend() {if (!state.client){toast('Antes de usar, configure o Supabase em assets/config.js.',true);return false;}return true;}
+  function checkBackend() {if (!state.client){toast('Antes de usar, configure o Supabase em config.js.',true);return false;}return true;}
   async function callRPC(name,params) {const {data,error}=await state.client.rpc(name,params);if(error)throw error;return data;}
 
   function openGuestEntry(roomCode) {

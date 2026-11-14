@@ -1,5 +1,5 @@
-const CACHE='tem-gogo-shell-v4-0';
-const SHELL=['./','./index.html','./assets/styles.css','./assets/visual-v2.css','./assets/qr-local.js','./assets/app.js','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
+const CACHE='tem-gogo-shell-v4-1-flat';
+const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });
@@ -12,7 +12,7 @@ self.addEventListener('fetch',event=>{
   const url=new URL(request.url);
   if(url.origin!==self.location.origin)return;
   // A configuração deve refletir sempre a versão mais recente, sem cache de credenciais.
-  if(url.pathname.endsWith('/assets/config.js'))return;
+  if(url.pathname.endsWith('/config.js'))return;
   if(request.mode==='navigate'){
     event.respondWith(fetch(request).then(response=>{
       if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put('./index.html',copy));}
