@@ -1,4 +1,4 @@
-/* Tem Gogó v7 — edição brasileira: palco, VOX e reações GIPHY (opcional) — aplicativo estático (PWA + Supabase + WebRTC + YouTube IFrame API).
+/* Tem Gogó v8 — edição brasileira: palco, VOX e reações GIPHY (opcional) — aplicativo estático (PWA + Supabase + WebRTC + YouTube IFrame API).
  * Os vídeos são reproduzidos pelo YouTube; nenhum áudio do YouTube é extraído.
  * Microfones são transportados diretamente via WebRTC quando houver conexão.
  */
@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, failedVideoSong: null
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, playMetrics: null
   };
 
   function toast(message, error = false) {
@@ -360,6 +360,7 @@
     state.room=room;state.role='host';setSyncStatus('sync');$('stage-room-title').textContent=room.title;
     $('room-code').textContent=room.code;show('stage');drawQR();
     try{await hydrateRoom();await subscribeRoom();startTicker();
+      void loadCatalog(true);
       try{await loadYouTubeAPI();if(state.room?.current_song_id)await resumeExistingSong();}
       catch(err){toast(humanError(err),true);}
       await unlockWakeLock();
@@ -375,7 +376,7 @@
     history.replaceState(null,'',currentURL(room.code));
     localStorage.setItem('tem-gogo-pending-room',room.code);
     switchMobileTab('queue');
-    try{await hydrateRoom();await subscribeRoom();startTicker();startMemberVerifier();toast('Entrou! 🎉 Escolha um hit para sua fila.');}
+    try{await hydrateRoom();void loadCatalog(true);await subscribeRoom();startTicker();startMemberVerifier();toast('Entrou! 🎉 Escolha um hit para sua fila.');}
     catch(err){toast(humanError(err),true);}
   }
   function startMemberVerifier(){
@@ -400,6 +401,7 @@
   }
   async function hydrateRoom() {await fetchRoom();if(!state.room)return;await fetchSongs();await fetchMembers();await fetchScores();renderAll();}
   async function refreshRoomSnapshot(){
+    if(Date.now()-state.catalogFetchedAt>45000)void loadCatalog();
     if(!state.room||state.syncRunning){state.syncQueued=true;return;}
     state.syncRunning=true;const roomId=state.room.id;
     try{
@@ -768,7 +770,7 @@
       throw new Error(msg);
     }
     if(data?.error)throw new Error(data.error);
-    return Boolean(data?.playable);
+    return typeof data?.playable === "boolean" ? data.playable : null;
   }
   function showVideoError(message,song=null){
     state.isPlaying=false;
@@ -808,11 +810,12 @@
   function onPlayerState(event) {
     if(state.role!=='host')return;
     state.isPlaying=event.data===window.YT.PlayerState.PLAYING;
+    if(!state.isPlaying && state.playMetrics){state.playMetrics.lastPosition=null;state.playMetrics.lastWall=0;}
     if(state.isPlaying && $('video-error-dialog').open)$('video-error-dialog').close();
     $('play-pause').textContent=state.isPlaying?'⏸ Pausar':'▶ Reproduzir';
     if(event.data===window.YT.PlayerState.ENDED&&!state.finishing&&state.currentSong)finishSong(false);
   }
-  function resetSongMetrics(){state.micStats=new Map();state.songFrames=0;state.isPlaying=false;}
+  function resetSongMetrics(){state.micStats=new Map();state.songFrames=0;state.isPlaying=false;state.playMetrics=null;}
   function setNowPlaying(song){
     $('now-title').textContent=song?.title||'O palco tá esperando você! 🎶';
     $('now-by').textContent=song?'Escolhida por '+memberName(song.user_id):'Adicione a primeira música pelo celular ou pelo painel.';
@@ -830,7 +833,7 @@
       if(state.currentSong)await finishSong(true,false);
       await callRPC('karaoke_start_song',{p_room:state.room.id,p_song:song.id});
       state.currentSong={...song,status:'playing'};state.room.current_song_id=song.id;
-      resetSongMetrics();setNowPlaying(song);hideFinal();updateVoxLine('singing');
+      resetSongMetrics();state.playMetrics={songId:song.id, played:0, lastPosition:null, lastWall:0, duration:0, sent:false, sending:false};setNowPlaying(song);hideFinal();updateVoxLine('singing');
       const player=await ensurePlayer(song.video_id);
       player.loadVideoById(song.video_id);renderMics();queueChanged();
     }catch(err){toast('Não foi possível tocar: '+humanError(err),true);}
@@ -838,7 +841,7 @@
   async function resumeExistingSong(){
     const song=state.songs.find(s=>s.id===state.room?.current_song_id);
     if(!song)return;
-    state.currentSong=song;setNowPlaying(song);resetSongMetrics();
+    state.currentSong=song;setNowPlaying(song);resetSongMetrics();state.playMetrics={songId:song.id,played:0,lastPosition:null,lastWall:0,duration:0,sent:false,sending:false};
     try {const player=await ensurePlayer(song.video_id);player.cueVideoById(song.video_id);toast('Música recuperada. Clique em Reproduzir para continuar.');}
     catch(err){toast(humanError(err),true);}
   }
@@ -945,7 +948,7 @@
       await callRPC('karaoke_finish_song',{p_room:state.room.id,p_skipped:skipped,p_results:results});
       state.isPlaying=false;
       if(skipped){try{state.player?.stopVideo();}catch{}}
-      state.currentSong=null;state.room.current_song_id=null;
+      state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;
       // Privacidade: feche os microfones ao fim do show.
       for(const uid of [...state.peers.keys()]){void sendSignal(uid,'bye').catch(console.warn);closePeer(uid);}
       if(!skipped&&showResults){
@@ -969,9 +972,45 @@
     if(!state.playerReady){toast('O vídeo ainda está carregando.',true);return;}
     if(state.isPlaying)state.player.pauseVideo();else state.player.playVideo();
   }
+  // Biblioteca colaborativa: somente tempo REAL tocando. Saltos/seek, pausas e buffering
+  // não aumentam o contador. Cada instância de música entra no histórico no máximo 1 vez.
+  async function recordQualifyingPlayback(metrics){
+    if(!state.room || !state.currentSong || state.currentSong.id!==metrics.songId || metrics.sent || metrics.sending)return;
+    metrics.sending=true;
+    try{
+      await callRPC('karaoke_confirm_playback',{
+        p_room:state.room.id,p_song:metrics.songId,
+        p_played_seconds:Math.floor(metrics.played),p_duration_seconds:Math.ceil(metrics.duration)
+      });
+      metrics.sent=true;
+      void loadCatalog(true);
+      toast('⭐ Um hit entrou no acervo do Tem Gogó!');
+    }catch(error){
+      // Pode falhar por atraso no servidor ou RPC ainda não instalada; não insistir a cada segundo.
+      console.warn('Histórico de reprodução:',error?.message||error);
+      metrics.sent=true;
+    }finally{metrics.sending=false;}
+  }
+  function measureActualPlayback(position,duration){
+    const m=state.playMetrics;
+    if(!m || m.sent || !state.currentSong || m.songId!==state.currentSong.id)return;
+    const now=performance.now();
+    if(!Number.isFinite(position)||!Number.isFinite(duration)||duration<40||duration>9000)return;
+    if(!state.isPlaying){m.lastPosition=null;m.lastWall=now;return;}
+    if(m.lastPosition!==null && m.lastWall>0){
+      const realSeconds=(now-m.lastWall)/1000;
+      const mediaDelta=position-m.lastPosition;
+      // No padrão 1x, tolerar pequenas variações do player. Pulos não contam.
+      if(realSeconds>0 && realSeconds<4 && mediaDelta>0 && mediaDelta<=Math.max(2.2,realSeconds*1.5)){
+        m.played+=Math.min(mediaDelta,realSeconds*1.5);
+      }
+    }
+    m.duration=duration;m.lastWall=now;m.lastPosition=position;
+    if(Math.floor(m.played)>=Math.ceil(Math.ceil(duration)*0.5) && !m.sending)void recordQualifyingPlayback(m);
+  }
   function updateVideoProgress(){
     if(state.role!=='host'||!state.playerReady||!state.currentSong){$('time-now').textContent='0:00';$('time-all').textContent='0:00';$('progress-fill').style.width='0%';return;}
-    try{const current=state.player.getCurrentTime(),duration=state.player.getDuration();$('time-now').textContent=formatTime(current);$('time-all').textContent=formatTime(duration);$('progress-fill').style.width=duration?Math.min(100,current/duration*100)+'%':'0%';}catch{}
+    try{const current=state.player.getCurrentTime(),duration=state.player.getDuration();$('time-now').textContent=formatTime(current);$('time-all').textContent=formatTime(duration);$('progress-fill').style.width=duration?Math.min(100,current/duration*100)+'%':'0%';measureActualPlayback(current,duration);}catch{}
   }
 
   // ----- Fila de músicas e busca opcional pela API oficial do YouTube. -----
@@ -989,12 +1028,65 @@
       if(playable===false)throw new Error('Este link não permite reprodução incorporada no Brasil. Procure outra versão.');
       await callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title.value.trim()});
       input.value='';title.value='';await fetchSongs();renderQueue();
-      if(host)$('song-dialog').close();
+      if(host && $('song-dialog').open)$('song-dialog').close();
       toast('Música adicionada! Agora é só ensaiar o refrão. 🎶');
     }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
   }
-  // A pesquisa usa somente a Edge Function autenticada (a chave do Google fica no Supabase).
+  // A pesquisa externa usa Edge Function autenticada e segredo SerpApi no Supabase.
   // Nunca abrir outra aba nem exigir colar um URL quando a busca estiver habilitada.
+  // Catálogo coletivo de vídeos já tocados pelo menos 50%, sem SerpApi e sem dados pessoais.
+  async function loadCatalog(force=false){
+    if(!state.client||!state.room)return;
+    if(!force && Date.now()-state.catalogFetchedAt<45000)return;
+    const roomId=state.room.id;
+    try{
+      const {data,error}=await state.client.rpc('karaoke_catalog_search',{p_query:'',p_limit:10});
+      if(error)throw error;
+      if(!state.room || state.room.id!==roomId)return;
+      state.catalog=(data||[]).filter(x=>youtubeId(x.video_id));
+      state.catalogFetchedAt=Date.now();
+      renderCatalog();
+    }catch(err){
+      console.warn('Catálogo indisponível. Execute MIGRACAO_008_HISTORICO.sql:',err.message);
+      document.querySelectorAll('.hit-library-list').forEach(el=>{el.textContent='O acervo estará disponível após instalar a atualização do banco. 🎶';});
+    }
+  }
+  async function queryLocalCatalog(query){
+    if(!state.client)return [];
+    const {data,error}=await state.client.rpc('karaoke_catalog_search',{p_query:query,p_limit:12});
+    if(error)throw error;
+    return (data||[]).filter(x=>youtubeId(x.video_id));
+  }
+  function catalogCard(item,host){
+    const videoId=youtubeId(item.video_id);
+    if(!videoId)return null;
+    const card=document.createElement('article');card.className='history-song-card';
+    const cover=document.createElement('img');cover.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';cover.alt='';cover.loading='lazy';cover.width=95;cover.height=54;
+    const info=document.createElement('div');info.className='history-song-info';
+    const title=document.createElement('strong');title.textContent=item.title;
+    const tiny=document.createElement('small');tiny.textContent=`🔥 ${Number(item.plays)||0} apresentação(ões) no Tem Gogó`;
+    info.append(title,tiny);
+    const button=document.createElement('button');button.type='button';button.className='button button-primary history-add';button.textContent='+ FILA';
+    button.setAttribute('aria-label','Adicionar '+item.title+' à fila');
+    button.addEventListener('click',()=>addSearchedVideo({id:videoId,title:item.title},host,button,card));
+    card.append(cover,info,button);return card;
+  }
+  function renderCatalog(){
+    const groups=[['guest-library',false],['stage-library',true]];
+    for(const [id,host] of groups){
+      const holder=$(id);if(!holder)continue;
+      holder.replaceChildren();
+      if(!state.catalog.length){holder.textContent='Ainda não temos hits confirmados. O primeiro sucesso pode ser seu! 🎤';continue;}
+      state.catalog.slice(0,host?5:10).forEach(item=>{const card=catalogCard(item,host);if(card)holder.append(card);});
+    }
+  }
+  function showMoreExternal(results,host,query){
+    const panel=document.createElement('div');panel.className='more-external';
+    const info=document.createElement('span');info.textContent='Não achou seu hit? A busca externa usa uma consulta da cota mensal.';
+    const btn=document.createElement('button');btn.className='button button-soft';btn.type='button';btn.textContent='🔎 Buscar outras versões no YouTube';
+    btn.addEventListener('click',()=>searchYoutube(host,true));
+    panel.append(info,btn);results.append(panel);
+  }
   const searchMemory = new Map();
   function decodedYouTubeText(value) {
     const t=document.createElement('textarea');t.innerHTML=String(value||'');return t.value;
@@ -1013,8 +1105,8 @@
         p_room:state.room.id, p_video:item.id, p_title:item.title.slice(0,120)
       });
       await fetchSongs();renderQueue();
-      if(host)$('song-dialog').close();
-      else makeSearchMessage(results,'💚 Entrou na fila! Pode escolher outro hit se quiser.');
+      if(host && $('song-dialog').open)$('song-dialog').close();
+      else {const feedback=results.closest('.search-results')||results;if(feedback.id==='search-results')makeSearchMessage(feedback,'💚 Entrou na fila! Pode escolher outro hit se quiser.');}
       toast('🎤 '+item.title.slice(0,65)+' entrou na fila. VOX tá de olho!');
     }catch(err){toast(humanError(err),true);}
     finally{setLoading(button,false);}
@@ -1023,7 +1115,7 @@
     results.replaceChildren();
     if(!hits.length){makeSearchMessage(results,'Nenhum karaokê encontrado. Tente outro nome ou artista.');return;}
     const caption=document.createElement('div');caption.className='search-count';
-    caption.textContent=`🎶 ${hits.length} versões com incorporação permitida na consulta · pode mudar`;
+    caption.textContent=`🎶 ${hits.length} sugestões do YouTube · a reprodução pode ter restrições`;
     results.append(caption);
     hits.forEach(hit=>{
       const videoId=youtubeId(hit.id);
@@ -1043,13 +1135,30 @@
       card.append(image,info,button);results.append(card);
     });
   }
-  async function searchYoutube(host) {
+  async function searchYoutube(host,forceExternal=false) {
     const search=$(host?'host-search':'youtube-search');
     const results=$(host?'host-results':'search-results');
     const button=$(host?'host-search-button':'search-youtube');
     const query=search.value.trim().replace(/\s+/g,' ');
     if(query.length<2){makeSearchMessage(results,'Escreva o nome da música ou artista para buscar.');search.focus();return;}
     if(!state.client||!state.room){makeSearchMessage(results,'Entre numa festa antes de buscar músicas.','error');return;}
+    if(!forceExternal){
+      setLoading(button,true,'Consultando nosso acervo...');
+      try{
+        const found=await queryLocalCatalog(query);
+        results.replaceChildren();
+        const label=document.createElement('div');label.className='search-count';
+        label.textContent=found.length?`💚 ${found.length} hit(s) do acervo — não consomem buscas!`:'O acervo ainda não tem essa música. 💅';
+        results.append(label);
+        found.forEach(item=>{const card=catalogCard(item,host);if(card)results.append(card);});
+        showMoreExternal(results,host,query);
+        return;
+      }catch(err){
+        makeSearchMessage(results,'Acervo ainda não instalado no banco. Você pode buscar externamente.');
+        showMoreExternal(results,host,query);
+        return;
+      }finally{setLoading(button,false);}
+    }
     const key=query.toLocaleLowerCase('pt-BR');
     const cached=searchMemory.get(key);
     if(cached&&Date.now()-cached.date<5*60*1000){renderYoutubeResults(cached.items,results,host);return;}
@@ -1061,7 +1170,7 @@
       });
       if(error){
         // As mensagens do backend podem vir em Response; o fallback orienta a configuração.
-        let detail='Busca ainda não disponível. O anfitrião precisa ativar a API do YouTube nas configurações do projeto.';
+        let detail='Busca externa indisponível. Configure SERPAPI_KEY no Supabase ou escolha um hit do acervo.';
         try{const j=await error.context?.json?.();if(j?.error)detail=j.error;}catch{}
         throw new Error(detail);
       }
@@ -1117,7 +1226,7 @@
       const el=document.createElement('div');el.id='youtube-player';el.className='youtube-player';frame.prepend(el);
     }
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
-    state.songFrames=0;state.micStats.clear();state.currentSong=null;state.room=null;state.role=null;
+    state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.catalog=[];state.catalogFetchedAt=0;state.currentSong=null;state.room=null;state.role=null;
     state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.isPlaying=false;state.finishing=false;
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }

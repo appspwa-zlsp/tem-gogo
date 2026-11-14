@@ -8,8 +8,8 @@ window.TEM_GOGO_CONFIG = {
   SUPABASE_URL: 'https://hfyeucscipknhkfwfyto.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_q92OfV3oxYJHhxqf-qWK2g_tMjjxQrl',
   // A busca de vídeos funciona via Edge Function "youtube-search" no Supabase.
-  // A chave do YouTube fica SOMENTE nos Secrets da Edge Function (YOUTUBE_API_KEY).
-  // Não coloque aqui a chave Google nem em outros arquivos públicos do GitHub.
+  // A chave da SerpApi fica SOMENTE nos Secrets da Edge Function (SERPAPI_KEY).
+  // Não coloque aqui a chave SerpApi nem em outros arquivos públicos do GitHub.
   // OPCIONAL: API pública GIPHY para um GIF de reação por música finalizada.
   // Chave beta: até 100 chamadas/hora (confirmar limite atual no GIPHY).
   // Publicado no front-end = visível aos visitantes. Restrinja e monitore pelo painel do GIPHY.

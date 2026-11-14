@@ -275,3 +275,22 @@ body.invite-active .landing-footer,body.entry-active .landing-footer{padding-top
 @media (max-width:750px){.stage-header .sync-state{font-size:9px;padding:5px}.your-turn-banner{gap:8px;padding:11px}.your-turn-banner b{font-size:13px}.your-turn-banner .button{font-size:10px;padding:9px 8px}}
 @media (max-width:400px){.guest-live .online-dot{display:none}.your-turn-banner .turn-icon{font-size:25px}.your-turn-banner small{max-width:170px}}
 @media (prefers-reduced-motion:reduce){.turn-icon{animation:none}#guest-levels i{transition:none}.mic-huge.voice-detected{transform:none}}
+
+/* V8 • ACERVO COLABORATIVO DO POVO • PLAYLIST ECONÔMICA */
+.stage-hit-library{padding:18px 12px 14px;border-top:1px solid var(--line);background:linear-gradient(160deg,rgba(213,255,81,.055),rgba(255,97,195,.055));}
+.stage-hit-library h3,.guest-hit-library h2{font-size:clamp(17px,1.5vw,23px);margin:5px 0 6px;color:var(--lime);}
+.library-kicker{font-size:10px;letter-spacing:.15em;font-weight:900;color:var(--violet)}
+.library-subtitle{font-size:11px;color:var(--muted);line-height:1.5;margin:5px 0 10px}
+.hit-library-list{display:flex;flex-direction:column;gap:9px;font-size:13px;color:var(--muted)}
+.history-song-card{display:flex;align-items:center;gap:10px;min-width:0;padding:8px;border:1px solid var(--line);background:rgba(10,6,20,.24);border-radius:13px}
+.history-song-card img{width:72px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#24152d}
+.history-song-info{display:flex;flex:1;flex-direction:column;min-width:0;gap:4px}
+.history-song-info strong{font-size:12px;line-height:1.26;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;color:var(--text)}
+.history-song-info small{font-size:10px;color:var(--muted)}
+.history-add{font-size:11px!important;white-space:nowrap;padding:9px!important;border-radius:9px!important;min-width:56px;flex-shrink:0}
+.guest-hit-library{margin-top:14px}.guest-hit-library h2{font-size:26px}
+.more-external{border:1px dashed rgba(213,255,81,.5);border-radius:14px;padding:13px;margin:10px 0 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(213,255,81,.045)}
+.more-external span{font-size:12px;color:var(--muted);flex:1;min-width:190px}
+.more-external button{font-size:12px}
+@media(max-width:800px){.stage-hit-library{padding:14px}.history-song-card img{width:66px;height:45px}}
+@media(max-width:390px){.history-add{padding:8px!important;font-size:10px!important}.history-song-card{gap:6px}.history-song-card img{width:58px;height:42px}}
