@@ -21,5 +21,8 @@ window.TEM_GOGO_CONFIG = {
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
     // ,{ urls: 'turn:seu-turn.com:3478', username: 'usuario', credential: 'senha' }
   ],
+  // Configure a chave PÚBLICA VAPID somente após implantar a Edge Function karaoke-push.
+  // Nunca coloque a chave PRIVADA no GitHub.
+  VAPID_PUBLIC_KEY: '',
   MAX_ACTIVE_MICS: 8
 };

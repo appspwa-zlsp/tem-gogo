@@ -1,5 +1,5 @@
-const CACHE='tem-gogo-shell-v17-layout-recados-musica-primeiro';
-const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='tem-gogo-shell-v18-host-cantor-rev2';
+const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./visual-v18.css','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });
@@ -25,4 +25,23 @@ self.addEventListener('fetch',event=>{
     if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(request,copy));}
     return response;
   }).catch(()=>caches.match(request)));
+});
+
+// Web Push genuíno: mensagem enviada pela Edge Function autenticada.
+self.addEventListener('push',event=>{
+  let data={};try{data=event.data?.json()||{};}catch{}
+  const title=String(data.title||'🎤 Tem Gogó: é sua vez!').slice(0,90);
+  const options={body:String(data.body||'Abra o Tem Gogó e prepare seu microfone.').slice(0,180),
+    icon:'./icon-192.png',badge:'./icon-192.png',tag:'tem-gogo-call-'+String(data.songId||''),
+    renotify:true,data:{url:typeof data.url==='string'&&data.url.startsWith('./')?data.url:'./'}};
+  event.waitUntil(self.registration.showNotification(title,options));
+});
+self.addEventListener('notificationclick',event=>{
+  event.notification.close();
+  const target=new URL(event.notification.data?.url||'./',self.registration.scope).href;
+  event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async clients=>{
+    const same=clients.find(c=>c.url.startsWith(self.registration.scope));
+    if(same){await same.focus();return same.navigate(target);}
+    return self.clients.openWindow(target);
+  }));
 });
