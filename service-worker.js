@@ -1,5 +1,5 @@
-const CACHE='tem-gogo-shell-v16-option2-grupos-qr';
-const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='tem-gogo-shell-v17-layout-recados-musica-primeiro';
+const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });

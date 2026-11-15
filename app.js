@@ -45,6 +45,60 @@
     if(s?.mic) return '🟡 Mic liberado no celular';
     return '🔴 Mic ainda desligado';
   }
+  // V17: Only TEXT signals reach the TV. No recording, no synthesized narration.
+  // A local queue preserves guest recados until the interval; host reload clears this ephemeral buffer.
+  const pendingGuestRecados=[];
+  let nextGuestRecadoAt=0, recadoTimer=null, recadoShowing=false, recadoAfter=null;
+  function hideGuestRecado(){
+    clearTimeout(recadoTimer);recadoTimer=null;recadoShowing=false;
+    const el=$('tg17-message-screen');if(el)el.hidden=true;
+  }
+  function showNextGuestRecado(after=null){
+    if(state.role!=='host'||state.currentSong||state.isPlaying||recadoShowing||!pendingGuestRecados.length)return false;
+    const msg=pendingGuestRecados.shift();const el=$('tg17-message-screen');
+    if(!el)return false;
+    $('tg17-message-from').textContent='Recado de '+msg.name;
+    $('tg17-message-text').textContent=msg.text; // Never render user text as HTML.
+    el.hidden=false;recadoShowing=true;recadoAfter=after;
+    recadoTimer=setTimeout(()=>{
+      const fn=recadoAfter;recadoAfter=null;hideGuestRecado();
+      if(fn)void fn();
+      else if(!state.currentSong&&!state.preflight&&pendingGuestRecados.length)showNextGuestRecado();
+    },10000);
+    return true;
+  }
+  async function sendGuestRecado(){
+    if(state.role!=='guest'||!state.room||!state.user){toast('Entre numa festa para enviar recados.',true);return;}
+    const text=($('tg17-message-input')?.value||'').replace(/\s+/g,' ').trim();
+    if(text.length<3||text.length>160){toast('Escreva um recado de 3 a 160 caracteres.',true);return;}
+    if(Date.now()<nextGuestRecadoAt){toast('Espere alguns segundos para mandar outro recado.',true);return;}
+    const btn=$('tg17-send-message');setLoading(btn,true,'Enviando…');
+    try{
+      await sendSignal(state.room.owner_id,'stage-recado',{text,sentAt:Date.now()});
+      nextGuestRecadoAt=Date.now()+25000;
+      $('tg17-message-input').value='';
+      toast('💌 Recado entregue ao host! Ele aparecerá entre as apresentações.');
+    }catch(err){toast('Não foi possível enviar: '+humanError(err),true);}
+    finally{setLoading(btn,false);}
+  }
+  function dictateGuestRecado(){
+    if(isMyTurn()){toast('Durante sua música, prefira digitar o recado para não interferir no microfone.',true);return;}
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SpeechRecognition){toast('Este celular não oferece ditado no navegador. Escreva seu recado normalmente.',true);return;}
+    const btn=$('tg17-dictate');let recognition;
+    try{
+      recognition=new SpeechRecognition();recognition.lang='pt-BR';recognition.interimResults=false;recognition.maxAlternatives=1;
+      btn.disabled=true;btn.textContent='🎙️ Ouvindo…';
+      recognition.onresult=e=>{
+        const words=String(e.results?.[0]?.[0]?.transcript||'').trim();
+        $('tg17-message-input').value=words.slice(0,160);
+        toast('Texto transcrito. Confira antes de enviar!');
+      };
+      recognition.onerror=()=>toast('Ditado indisponível. Digite seu recado.',true);
+      recognition.onend=()=>{btn.disabled=false;btn.textContent='🎙️ Ditar recado';};
+      recognition.start();
+    }catch(e){btn.disabled=false;btn.textContent='🎙️ Ditar recado';toast('Não foi possível iniciar o ditado.',true);}
+  }
   function showHostCommand(){
     if(state.role!=='host'||!state.room)return;
     const queued=state.songs.filter(s=>s.status==='queued');
@@ -246,24 +300,9 @@
     const stage=$('stage');if(stage)stage.dataset.showState=mode;
     for(const id of ['diva-stage-banner','diva-idle-hero'])if($(id))$(id).dataset.mood=mode;
   }
-  function speakDiva(text,force=false){
-    if(state.role!=='host'||!state.divaVoiceEnabled||state.isPlaying||state.currentSong)return;
-    if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window))return;
-    // Repetir demais incomoda a festa. Uma fala de abertura a cada 35 s no máximo.
-    if(!force&&Date.now()-state.divaLastSpokenAt<24000)return;
-    state.divaLastSpokenAt=Date.now();
-    try{
-      window.speechSynthesis.cancel();
-      const speech=new SpeechSynthesisUtterance(text);
-      speech.lang='pt-BR';speech.rate=1.07;speech.pitch=1.18;speech.volume=.85;
-      const voices=window.speechSynthesis.getVoices();
-      const pt=voices.find(v=>v.lang?.toLowerCase()==='pt-br')||voices.find(v=>v.lang?.toLowerCase().startsWith('pt'));
-      if(pt)speech.voice=pt;
-      speech.onend=()=>document.body.classList.remove('diva-talking');
-      speech.onerror=()=>document.body.classList.remove('diva-talking');
-      window.speechSynthesis.speak(speech);
-    }catch(err){console.warn('Fala da Diva indisponível:',err);document.body.classList.remove('diva-talking');}
-  }
+  // V17: Browser TTS was removed because timbre and quality are unpredictable.
+  // The presenter speaks through animated on-screen text, never through robotic audio.
+  function speakDiva(){ /* intentionally silent */ }
   function updateVoxLine(moment='opening'){
     const modes={lgbt:['O close tá servido! Só falta você soltar o gogó, Brasil! 🏳️‍🌈','Desfila esse refrão! Aqui todo mundo tem palco e peruca imaginária!'],reality:['Atenção, Brasil: vamos ver quem entrega o próximo hit!','A produção confirma: microfones liberados, participantes prontos e show na TV!'],bafao:['Minha gente, esse camarim tá um babado!','O palco é de vocês, o carão é comigo!']};
     const text=chooseDifferent(modes[state.humorMode]&&moment!=='preflight'&&moment!=='reminder'?modes[state.humorMode]:voxMoments[moment]||voxMoments.opening);
@@ -743,9 +782,31 @@
       yesBtn.addEventListener('click',accept);cancelBtn.addEventListener('click',reject);dialog.addEventListener('close',closed);dialog.showModal();
     });
   }
+  function chooseGuestSingers(title){
+    return new Promise(resolve=>{
+      const dialog=$('tg17-singer-dialog');
+      if(!dialog){resolve(null);return;}
+      $('tg17-selected-track').textContent='🎶 '+title;
+      // The selection mode starts with solo; duet/group can be picked after the track.
+      const solo=dialog.querySelector('input[name="guest-mode"][value="solo"]');
+      if(solo)solo.checked=true;
+      dialog.querySelectorAll('[data-group-people] input[type="checkbox"]').forEach(el=>el.checked=false);
+      refreshDuetOptions();updateGroupChoice(false);
+      let done=false;
+      const ok=$('tg17-singer-confirm'),cancel=$('tg17-singer-cancel'),cross=$('tg17-singer-cancel-x');
+      const cleanup=()=>{ok.removeEventListener('click',accept);cancel.removeEventListener('click',reject);cross.removeEventListener('click',reject);dialog.removeEventListener('close',closed);};
+      const finish=value=>{if(done)return;done=true;cleanup();if(dialog.open)dialog.close();resolve(value);};
+      const accept=()=>{try{finish(chosenSingers(false));}catch(err){toast(humanError(err),true);}};
+      const reject=()=>finish(null),closed=()=>finish(null);
+      ok.addEventListener('click',accept);cancel.addEventListener('click',reject);cross.addEventListener('click',reject);dialog.addEventListener('close',closed);
+      dialog.showModal();
+    });
+  }
   async function enqueueSelectedVideo(video,title,host){
-    const partners=chosenSingers(host);
-    if(!await confirmMusicSelection(title,partners))throw new Error('Escolha cancelada.');
+    const partners=host?chosenSingers(true):await chooseGuestSingers(title);
+    if(partners===null)throw new Error('Seleção cancelada. A música não foi adicionada.');
+    // Guest already confirmed track, format and singers in the same modal.
+    if(host&&!await confirmMusicSelection(title,partners))throw new Error('Escolha cancelada.');
     if(partners.length>=2)return callRPC('karaoke_enqueue_group',{p_room:state.room.id,p_video:video,p_title:title,p_partner_ids:partners});
     if(partners.length===1)return callRPC('karaoke_enqueue_duet',{p_room:state.room.id,p_video:video,p_title:title,p_partner:partners[0]});
     return callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title});
@@ -904,6 +965,20 @@
     if(!state.room)return;
     const from=signal.sender_id,data=signal.payload||{};
     if(state.role==='host'){
+      if(signal.kind==='stage-recado'){
+        const text=typeof data.text==='string'?data.text.replace(/\s+/g,' ').trim():'';
+        const member=state.members.find(m=>m.user_id===from);
+        if(!member){try{await fetchMembers();}catch(err){console.warn('Atualização de participantes:',err);}}
+        const verifiedMember=state.members.find(m=>m.user_id===from);
+        if(!verifiedMember||text.length<3||text.length>160)return; // Only room members; never trust sender-provided names.
+        const sentAt=Number(data.sentAt)||0;
+        if(!Number.isFinite(sentAt)||Math.abs(Date.now()-sentAt)>180000)return;
+        if(pendingGuestRecados.length>=12)pendingGuestRecados.shift();
+        pendingGuestRecados.push({name:verifiedMember.display_name||'Convidado',text});
+        toast('💌 Novo recado da plateia, reservado para o intervalo.');
+        if(!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden&&!recadoShowing)showNextGuestRecado();
+        return;
+      }
       if(signal.kind==='stage-profile'&&AVATARS[data.avatar]){state.avatars.set(from,data.avatar);showHostCommand();renderPreflightHost();return;}
       if(signal.kind==='stage-ready-status'&&state.preflight?.song.id===data.songId&&state.preflight.token===data.token&&isSinger(state.preflight.song,from)){
         if(AVATARS[data.avatar])state.avatars.set(from,data.avatar);
@@ -1276,6 +1351,7 @@
       if(state.currentSong)await finishSong(true,false);
       await callRPC('karaoke_start_song',{p_room:state.room.id,p_song:song.id});
       state.currentSong={...song,status:'playing'};state.room.current_song_id=song.id;
+      hideGuestRecado();
       resetSongMetrics();state.playMetrics={songId:song.id, played:0, lastPosition:null, lastWall:0, duration:0, sent:false, sending:false};setNowPlaying(song);hideFinal();updateVoxLine('singing');
       if('speechSynthesis' in window)try{window.speechSynthesis.cancel();}catch{}
       const player=await ensurePlayer(song.video_id);
@@ -1442,6 +1518,9 @@
   async function advanceSong(){
     hideFinal();
     if(state.currentSong)await finishSong(true,false);
+    if(state.role==='host'&&pendingGuestRecados.length){
+      if(showNextGuestRecado(()=>advanceSong()))return;
+    }
     await fetchSongs();renderQueue();
     const next=state.songs.find(s=>s.status==='queued');
     if(next){updateVoxLine('queue');await prepareSong(next);}
@@ -1722,7 +1801,7 @@ function renderFullCatalog(){
       info.append(title,channel);
       const button=document.createElement('button');button.type='button';
       button.className='button button-primary youtube-add';
-      button.textContent='+ FILA';button.setAttribute('aria-label','Adicionar '+hit.title+' à fila');
+      button.textContent=host?'+ FILA':'ESCOLHER';button.setAttribute('aria-label','Escolher '+hit.title+' para cantar');
       button.addEventListener('click',()=>addSearchedVideo({id:videoId,title:decodedYouTubeText(hit.title)},host,button,results));
       card.append(image,info,button);results.append(card);
     });
@@ -1893,6 +1972,7 @@ function renderFullCatalog(){
       const el=document.createElement('div');el.id='youtube-player';el.className='youtube-player';frame.prepend(el);
     }
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
+    hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;nextGuestRecadoAt=0;
     state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
     state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
@@ -2024,14 +2104,9 @@ function renderFullCatalog(){
       if(!canDirectDiva()){toast('A direção do humor é exclusiva do anfitrião.',true);return;}
       state.humorMode=b.dataset.divaMode;$('humor-mode').value=state.humorMode;localStorage.setItem('tem-gogo-humor',state.humorMode);syncPrivateControls();updateVoxLine('opening');toast('Diva Gogó em modo '+b.textContent.trim());
     }));
-    $('tg16-diva-announce').addEventListener('click',()=>{
-      if(state.role!=='host')return;
-      const text=$('tg16-diva-custom').value.trim().slice(0,160);
-      if(!text){toast('Digite o recado da Diva primeiro.',true);return;}
-      if(state.currentSong||state.isPlaying){toast('Espere a música terminar para a Diva não interromper.',true);return;}
-      for(const id of ['vox-line','vox-idle-line','diva-preflight-speech'])if($(id))$(id).textContent='“'+text+'”';
-      speakDiva(text,true);toast('Recado anunciado pela Diva! 🎙️');
-    });
+    $('tg17-send-message').addEventListener('click',()=>void sendGuestRecado());
+    $('tg17-dictate').addEventListener('click',dictateGuestRecado);
+    $('tg17-message-close').addEventListener('click',()=>{const fn=recadoAfter;recadoAfter=null;hideGuestRecado();if(fn)void fn();});
     $('tg16-mic-shortcut').addEventListener('click',()=>switchMobileTab('mic'));
     $('tg16-queue-shortcut').addEventListener('click',()=>switchMobileTab('queue'));
     $('tg16-score-shortcut').addEventListener('click',openScoreboard);
@@ -2104,7 +2179,7 @@ function renderFullCatalog(){
     $('settings-contrast').addEventListener('change',e=>toggleContrast(e.target.checked));
     $('contrast-toggle').addEventListener('click',()=>toggleContrast(!document.body.classList.contains('high-contrast')));
     $('fullscreen-button').addEventListener('click',async()=>{
-      try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}
+      try{if(document.fullscreenElement)await document.exitFullscreen();else await $('video-frame').requestFullscreen();}
       catch{toast('Tela cheia não disponível neste navegador.',true);}
     });
     $('ranking-full-link').addEventListener('click',openScoreboard);
@@ -2171,7 +2246,6 @@ function renderFullCatalog(){
     $('guest-preflight-ready').addEventListener('click',()=>{if(!availableMic()){toast('Ative o microfone primeiro.',true);return;}state.guestReady=true;renderGuestPreflight();void notifyPreflightGuest();toast('Confirmação enviada ao anfitrião! ✅');});
     $('mobile-tab-score').addEventListener('click',openScoreboard);
     $('guest-all-scores').addEventListener('click',openScoreboard);
-    $('diva-voice-toggle').addEventListener('click',()=>{if(!('speechSynthesis' in window)){toast('Este navegador não oferece leitura por voz.',true);return;}state.divaVoiceEnabled=!state.divaVoiceEnabled;state.divaLastSpokenAt=0;$('diva-voice-toggle').textContent=state.divaVoiceEnabled?'🔊':'🔇';$('diva-voice-toggle').setAttribute('aria-pressed',String(state.divaVoiceEnabled));$('diva-voice-toggle').setAttribute('aria-label',state.divaVoiceEnabled?'Desligar voz da Diva':'Ativar voz da Diva');if(state.divaVoiceEnabled){toast('Diva Gogó ativada! A voz é gerada pelo navegador e pode variar.');updateVoxLine(state.currentSong?'singing':state.preflight?'preflight':'opening');}else{try{window.speechSynthesis.cancel();}catch{}toast('Voz da Diva desligada. A personagem continua animada.');}});
     $('edit-guest-profile').addEventListener('click',()=>{$('guest-profile-name').value=$('guest-display-name').textContent;$('guest-profile-dialog').showModal();});
     $('guest-profile-form').addEventListener('submit',event=>{void editGuestProfile(event);});
     $('guest-profile-close').addEventListener('click',()=>$('guest-profile-dialog').close());
