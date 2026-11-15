@@ -17,8 +17,141 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"diva", lastProfileSent: 0
   };
+
+
+  // V14 — personagens originais enviados como homenagem; sem redesenhar seus traços.
+  const AVATARS = Object.freeze({
+    diva:'./avatars/diva.jpg', urbano:'./avatars/cantor-urbano.jpg',
+    esporte:'./avatars/cantor-esporte.jpg', ruiva:'./avatars/cantora-ruiva.jpg',
+    oculos:'./avatars/cantora-oculos.jpg'
+  });
+  function avatarSrc(key){return AVATARS[key]||AVATARS.diva;}
+  function availableMic(){return !!state.localStream?.getAudioTracks().some(t=>t.readyState==='live'&&t.enabled);}
+  function renderAvatarOptions(){
+    for(const id of ['entry-avatar-options','profile-avatar-options']){
+      const root=$(id);if(!root)continue;
+      root.innerHTML=Object.entries(AVATARS).map(([key,src])=>`<label class="avatar-option"><input type="radio" name="${id}" value="${key}" ${key===state.avatar?'checked':''}><img src="${src}" alt="Avatar ${key}" loading="lazy"><span>${({diva:'Diva',urbano:'Urbano',esporte:'Torcedor',ruiva:'Ruiva',oculos:'Óculos'})[key]}</span></label>`).join('');
+      root.addEventListener('change',event=>{if(AVATARS[event.target?.value]){state.avatar=event.target.value;localStorage.setItem('tem-gogo-avatar',state.avatar);document.querySelectorAll('.avatar-option input').forEach(input=>{input.checked=input.value===state.avatar;});if($('guest-profile-avatar'))$('guest-profile-avatar').src=avatarSrc(state.avatar);}});
+    }
+    if($('guest-profile-avatar'))$('guest-profile-avatar').src=avatarSrc(state.avatar);
+  }
+  function micStatusLabel(uid){
+    if(state.peers.get(uid)?.connection==='connected')return '🟢 Áudio ligado à TV';
+    const s=state.preflight?.statuses.get(uid);
+    if(s?.mic) return '🟡 Mic liberado no celular';
+    return '🔴 Mic ainda desligado';
+  }
+  function showHostCommand(){
+    if(state.role!=='host'||!state.room)return;
+    const queued=state.songs.filter(s=>s.status==='queued');
+    const next=state.preflight?.song||queued[0];
+    $('command-next').textContent='🎤 Próximo: '+(next?songSingerLabel(next):'sem músicas');
+    $('command-queue').textContent='🎵 Fila: '+queued.length;
+    $('command-mics').textContent='🎙️ Áudio na TV: '+[...state.peers.values()].filter(x=>x.connection==='connected').length;
+    $('command-live-state').textContent=state.preflight?'🟡 Preparando cantores':state.currentSong?'🟢 Música no palco':'⚪ Em espera';
+    const singing=state.currentSong||state.preflight?.song||next;
+    $('stage-command-participants').innerHTML=singing?songSingers(singing).map(uid=>`<div class="command-singer"><img alt="" src="${avatarSrc(state.avatars.get(uid))}"><span><b>${escapeHTML(memberName(uid))}</b><small>${micStatusLabel(uid)}</small></span></div>`).join(''):'<span class="command-placeholder">Escaneie o QR para a plateia escolher músicas.</span>';
+  }
+  function renderPreflightHost(){
+    const pre=state.preflight,box=$('stage-preflight');
+    box.hidden=!pre;showHostCommand();if(!pre)return;
+    $('stage-preflight-track').textContent=pre.song.title;
+    const singers=songSingers(pre.song);
+    $('stage-preflight-singers').innerHTML=singers.map(uid=>{
+      const raw=pre.statuses.get(uid);const s=raw&&Date.now()-raw.at<25000?raw:null;const online=s?.mic?'🎙️ MIC LIBERADO':'🔇 MIC DESLIGADO';
+      const label=s?.ready&&s.mic?'✅ PRONTO(A)':s?.mic?'🟡 AGUARDANDO CONFIRMAÇÃO':'🔴 NÃO PREPARADO(A)';
+      return `<div class="preflight-singer"><img alt="" src="${avatarSrc(state.avatars.get(uid))}"><div><strong>${escapeHTML(memberName(uid))}</strong><small>${online}</small><span>${label}</span></div></div>`;
+    }).join('');
+    const completed=singers.filter(uid=>{const s=pre.statuses.get(uid);return s?.ready&&s?.mic&&Date.now()-s.at<25000;}).length;
+    $('stage-preflight-feedback').textContent=`${completed} de ${singers.length} confirmado(s) • o vídeo só começa depois do seu comando`;
+    $('stage-preflight-start').disabled=completed!==singers.length||pre.starting;
+  }
+  async function notifyPreflightGuest(){
+    if(state.role!=='guest'||!state.guestPreflightSong||!state.room||!state.user)return;
+    try{await sendSignal(state.room.owner_id,'stage-ready-status',{
+      songId:state.guestPreflightSong.id,token:state.guestPreflightSong.token,ready:Boolean(state.guestReady&&availableMic()),
+      mic:availableMic(),avatar:state.avatar,sentAt:Date.now()
+    });}catch(err){console.warn('Aviso de preparação:',err);}
+  }
+  function renderGuestPreflight(){
+    const playing=state.songs.find(s=>s.status==='playing'&&isSinger(s,state.user?.id));
+    const urgent=Boolean(playing&&!availableMic());
+    const song=urgent?playing:state.guestPreflightSong,box=$('guest-preflight');
+    box.hidden=!song;if(!song)return;
+    $('guest-preflight-ready').hidden=urgent;
+    $('guest-preflight-mic').hidden=!urgent&&availableMic();
+    if(urgent){$('guest-preflight-message').textContent='O vídeo já começou e seu microfone está desligado! Libere agora para participar da apresentação.';}
+    $('guest-preflight-title').textContent=song.title||'Próximo show';
+    $('guest-preflight-status').textContent=availableMic()?'🟢 Microfone ativo no celular (teste local)':'🔴 Microfone desligado — libere para continuar';
+    $('guest-preflight-ready').disabled=!availableMic();
+    $('guest-preflight-ready').textContent=state.guestReady&&availableMic()?'✅ PRONTO(A) — AGUARDANDO HOST':'✅ ESTOU PRONTO(A)';
+    if(!urgent)$('guest-preflight-message').textContent=state.guestReady&&availableMic()?'Tudo certo! Espere o anfitrião soltar o vídeo. Mantenha o microfone ligado.':'Ative o microfone, confira as barrinhas e confirme quando estiver pronto(a).';
+  }
+  async function sendProfileToHost(){
+    if(state.role!=='guest'||!state.room||!state.user)return;
+    try{await sendSignal(state.room.owner_id,'stage-profile',{avatar:state.avatar,sentAt:Date.now()});}catch(err){console.warn('Avatar ainda não foi sincronizado:',err);}
+  }
+  function clearHostPreflight(notify=true){
+    const pre=state.preflight;state.preflight=null;clearInterval(state.preflightTimer);state.preflightTimer=null;
+    if(pre&&notify){for(const uid of songSingers(pre.song))void sendSignal(uid,'stage-prepare-cancel',{songId:pre.song.id,token:pre.token}).catch(console.warn);}
+    if(state.role==='host'&&!state.currentSong)setNowPlaying(null);
+    renderPreflightHost();
+  }
+  async function sendPreflightInvites(force=false){
+    const pre=state.preflight;if(!pre||!state.room)return;
+    for(const uid of songSingers(pre.song)){
+      const status=pre.statuses.get(uid);
+      if(!force&&status?.ready&&status.mic)continue;
+      try{await sendSignal(uid,'stage-prepare',{songId:pre.song.id,token:pre.token,title:pre.song.title,sentAt:Date.now()});}
+      catch(err){console.warn('Convite de prontidão:',err);}
+    }
+  }
+  async function prepareSong(song){
+    if(state.role!=='host'||!song||state.finishing)return;
+    if(state.currentSong){toast('Finalize ou pule a música atual antes de preparar a próxima.',true);return;}
+    if(state.preflight?.song.id===song.id){renderPreflightHost();return;}
+    clearHostPreflight();
+    state.preflight={song,token:typeof crypto.randomUUID==='function'?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join(''),statuses:new Map(),starting:false};
+    $('now-title').textContent='A seguir: '+song.title;
+    $('now-by').textContent='Preparem-se: '+songSingerLabel(song);
+    $('song-pill').textContent='⏳ Aguardando confirmação';
+    $('video-placeholder').hidden=false;
+    renderPreflightHost();updateVoxLine('preflight');
+    await sendPreflightInvites(true);
+    clearInterval(state.preflightTimer);
+    state.preflightTimer=setInterval(()=>{if(state.preflight)void sendPreflightInvites(false);},12000);
+  }
+  async function startPreparedSong(override=false){
+    const pre=state.preflight;if(!pre||pre.starting)return;
+    const singers=songSingers(pre.song);
+    const ready=singers.every(uid=>{const s=pre.statuses.get(uid);return s?.ready&&s?.mic&&Date.now()-s.at<25000;});
+    if(!ready&&!override){toast('Aguarde o microfone e a confirmação de todas as pessoas.',true);return;}
+    if(!ready&&override&&!window.confirm('Iniciar sem todos prontos? As pessoas sem microfone podem ficar sem voz ou nota.'))return;
+    pre.starting=true;renderPreflightHost();
+    const song=pre.song;
+    // startSong retorna erro tratado internamente; confira no estado antes de encerrar o preparo.
+    await startSong(song);
+    if(state.currentSong?.id===song.id){
+      for(const uid of singers)void sendSignal(uid,'stage-prepare-cancel',{songId:song.id,token:pre.token}).catch(console.warn);
+      clearHostPreflight(false);
+    } else {pre.starting=false;renderPreflightHost();}
+  }
+  async function editGuestProfile(event){
+    event.preventDefault();if(state.role!=='guest'||!state.room||!state.user)return;
+    const name=$('guest-profile-name').value.trim();
+    if(name.length<2||name.length>24){toast('O apelido precisa ter de 2 a 24 caracteres.',true);return;}
+    const {data:updated,error}=await state.client.from('karaoke_members').update({display_name:name})
+      .eq('room_id',state.room.id).eq('user_id',state.user.id).select('display_name');
+    if(!error&&(!updated||updated.length===0)){toast('O Supabase não autorizou a alteração do apelido. Revise a política de edição do próprio perfil.',true);return;}
+    if(error){toast('Não foi possível atualizar o apelido: '+humanError(error),true);return;}
+    localStorage.setItem('tem-gogo-display-name',name);
+    $('guest-display-name').textContent=name;
+    $('guest-profile-avatar').src=avatarSrc(state.avatar);
+    await sendProfileToHost();
+    $('guest-profile-dialog').close();queueChanged();toast('Apelido e avatar atualizados! 🎭');
+  }
 
   function toast(message, error = false) {
     const node = $('toast'); node.textContent = message;
@@ -66,6 +199,11 @@
       'Eu sou a Diva Gogó, meu amor! Trago brilho, microfone e um leve histórico de escândalos musicais!',
       'Cadê o primeiro hino? A minha peruca tá pronta pra bater palma!',
       'O palco é livre, o carão é obrigatório e o playback é por conta da casa!'
+    ],
+    preflight: [
+      "Checando microfones! Só solto o playback quando a galera der o sinal!",
+      "A Diva Gogó não começa um show sem conferir o camarim, meu amor!",
+      "Microfone ligado, carão montado? Aguardo o ESTOU PRONTO!"
     ],
     singing: [
       'É pra cantar, não é pra pedir desculpa! Solta esse gogó, estrela!',
@@ -165,7 +303,7 @@
     $('access-tabs').hidden=false;
     openGuestEntry(clean);
     show('landing');
-    $('guest-code').focus({preventScroll:true});
+    $(clean?'guest-name':'guest-code').focus({preventScroll:true});
   }
   async function installFromInvite(){
     holdInvitation(state.inviteRoom);
@@ -208,13 +346,16 @@
   async function init() {
     initPWA();
     loadPreferences();
+    renderAvatarOptions();
+    // Na preparação, o lugar do vídeo vira a área de confirmação — sem diminuir o player durante o canto.
+    $('video-placeholder').appendChild($('stage-preflight'));
     attachEvents();
     const linkRoom=normalizeRoom(new URL(location.href).searchParams.get('room'));
     const savedRoom=normalizeRoom(localStorage.getItem('tem-gogo-pending-room'));
     const targetRoom=linkRoom||savedRoom;
     if(targetRoom){
-      showInvite(targetRoom);
-      $('invite-welcome').querySelector('p')?.replaceChildren(document.createTextNode('🎟️ Estamos abrindo a festa. Se não entrar, use o código do convite abaixo.'));
+      showGuestEntry(targetRoom);
+      $('invite-welcome').querySelector('p')?.replaceChildren(document.createTextNode('🎟️ Convite recebido! Informe seu apelido e escolha seu avatar para entrar.'));
     }
     if (!configured()) {
       $('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';
@@ -229,7 +370,7 @@
         // QR é convite suficiente: tenta retomar uma associação existente e,
         // se ainda não for participante, faz entrada anônima e registra a sala.
         const resumed=await tryResumeMembership(targetRoom);
-        if(!resumed)await joinRoomByCode(targetRoom,{auto:true});
+        if(!resumed){showGuestEntry(targetRoom);toast("Digite seu apelido e escolha um avatar para entrar no show! 🎭");}
       }else if(state.user) await openLobby();
       else if(isStandalone())showGuestEntry('');
     }catch(err){toast(humanError(err),true);}
@@ -352,20 +493,12 @@
       await loadMyRooms();
     }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
   }
-  function chooseStageName(){
-    const saved=(localStorage.getItem('tem-gogo-display-name')||'').trim();
-    if(saved.length>=2&&saved.length<=24)return saved;
-    const rand=new Uint16Array(1);crypto.getRandomValues(rand);
-    const chosen='Estrela '+String(rand[0]%10000).padStart(4,'0');
-    localStorage.setItem('tem-gogo-display-name',chosen);
-    return chosen;
-  }
   async function joinRoomByCode(rawCode,{auto=false}={}){
     if(!checkBackend())return false;
     const code=normalizeRoom(rawCode);
     if(!validRoom(code)){if(!auto)toast('Confira o código da festa no QR ou na TV.',true);return false;}
     let name=($('guest-name').value||'').trim();
-    if(name.length<2)name=chooseStageName();
+    if(name.length<2){toast('Escolha um apelido com pelo menos 2 caracteres antes de entrar.',true);return false;}
     if(name.length>24)name=name.slice(0,24);
     try{
       if(!state.user){
@@ -385,7 +518,7 @@
       return true;
     }catch(err){
       toast(humanError(err),true);
-      if(auto){showGuestEntry(code);$('guest-name').value=chooseStageName();}
+      if(auto)showGuestEntry(code);
       return false;
     }
   }
@@ -413,12 +546,12 @@
   async function enterRoomAsGuest(room,name) {
     await stopSession();
     document.body.classList.remove('invite-active','entry-active');
-    state.room=room;state.role='guest';setSyncStatus('sync');$('guest-display-name').textContent=name;$('guest-room-code').textContent=room.code;
+    state.room=room;state.role='guest';setSyncStatus('sync');$('guest-display-name').textContent=name;$('guest-profile-avatar').src=avatarSrc(state.avatar);$('guest-room-code').textContent=room.code;
     $('guest-room-title').textContent=room.title;show('guest');$('guest-install').hidden=isStandalone();updateVoxLine('opening');
     history.replaceState(null,'',currentURL(room.code));
     localStorage.setItem('tem-gogo-pending-room',room.code);
     switchMobileTab('queue');
-    try{await hydrateRoom();void loadCatalog(true);await subscribeRoom();startTicker();startMemberVerifier();toast('Entrou! 🎉 Escolha um hit para sua fila.');}
+    try{await hydrateRoom();void loadCatalog(true);await subscribeRoom();startTicker();startMemberVerifier();await sendProfileToHost();toast('Entrou! 🎉 Escolha um hit para sua fila.');}
     catch(err){toast(humanError(err),true);}
   }
   function startMemberVerifier(){
@@ -468,7 +601,7 @@
   function startSyncFallback(){
     clearInterval(state.roomPoller);clearInterval(state.signalPoller);
     state.roomPoller=setInterval(()=>{if(state.room&&navigator.onLine)void refreshRoomSnapshot();},5500);
-    state.signalPoller=setInterval(()=>{if(state.room&&navigator.onLine&&(state.role==='host'||state.localPeer))void fetchRecentSignals();},3200);
+    state.signalPoller=setInterval(()=>{if(state.room&&navigator.onLine&&(state.role==='host'||state.role==='guest'))void fetchRecentSignals();},state.role==='host'?3500:8500);
   }
 
   async function fetchRoom() {
@@ -535,7 +668,7 @@
     if(partner)return callRPC('karaoke_enqueue_duet',{p_room:state.room.id,p_video:video,p_title:title,p_partner:partner});
     return callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title});
   }
-  function renderAll(){renderQueue();renderMembers();if(state.role==='host'){renderMics();renderStageRanking();renderLiveScore();}}
+  function renderAll(){renderQueue();renderMembers();if(state.role==='host'){renderMics();renderStageRanking();renderLiveScore();renderPreflightHost();}}
   function renderMembers(){if(state.role==='host')$('stage-count').textContent=`👥 ${state.members.length+1} na festa`;}
   function renderQueue() {
     const songs=state.songs.filter(s=>s.status==='playing'||s.status==='queued');
@@ -546,7 +679,7 @@
     if(state.role==='guest') {
       $('guest-queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="mobile-queue-item"><span class="number">${s.status==='playing'?'♫':i+1}</span><span class="title"><strong>${escapeHTML(s.title)}</strong><small>${escapeHTML(songSingerLabel(s))}</small></span><span>${s.status==='playing'?'🔊':'🎵'}</span></div>`).join(''):'<p style="color:var(--muted);font-size:13px">Sem músicas ainda. Que tal escolher a primeira? 🎤</p>';
       setGuestNowPlaying(songs.find(s=>s.status==='playing')||null);
-      syncGuestTurn(songs.find(s=>s.status==='playing')||null);
+      syncGuestTurn(songs.find(s=>s.status==='playing')||null);renderGuestPreflight();
     }
   }
   function setGuestNowPlaying(song){$('guest-now-playing').textContent=song?.title || 'O palco tá pronto pra você!';$('guest-now-singer').textContent=song?'Com '+songSingerLabel(song):'Escolha um hit na aba ao lado.';}
@@ -557,7 +690,7 @@
     $('your-turn-banner').hidden=!mine;$('mic-turn-kicker').hidden=!mine;
     $('mic-card').classList.toggle('my-turn',mine);
     $('mobile-tab-mic').classList.toggle('turn-highlight',mine);
-    if(mine){$('your-turn-track').textContent=playing.title;}
+    if(mine){$('your-turn-track').textContent=playing.title;}renderGuestPreflight();
     if(state.lastMySong!==playing?.id){
       const wasMine=Boolean(state.lastMySong);
       state.lastMySong=mine?playing.id:null;
@@ -669,7 +802,7 @@
       const gain=ctx.createGain();gain.gain.value=state.masterGain;
       source.connect(analyser);analyser.connect(gain);gain.connect(ctx.destination);
       Object.assign(entry,{source,analyser,gain,stream,connection:'connected'});
-      renderMics();
+      renderMics();showHostCommand();
       if(ctx.state!=='running')toast('🎧 Microfone conectado! Clique em “Ativar som” para ouvi-lo.');
     }catch(err){console.error(err);toast('Não foi possível preparar o áudio remoto.',true);}
   }
@@ -677,6 +810,12 @@
     if(!state.room)return;
     const from=signal.sender_id,data=signal.payload||{};
     if(state.role==='host'){
+      if(signal.kind==='stage-profile'&&AVATARS[data.avatar]){state.avatars.set(from,data.avatar);showHostCommand();renderPreflightHost();return;}
+      if(signal.kind==='stage-ready-status'&&state.preflight?.song.id===data.songId&&state.preflight.token===data.token&&isSinger(state.preflight.song,from)){
+        if(AVATARS[data.avatar])state.avatars.set(from,data.avatar);
+        state.preflight.statuses.set(from,{mic:data.mic===true,ready:data.ready===true&&data.mic===true,at:Date.now()});
+        renderPreflightHost();return;
+      }
       if(signal.kind==='offer') {
         const singer=state.songs.find(s=>s.status==='playing');
         if(!singer||!isSinger(singer,from)){await sendSignal(from,'notice',{message:'Seu microfone entra ao vivo somente na sua música. Aguarde sua vez. 🎤'});return;}
@@ -699,6 +838,15 @@
         }
       } else if(signal.kind==='bye')closePeer(from);
     }else if(state.role==='guest'&&from===state.room.owner_id){
+      if(signal.kind==='stage-prepare'){
+        if(Date.now()-Number(data.sentAt||0)>95000)return;
+        if(!state.songs.some(s=>s.id===data.songId&&s.status==='queued'&&isSinger(s,state.user.id)))await fetchSongs();
+        if(!state.songs.some(s=>s.id===data.songId&&s.status==='queued'&&isSinger(s,state.user.id)))return;
+        if(state.guestPreflightSong?.token!==data.token)state.guestReady=false;
+        state.guestPreflightSong={id:data.songId,token:data.token,title:data.title};
+        renderGuestPreflight();switchMobileTab('mic');await notifyPreflightGuest();return;
+      }
+      if(signal.kind==='stage-prepare-cancel'&&state.guestPreflightSong?.id===data.songId&&state.guestPreflightSong?.token===data.token){state.guestPreflightSong=null;state.guestReady=false;renderGuestPreflight();return;}
       const pc=state.localPeer;
       if(signal.kind==='answer'&&pc) {await pc.setRemoteDescription(new RTCSessionDescription(data));await flushCandidates(from,pc);}
       else if(signal.kind==='candidate') {
@@ -762,6 +910,7 @@
       $('mic-capture-state').textContent='🎙️ Microfone ligado • fale ou cante para testar';
       $('mic-volume-title').textContent='NÍVEL DO SOM • CAPTAÇÃO LOCAL';
       if(isMyTurn()){const playing=state.songs.find(s=>s.status==='playing');if(playing)resetLocalMicActivity(playing.id);await connectMicToStage();}
+      renderGuestPreflight();void notifyPreflightGuest();
     }catch(err){console.error(err);toast(humanError(err),true);await stopMicrophone(false);}finally{btn.disabled=false;}
   }
   async function connectMicToStage(){
@@ -802,8 +951,8 @@
     $('mic-description').textContent='Toque para autorizar o microfone. Antes da sua música, o som fica apenas no celular.';
     $('mic-volume-title').textContent='NÍVEL DO SOM • AGUARDANDO PERMISSÃO';
     $('mic-capture-state').textContent='🔒 Microfone desligado — toque para autorizar';
-    state.captureSeen=false;state.micConnecting=false;
-    updateGuestMicState('closed');drawMobileLevels(0);
+    state.captureSeen=false;state.micConnecting=false;state.guestReady=false;
+    updateGuestMicState('closed');drawMobileLevels(0);renderGuestPreflight();void notifyPreflightGuest();
   }
   function calculateRMS(analyser){
     if(!analyser)return 0;
@@ -847,7 +996,7 @@
       const status=scoreForSinger(uid);const score=status?.score;
       return `<div class="mic-person"><div class="mic-person-top"><span>🎙️ ${escapeHTML(memberName(uid))}</span><b>${score==null?'Aguardando sinal':score+' pts'}</b></div><div class="mic-level"><span id="meter-${uid}" style="width:${Math.min(100,record.level*800)}%"></span></div><small style="display:block;margin-top:7px;color:var(--muted);font-size:10px">${escapeHTML(record.connection==='connected'?'● Áudio ao vivo na TV':record.connection==='cloud'?'☁ Nota recebida do celular • áudio da TV sem conexão':record.connection==='failed'?'⚠ Áudio não chegou à TV':'○ Conectando...' )}</small></div>`;
     }).join(''):'<div class="mic-empty">Quando alguém ativar o microfone, aparece aqui. ✨</div>';
-    renderLiveScore();
+    renderLiveScore();showHostCommand();
   }
   function sampleAudio(){
     if(state.role==='guest'&&state.localAnalyzer){const rms=calculateRMS(state.localAnalyzer);drawMobileLevels(rms);collectLocalMicActivity(rms);}
@@ -1181,8 +1330,9 @@
       // Privacidade: feche os microfones ao fim do show.
       for(const uid of [...state.peers.keys()]){void sendSignal(uid,'bye').catch(console.warn);closePeer(uid);}
       if(!skipped&&showResults){
+        if(document.fullscreenElement){try{await document.exitFullscreen();}catch{}}
         showPerformanceResults(results,singers);
-        state.scoreOverlayTimer=setTimeout(()=>{if(state.role==='host')advanceSong();},14000);
+        state.scoreOverlayTimer=setTimeout(()=>{if(state.role==='host')advanceSong();},22000);
       }
       $('play-pause').textContent='▶ Reproduzir';queueChanged();
     }catch(err){toast('Falha ao finalizar música: '+humanError(err),true);}
@@ -1193,7 +1343,7 @@
     if(state.currentSong)await finishSong(true,false);
     await fetchSongs();renderQueue();
     const next=state.songs.find(s=>s.status==='queued');
-    if(next){updateVoxLine('queue');await startSong(next);}
+    if(next){updateVoxLine('queue');await prepareSong(next);}
     else {setNowPlaying(null);toast('A fila acabou! Hora de escolher outro hit. 🎶');}
   }
   async function togglePlayback(){
@@ -1614,6 +1764,8 @@ function renderFullCatalog(){
     state.ticker=setInterval(()=>{
       if(!state.room)return;
       sampleAudio();cycles++;
+      if(cycles%72===0&&state.role==='guest'&&state.guestPreflightSong)void notifyPreflightGuest();
+      if(cycles%36===0&&state.role==='host'&&state.preflight)renderPreflightHost();
       if(cycles%7===0){updateVideoProgress();if(state.role==='host')renderMics();}
       if(cycles%10===0 && state.role==='host' && state.currentSong)void fetchMicActivity().then(renderLiveScore);
     },140);
@@ -1625,6 +1777,7 @@ function renderFullCatalog(){
     clearInterval(state.memberVerifier);state.memberVerifier=null;
     clearInterval(state.roomPoller);state.roomPoller=null;clearInterval(state.signalPoller);state.signalPoller=null;state.realtimeOk=false;state.syncQueued=false;
     clearTimeout(state.roomReloadTimer);clearTimeout(state.scoreOverlayTimer);
+    clearHostPreflight(false);state.guestPreflightSong=null;state.guestReady=false;state.avatars.clear();
     if(state.localStream)await stopMicrophone(true);
     if(state.role==='host'){for(const uid of state.peers.keys())void sendSignal(uid,'bye').catch(console.warn);}
     for(const uid of [...state.peers.keys()])closePeer(uid);
@@ -1703,6 +1856,7 @@ function renderFullCatalog(){
   function attachEvents(){
     $('invite-install').addEventListener('click',installFromInvite);
     $('guest-install').addEventListener('click',installFromInvite);
+    $('entry-install').addEventListener('click',installFromInvite);
     $('invite-continue').addEventListener('click',()=>showGuestEntry(state.inviteRoom));
     $('hub-join-room').addEventListener('click',()=>showGuestEntry(''));
     $('guest-switch').addEventListener('click',goToMyRooms);
@@ -1710,7 +1864,7 @@ function renderFullCatalog(){
     $('copy-room-invite').addEventListener('click',async()=>{
       if(!state.readyRoom)return;
       const {room}=state.readyRoom;
-      const text=`🎤 Tem Gogó — ${room.title}\nEntre direto: ${currentURL(room.code)}\nCódigo: ${room.code}\nBasta escanear, sem senha!`;
+      const text=`🎤 Tem Gogó — ${room.title}\nConvite: ${currentURL(room.code)}\nCódigo: ${room.code}\nEscaneie, escolha seu apelido e avatar. Não precisa de senha!`;
       try{await navigator.clipboard.writeText(text);toast('Convite copiado! Envie só para quem foi chamado. 🎟️');}
       catch{toast('Copiar indisponível; compartilhe o endereço ou o QR do palco.',true);}
     });
@@ -1804,7 +1958,7 @@ function renderFullCatalog(){
           .catch(err=>toast(humanError(err),true));
         return;
       }
-      const button=e.target.closest('[data-play-song]');if(button){const song=state.songs.find(s=>s.id===button.dataset.playSong);if(song)startSong(song);}
+      const button=e.target.closest('[data-play-song]');if(button){const song=state.songs.find(s=>s.id===button.dataset.playSong);if(song)void prepareSong(song);}
     });
     $('open-add-song').addEventListener('click',()=>$('song-dialog').showModal());
     $('playlist-import-submit').addEventListener('click',importPlaylistManual);
@@ -1831,6 +1985,17 @@ function renderFullCatalog(){
     $('host-search-button').addEventListener('click',()=>searchYoutube(true));
     $('youtube-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchYoutube(false);}});
     $('host-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchYoutube(true);}});
+    $('stage-preflight-start').addEventListener('click',()=>void startPreparedSong());
+    $('stage-preflight-override').addEventListener('click',()=>void startPreparedSong(true));
+    $('stage-preflight-cancel').addEventListener('click',()=>clearHostPreflight());
+    $('stage-preflight-resend').addEventListener('click',()=>void sendPreflightInvites(true));
+    $('guest-preflight-mic').addEventListener('click',()=>{switchMobileTab('mic');openMicPermission();});
+    $('guest-preflight-ready').addEventListener('click',()=>{if(!availableMic()){toast('Ative o microfone primeiro.',true);return;}state.guestReady=true;renderGuestPreflight();void notifyPreflightGuest();toast('Confirmação enviada ao anfitrião! ✅');});
+    $('edit-guest-profile').addEventListener('click',()=>{$('guest-profile-name').value=$('guest-display-name').textContent;$('guest-profile-dialog').showModal();});
+    $('guest-profile-form').addEventListener('submit',event=>{void editGuestProfile(event);});
+    $('guest-profile-close').addEventListener('click',()=>$('guest-profile-dialog').close());
+    for(const id of ['open-stage-faq','open-guest-faq'])$(id).addEventListener('click',()=>$('faq-dialog').showModal());
+    for(const id of ['faq-close','faq-done'])$(id).addEventListener('click',()=>$('faq-dialog').close());
     $('mic-toggle').addEventListener('click',toggleMic);
     $('mic-confirm-permission').addEventListener('click',()=>{$('mic-permission-dialog').close();void startMicrophone();});
     $('mic-cancel-permission').addEventListener('click',()=>$('mic-permission-dialog').close());
