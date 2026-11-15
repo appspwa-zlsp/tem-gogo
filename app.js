@@ -23,9 +23,9 @@
 
   // V14 — personagens originais enviados como homenagem; sem redesenhar seus traços.
   const AVATARS = Object.freeze({
-    diva:'./avatars/diva.jpg', urbano:'./avatars/cantor-urbano.jpg',
-    esporte:'./avatars/cantor-esporte.jpg', ruiva:'./avatars/cantora-ruiva.jpg',
-    oculos:'./avatars/cantora-oculos.jpg'
+    diva:'./diva.jpg', urbano:'./cantor-urbano.jpg',
+    esporte:'./cantor-esporte.jpg', ruiva:'./cantora-ruiva.jpg',
+    oculos:'./cantora-oculos.jpg'
   });
   function avatarSrc(key){return AVATARS[key]||AVATARS.diva;}
   function availableMic(){return !!state.localStream?.getAudioTracks().some(t=>t.readyState==='live'&&t.enabled);}
