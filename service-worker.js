@@ -1,5 +1,5 @@
-const CACHE='tem-gogo-shell-v14-1-flat-avatars';
-const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./diva.jpg','./cantor-urbano.jpg','./cantor-esporte.jpg','./cantora-ruiva.jpg','./cantora-oculos.jpg','./qr-local.js','./diva-gogo.svg','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='tem-gogo-shell-v16-option2-grupos-qr';
+const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });

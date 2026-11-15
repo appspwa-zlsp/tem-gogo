@@ -2,7 +2,7 @@
  * Conexão pública preenchida para o projeto Tem Gogó. Hospede somente em HTTPS.
  * Use somente a chave publicável/anon do Supabase. NUNCA use service_role ou secret aqui!
  * Projeto: tem-gogo (hfyeucscipknhkfwfyto). Dados públicos fornecidos pelo proprietário.
- * Execute db/INSTALAR_TEM_GOGO.sql e habilite Supabase Auth Email + Anonymous antes do uso.
+ * A estrutura do banco deve estar previamente instalada (V13); veja o SQL_014 se ainda nao foi aplicado.
  */
 window.TEM_GOGO_CONFIG = {
   SUPABASE_URL: 'https://hfyeucscipknhkfwfyto.supabase.co',

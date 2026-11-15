@@ -1,248 +1,264 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <title>Tem Gogó | Seu karaokê, seu momento ✨</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#160d26">
-  <meta name="application-name" content="Tem Gogó">
-  <meta name="apple-mobile-web-app-title" content="Tem Gogó">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta property="og:title" content="Tem Gogó — O karaokê da galera">
-  <meta property="og:description" content="A TV vira palco, o celular vira microfone e a DIVA GOGÓ comanda a resenha!">
-  <meta property="og:type" content="website">
-  <meta name="description" content="Tem Gogó: o reality do seu rolê! Karaokê brasileiro com microfone no celular, memes, notas e muita personalidade.">
-  <meta name="color-scheme" content="dark">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="./icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./visual-v2.css">
-  <link rel="stylesheet" href="./visual-v14.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script defer src="./qr-local.js"></script>
-  <script defer src="./config.js"></script>
-  <script defer src="./app.js"></script>
+<meta charset="utf-8"/>
+<title>Tem Gogó | Seu karaokê, seu momento ✨</title>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<meta content="#160d26" name="theme-color"/>
+<meta content="Tem Gogó" name="application-name"/>
+<meta content="Tem Gogó" name="apple-mobile-web-app-title"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="Tem Gogó — O karaokê da galera" property="og:title"/>
+<meta content="A TV vira palco, o celular vira microfone e a DIVA GOGÓ comanda a resenha!" property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="Tem Gogó: o reality do seu rolê! Karaokê brasileiro com microfone no celular, memes, notas e muita personalidade." name="description"/>
+<meta content="dark" name="color-scheme"/>
+<link href="./manifest.webmanifest" rel="manifest"/>
+<link href="./icon-192.png" rel="icon" type="image/png"/>
+<link href="./icon-192.png" rel="apple-touch-icon"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;family=Space+Grotesk:wght@400;500;600;700&amp;family=Outfit:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="./styles.css" rel="stylesheet"/>
+<link href="./visual-v2.css" rel="stylesheet"/>
+<link href="./visual-v14.css" rel="stylesheet"/>
+<link href="./visual-v15.css" rel="stylesheet"/>
+<link href="./visual-v16.css" rel="stylesheet"/>
+<script defer="" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer="" src="./qr-local.js"></script>
+<script defer="" src="./config.js"></script>
+<script defer="" src="./app.js"></script>
 </head>
 <body data-theme="baile">
-  <div class="grain" aria-hidden="true"></div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <div id="confetti" class="confetti" aria-hidden="true"></div>
-
-  <section id="landing" class="landing view">
-    <header class="landing-top wrap">
-      <a href="./" class="brand" aria-label="Tem Gogó, início"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></a>
-      <div class="top-actions"><span class="tiny-tag"><span class="online-dot"></span> O REALITY DO SEU ROLÊ</span><button class="icon-button open-settings" type="button" title="Personalizar o TEM GOGÓ" aria-label="Personalizar o TEM GOGÓ">⚙</button><button type="button" class="icon-button install-trigger" hidden title="Instalar aplicativo" aria-label="Instalar aplicativo"><span>↓</span></button></div>
-    </header>
-
-    <main class="landing-main wrap">
-      <div class="hero-copy"><div class="hero-badge">★ DIRETO DO BRASIL PRA SUA SALA ★</div>
-        <h1>HOJE É<br><span>DIA DE</span><br><span class="hero-shine">DIVAR!</span><span class="period">✦</span></h1>
-        <p>A TV é o palco, seu celular vira microfone e a galera escolhe os hits pelo QR. <strong>A DIVA GOGÓ apresenta, a plateia surta e você vira lenda!</strong></p>
-        <div class="hero-stats"><span>✦ HIT ATRÁS DE HIT</span><span>✦ NOTAS COM MEMES</span><span>✦ MIC NO CELULAR</span></div><div class="vox-intro"><div class="vox-bubble-avatar" aria-hidden="true"><img src="./diva-gogo.svg" alt="" aria-hidden="true"></div><div><b>ALÔ, MEU POVO!</b><p>Se a afinação faltar, a personalidade entrega. — DIVA GOGÓ, sua apresentadora.</p></div></div>
-        <div class="hero-decoration" aria-hidden="true"><span>♫</span><span>✦</span><span>♪</span></div>
-      </div>
-      <div class="access-card" id="access-card">
-        <div class="card-eyebrow">PASSAPORTE DO PALCO <span>✴</span></div>
-        <div id="invite-welcome" class="invite-welcome" hidden>
-          <div class="invite-logo">🎙️</div>
-          <span class="invite-label">VOCÊ FOI CONVIDADO(A)!</span>
-          <h2>Segura o gogó,<br><em>que tem festa!</em></h2>
-          <p>A DIVA GOGÓ está te colocando na festa automaticamente! Depois você pode instalar o aplicativo pelo celular.</p>
-          <div class="invite-code-note">🎟️ Convite da sala <strong id="invite-room-code">--------</strong></div>
-          <button id="invite-install" type="button" class="button button-primary full">📲 INSTALAR TEM GOGÓ</button>
-          <button id="invite-continue" type="button" class="button button-outline full">Já instalei / Entrar sem instalar</button>
-          <p id="invite-install-help" class="invite-install-help" aria-live="polite">Dica: no iPhone, use Compartilhar → Adicionar à Tela de Início.</p>
-        </div>
-        <div id="access-tabs" class="tab-buttons" role="tablist" aria-label="Forma de acesso">
-          <button class="tab active" id="tab-host" type="button" aria-selected="true">Sou anfitrião</button>
-          <button class="tab" id="tab-guest" type="button" aria-selected="false">Entrar na festa</button>
-        </div>
-        <div id="host-access">
-          <h2>É sua vez, estrela! <span>🎤</span></h2>
-          <p class="subtle">Entre e assuma o comando desse espetáculo de milhões.</p>
-          <form id="auth-form" autocomplete="on">
-            <label class="field-label" for="auth-email">Seu e-mail</label><input required autocomplete="email" id="auth-email" type="email" placeholder="voce@exemplo.com" maxlength="180">
-            <label class="field-label" for="auth-password">Sua senha</label><input required autocomplete="current-password" id="auth-password" type="password" placeholder="Mínimo de 6 caracteres" minlength="6">
-            <button type="submit" id="login-button" class="button button-primary full">ABRIR MEU SHOW <span>↗</span></button>
-            <button type="button" id="signup-button" class="text-button">✨ Primeiro show? Criar minha conta</button>
-          </form>
-          <p class="auth-state" id="auth-state" aria-live="polite"></p>
-        </div>
-        <div id="guest-access" hidden>
-          <h2>Cheguei, Brasil! <span>🪩</span></h2><p class="subtle">Escaneie o QR Code da TV ou digite o código exibido na tela.</p>
-          <form id="guest-entry-form">
-            <label class="field-label" for="guest-code">Código do convite</label><input id="guest-code" required maxlength="12" minlength="8" placeholder="Ex.: 2A4F9C01B8CD" autocapitalize="characters" autocomplete="off" spellcheck="false">
-            <label class="field-label" for="guest-name">Como vamos te chamar?</label><input minlength="2" id="guest-name" required maxlength="24" placeholder="Seu nome de artista 🎤" autocomplete="nickname">
-            <fieldset class="avatar-picker"><legend>Escolha seu avatar 🎭</legend><div id="entry-avatar-options" class="avatar-options"></div><small>Você poderá trocar no perfil depois. São personagens de homenagem.</small></fieldset><button class="button button-primary full" type="submit">QUERO PARTICIPAR <span>↗</span></button><button type="button" id="entry-install" class="text-button">📲 Instalar Tem Gogó (opcional)</button>
-          </form>
-        </div>
-        <div class="access-foot">🎟️ Cada sala tem um QR exclusivo. Ao escanear, escolha seu apelido e avatar; o microfone só liga com sua autorização.</div>
-      </div>
-    </main>
-    <footer class="landing-footer wrap"><span>TEM GOGÓ / BY THE PEOPLE, FOR THE PARTY</span><span>DIVA GOGÓ NO COMANDO • O BRASIL NO REFRÃO ✳</span></footer>
-  </section>
-
-  <section id="lobby" class="lobby view" hidden>
-    <header class="simple-header wrap"><div class="brand"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></div><div class="header-control-group"><button class="button button-ghost open-settings" type="button">✦ Personalizar</button><button class="button button-ghost" id="logout-button" type="button">Sair da conta ↗</button></div></header>
-    <main class="lobby-main wrap">
-      <div><div class="hero-badge">✦ DIREÇÃO GERAL DO ROLÊ ✦</div><h1>O SHOW<br>VAI <em>COMEÇAR.</em></h1><p>Crie sua festa, compartilhe o QR Code na tela e deixe que cada pessoa escolha sua música e use o celular como microfone.</p>
-        <div class="lobby-perks"><div>📺 <span>PALCO NA TV</span></div><div>🎤 <span>MIC NO CELULAR</span></div><div>👑 <span>MEMES & PRÊMIOS</span></div></div><div class="vox-intro lobby-vox"><div class="vox-bubble-avatar"><img src="./diva-gogo.svg" alt="" aria-hidden="true"></div><div><b>DIVA GOGÓ JÁ TÁ NO CAMARIM!</b><p>Abre essa sala que eu tô com a língua afiada e o troféu pronto.</p></div></div>
-      </div>
-      <div class="lobby-form" id="room-hub">
-        <div class="card-eyebrow">✦ SEU CAMARIM, SUAS FESTAS ✦</div><h2>Onde vamos brilhar?</h2>
-        <p class="hub-intro">Você pode apresentar uma festa e cantar em outra usando a mesma conta. Cada festa tem seu QR exclusivo, sem senha de sala.</p>
-        <div id="existing-rooms" class="existing-rooms" aria-live="polite"><p>Carregando suas salas…</p></div>
-        <div id="host-create-area" class="hub-create-area">
-          <form id="create-room-form"><label class="field-label" for="room-title">Nome da sua nova festa</label>
-            <input id="room-title" maxlength="50" required placeholder="Ex.: Sextou na casa da Bia ✨" value="Meu karaokê ✨">
-            <p class="invite-helper">O Tem Gogó cria automaticamente um QR exclusivo para sua festa. Quem escanear entra direto!</p>
-            <button type="submit" class="button button-primary full">🎉 CRIAR FESTA AGORA <span>→</span></button>
-          </form>
-        </div>
-        <button type="button" id="hub-join-room" class="button button-soft full">🎟️ ENTRAR EM OUTRA FESTA</button><button type="button" id="reopen-recap" class="button button-soft full">🏆 Rever último placar</button>
-        <p class="hub-security">🔐 Sua conta continua protegida por senha. O QR da festa é um convite: compartilhe com quem vai participar.</p>
-      </div>
-    </main>
-  </section>
-
-  <section id="stage" class="stage view" hidden>
-    <header class="stage-header">
-      <div class="stage-identity"><div class="brand"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></div><span class="stage-separator"></span><span id="stage-room-title" class="room-title">Meu karaokê</span><span class="live-label"><i></i> AO VIVO</span></div>
-      <div class="stage-actions"><span id="stage-sync-status" class="sync-state" role="status">◌ Sincronizando</span><span id="stage-count" class="stage-people">👥 0 na festa</span><button id="open-stage-faq" type="button" class="icon-button" title="Ajuda" aria-label="Ajuda">❔</button><button id="theme-cycle" type="button" class="icon-button" title="Próximo tema" aria-label="Próximo tema">🎨</button><button type="button" class="icon-button open-settings" title="Personalizar a DIVA GOGÓ" aria-label="Personalizar a DIVA GOGÓ">⚙</button><button id="contrast-toggle" type="button" class="icon-button" title="Alto contraste" aria-label="Alto contraste">◐</button><button type="button" id="fullscreen-button" class="icon-button" title="Tela cheia" aria-label="Tela cheia">⛶</button><button id="stage-switch" type="button" class="icon-button" title="Minhas salas (sair da tela do palco sem encerrar a festa)" aria-label="Minhas salas">⇄</button><button id="stage-exit" type="button" class="icon-button" title="Encerrar esta festa" aria-label="Encerrar esta festa">✕</button></div>
-    </header>
-    <main class="stage-layout">
-      <div class="stage-main">
-        <div class="stage-meta"><div><div class="mini-label"><span class="pulse-dot"></span> ★ É HORA DO SHOW ★</div><h1 id="now-title">O palco tá esperando você! 🎶</h1><p id="now-by">Adicione a primeira música pelo celular ou pelo painel.</p></div><div class="song-pill" id="song-pill">✦ Prontos para o show?</div></div>
-        <section id="stage-command" class="stage-command" aria-label="Central de comando e situação da festa">
-  <div class="stage-command-title"><span>🎛️ CENTRAL DO HOST</span><strong id="command-live-state">Aguardando próximo show</strong></div>
-  <div class="stage-command-stats"><span id="command-next">🎤 Próximo: aguardando fila</span><span id="command-mics">🎙️ Microfones: 0</span><span id="command-queue">🎵 Fila: 0</span></div>
-  <div class="stage-command-participants" id="stage-command-participants" aria-live="polite"></div>
+<div aria-hidden="true" class="grain"></div>
+<div aria-live="polite" class="toast" id="toast" role="status"></div>
+<div aria-hidden="true" class="confetti" id="confetti"></div>
+<section class="landing view" id="landing">
+<header class="landing-top wrap">
+<a aria-label="Tem Gogó, início" class="brand" href="./"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></a>
+<div class="top-actions"><span class="tiny-tag"><span class="online-dot"></span> O REALITY DO SEU ROLÊ · BETA 16</span><button aria-label="Personalizar o TEM GOGÓ" class="icon-button open-settings" title="Personalizar o TEM GOGÓ" type="button">⚙</button><button aria-label="Instalar aplicativo" class="icon-button install-trigger" hidden="" title="Instalar aplicativo" type="button"><span>↓</span></button></div>
+</header>
+<main class="landing-main wrap">
+<div class="hero-copy"><div class="hero-badge">★ DIRETO DO BRASIL PRA SUA SALA ★</div>
+<h1>HOJE É<br/><span>DIA DE</span><br/><span class="hero-shine">DIVAR!</span><span class="period">✦</span></h1>
+<p>A TV é o palco, seu celular vira microfone e a galera escolhe os hits pelo QR. <strong>A DIVA GOGÓ apresenta, a plateia surta e você vira lenda!</strong></p>
+<div class="hero-stats"><span>✦ HIT ATRÁS DE HIT</span><span>✦ NOTAS COM MEMES</span><span>✦ MIC NO CELULAR</span></div><div class="vox-intro"><div aria-hidden="true" class="vox-bubble-avatar"><img alt="" aria-hidden="true" src="./diva.png"/></div><div><b>ALÔ, MEU POVO!</b><p>Se a afinação faltar, a personalidade entrega. — DIVA GOGÓ, sua apresentadora.</p></div></div>
+<div aria-hidden="true" class="hero-decoration"><span>♫</span><span>✦</span><span>♪</span></div>
+</div>
+<div class="access-card" id="access-card">
+<div class="card-eyebrow">PASSAPORTE DO PALCO <span>✴</span></div>
+<div class="invite-welcome" hidden="" id="invite-welcome">
+<div class="invite-logo">🎙️</div>
+<span class="invite-label">VOCÊ FOI CONVIDADO(A)!</span>
+<h2>Segura o gogó,<br/><em>que tem festa!</em></h2>
+<p>A DIVA GOGÓ está te colocando na festa automaticamente! Depois você pode instalar o aplicativo pelo celular.</p>
+<div class="invite-code-note">🎟️ Convite da sala <strong id="invite-room-code">--------</strong></div>
+<button class="button button-primary full" id="invite-install" type="button">📲 INSTALAR TEM GOGÓ</button>
+<button class="button button-outline full" id="invite-continue" type="button">Já instalei / Entrar sem instalar</button>
+<p aria-live="polite" class="invite-install-help" id="invite-install-help">Dica: no iPhone, use Compartilhar → Adicionar à Tela de Início.</p>
+</div>
+<div aria-label="Forma de acesso" class="tab-buttons" id="access-tabs" role="tablist">
+<button aria-selected="true" class="tab active" id="tab-host" type="button">Sou anfitrião</button>
+<button aria-selected="false" class="tab" id="tab-guest" type="button">Entrar na festa</button>
+</div>
+<div id="host-access">
+<h2>É sua vez, estrela! <span>🎤</span></h2>
+<p class="subtle">Entre e assuma o comando desse espetáculo de milhões.</p>
+<form autocomplete="on" id="auth-form">
+<label class="field-label" for="auth-email">Seu e-mail</label><input autocomplete="email" id="auth-email" maxlength="180" placeholder="voce@exemplo.com" required="" type="email"/>
+<label class="field-label" for="auth-password">Sua senha</label><input autocomplete="current-password" id="auth-password" minlength="6" placeholder="Mínimo de 6 caracteres" required="" type="password"/>
+<button class="button button-primary full" id="login-button" type="submit">ABRIR MEU SHOW <span>↗</span></button>
+<button class="text-button" id="signup-button" type="button">✨ Primeiro show? Criar minha conta</button><button class="text-button" id="auth-forgot-password" type="button">Esqueci minha senha</button>
+</form>
+<p aria-live="polite" class="auth-state" id="auth-state"></p>
+</div>
+<div hidden="" id="guest-access">
+<h2>Cheguei, Brasil! <span>🪩</span></h2><p class="subtle">Escaneie o QR Code da TV ou digite o código exibido na tela.</p>
+<button class="button button-primary full qr-scan-cta" data-scan-qr="" type="button">📷 LER QR DA FESTA</button><p class="qr-separator">ou digite o código mostrado na TV</p><form id="guest-entry-form">
+<label class="field-label" for="guest-code">Código do convite</label><input autocapitalize="characters" autocomplete="off" id="guest-code" maxlength="12" minlength="8" placeholder="Ex.: 2A4F9C01B8CD" required="" spellcheck="false"/>
+<label class="field-label" for="guest-name">Como vamos te chamar?</label><input autocomplete="nickname" id="guest-name" maxlength="24" minlength="2" placeholder="Seu nome de artista 🎤" required=""/>
+<fieldset class="avatar-picker"><legend>Escolha seu avatar 🎭</legend><div class="avatar-options" id="entry-avatar-options"></div><small>Você poderá trocar no perfil depois. São personagens de homenagem.</small></fieldset><button class="button button-primary full" type="submit">QUERO PARTICIPAR <span>↗</span></button><button class="text-button" id="entry-install" type="button">📲 Instalar Tem Gogó (opcional)</button>
+</form>
+</div>
+<div class="access-foot">🎟️ Cada sala tem um QR exclusivo. Ao escanear, escolha seu apelido e avatar; o microfone só liga com sua autorização.</div>
+</div>
+</main>
+<footer class="landing-footer wrap"><span>TEM GOGÓ / BY THE PEOPLE, FOR THE PARTY</span><span>DIVA GOGÓ NO COMANDO • O BRASIL NO REFRÃO ✳</span></footer>
 </section>
-<div class="vox-stage-banner" aria-live="polite"><img class="vox-banner-mascot" src="./diva-gogo.svg" alt="" aria-hidden="true"><div class="vox-banner-copy"><span class="vox-stage-name">★ DIVA GOGÓ — SUA DRAG MESTRA DE CERIMÔNIAS ★ <span class="vox-onair-dot">●</span></span><span id="vox-line">“Boa noite, meu povo! Deixem o julgamento pro placar e o carão pra câmera!”</span></div></div>
-        <div class="screen-row"><div class="video-frame" id="video-frame">
-          <div id="youtube-player" class="youtube-player"></div>
-          <div class="video-placeholder vox-idle-stage" id="video-placeholder"><div class="vox-idle-character"><img src="./diva-gogo.svg" alt="Diva Gogó, a apresentadora do Tem Gogó"><span>✦ DIVA GOGÓ AO VIVO ✦</span></div><div class="vox-idle-copy"><span class="vox-idle-kicker">★ TÁ VALENDO, BRASIL! ★</span><strong>QUEM VAI<br><em>DIVAR?</em></strong><p id="vox-idle-line">“O palco é seu, o talento é negociável e a resenha é garantida!”</p><small>Escolha sua música pelo QR ou pelo catálogo. A DIVA GOGÓ tá de olho! 👀</small></div></div>
-          <div id="final-overlay" class="final-overlay" hidden><div class="final-window" role="status" aria-live="polite"><div class="final-visual"><span class="final-kicker">✦ PRÊMIO TEM GOGÓ ✦</span><div class="final-reaction" id="final-reaction"><span id="final-meme" class="final-meme">👑</span><img id="final-gif" class="final-gif" alt="Reação animada ao resultado" loading="lazy" hidden><a class="gif-powered" id="gif-powered" href="https://giphy.com" target="_blank" rel="noopener noreferrer" hidden>Powered by GIPHY ↗</a></div><span class="final-brand">TEM GOGÓ / SHOW DE TALENTOS</span></div><div class="final-content"><div class="final-headline">A DIVA GOGÓ DEU O VEREDITO!</div><div id="final-person" class="final-person">Artista</div><div id="final-number" class="final-number">88<span>/100</span></div><div id="final-stars" class="final-stars" aria-label="Estrelas conquistadas">★★★★★</div><p id="final-caption" class="final-caption">A internet não está preparada!</p><div id="final-duet-details" class="final-duet-details" hidden></div><p class="final-disclaimer">Nota divertida baseada em tempo e volume, não em afinação.</p><button type="button" id="final-close" class="button button-dark">PRÓXIMA ESTRELA →</button></div></div></div>
-        </div>
-          <aside class="qr-rail" aria-label="Convide a plateia">          <div class="qr-bubble" id="qr-bubble" role="button" tabindex="0" aria-label="Ampliar ou reduzir o QR Code"><div class="qr-heading"><span>📱</span><strong>ENTRA NO SHOW</strong></div><div id="stage-qr" class="qr-box"></div><div class="qr-footer"><span id="room-code" class="qr-code-text">--------</span><small>Escaneou? Entrou no rolê!</small></div></div>
-<div class="qr-rail-copy"><b>ENTRA NA FILA,<br>MEU AMOR!</b><span>Escaneia, escolhe um hit e participa do reality.</span></div><div class="qr-rail-stamp">✦ CADA FESTA, SEU QR ✦</div></aside></div>
-        <section id="stage-preflight" class="stage-preflight" hidden aria-live="polite">
-  <div class="preflight-heading">🎬 ANTES DE SOLTAR O VÍDEO — TODOS PRONTOS?</div>
-  <strong id="stage-preflight-track">Próxima apresentação</strong>
-  <div id="stage-preflight-singers" class="stage-preflight-singers"></div>
-  <p id="stage-preflight-feedback" class="preflight-feedback">Aguardando confirmação dos celulares...</p>
-  <div class="stage-preflight-actions"><button id="stage-preflight-start" class="button button-primary" type="button" disabled>▶ COMEÇAR APRESENTAÇÃO</button><button id="stage-preflight-resend" class="button button-soft" type="button">📣 Reenviar aviso</button><button id="stage-preflight-cancel" class="button button-outline" type="button">Cancelar</button><button id="stage-preflight-override" class="text-button" type="button">Iniciar sem todos prontos (exceção)</button></div>
+<section class="lobby view" hidden="" id="lobby">
+<header class="simple-header wrap"><div class="brand"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></div><div class="header-control-group"><button class="button button-ghost open-settings" type="button">✦ Personalizar</button><button class="button button-outline" id="account-password-open" type="button">🔒 Alterar senha</button><button class="button button-ghost" id="logout-button" type="button">Sair da conta ↗</button></div></header>
+<main class="lobby-main wrap">
+<div><div class="hero-badge">✦ DIREÇÃO GERAL DO ROLÊ ✦</div><h1>O SHOW<br/>VAI <em>COMEÇAR.</em></h1><p>Crie sua festa, compartilhe o QR Code na tela e deixe que cada pessoa escolha sua música e use o celular como microfone.</p>
+<div class="lobby-perks"><div>📺 <span>PALCO NA TV</span></div><div>🎤 <span>MIC NO CELULAR</span></div><div>👑 <span>MEMES &amp; PRÊMIOS</span></div></div><div class="vox-intro lobby-vox"><div class="vox-bubble-avatar"><img alt="" aria-hidden="true" src="./diva.png"/></div><div><b>DIVA GOGÓ JÁ TÁ NO CAMARIM!</b><p>Abre essa sala que eu tô com a língua afiada e o troféu pronto.</p></div></div>
+</div>
+<div class="lobby-form" id="room-hub">
+<div class="card-eyebrow">✦ SEU CAMARIM, SUAS FESTAS ✦</div><h2>Onde vamos brilhar?</h2>
+<p class="hub-intro">Você pode apresentar uma festa e cantar em outra usando a mesma conta. Cada festa tem seu QR exclusivo, sem senha de sala.</p>
+<div aria-live="polite" class="existing-rooms" id="existing-rooms"><p>Carregando suas salas…</p></div>
+<div class="hub-create-area" id="host-create-area">
+<form id="create-room-form"><label class="field-label" for="room-title">Nome da sua nova festa</label>
+<input id="room-title" maxlength="50" placeholder="Ex.: Sextou na casa da Bia ✨" required="" value="Meu karaokê ✨"/>
+<p class="invite-helper">O Tem Gogó cria automaticamente um QR exclusivo para sua festa. Quem escanear entra direto!</p>
+<button class="button button-primary full" type="submit">🎉 CRIAR FESTA AGORA <span>→</span></button>
+</form>
+</div>
+<button class="button button-soft full" id="hub-join-room" type="button">🎟️ ENTRAR EM OUTRA FESTA</button><button class="button button-primary full" data-scan-qr="" type="button">📷 Ler QR de outra festa</button><button class="button button-soft full" id="reopen-recap" type="button">🏆 Rever último placar</button>
+<p class="hub-security">🔐 Sua conta continua protegida por senha. O QR da festa é um convite: compartilhe com quem vai participar.</p>
+</div>
+</main>
 </section>
-<div class="stage-bottom"><div class="track-controls"><button id="play-pause" class="button button-light" type="button">▶ Reproduzir</button><button id="skip-track" class="button button-outline" type="button">⏭ Próxima</button><button id="start-audio" class="button button-outline" type="button">🔊 Ativar som</button></div><div class="progress-wrap"><span id="time-now">0:00</span><div class="progress-track"><div id="progress-fill"></div></div><span id="time-all">0:00</span></div></div>
-        <div class="singer-strip"><div class="strip-heading"><div><span class="mini-label">MICROFONES DO CELULAR • NOTAS SINCRONIZADAS</span><h3>A galera tá no vocal <span>🎙️</span></h3></div><div id="active-mic-count" class="mic-count">0 conectados</div></div><div id="mic-list" class="mic-list"><div class="mic-empty">Quando alguém ativar o microfone, aparece aqui. ✨</div></div><div class="live-scoring-card" aria-live="polite"><span class="live-score-label">✦ NOTAS DA APRESENTAÇÃO • DIRETO DOS CELULARES</span><div id="live-score-list" class="live-score-list">As notas aparecem aqui quando a música começar.</div></div></div>
-      </div>
-      <aside class="stage-sidebar"><div class="sidebar-top"><div class="side-title-line"><span>FILA DO SHOW</span><span id="queue-counter" class="queue-counter">0 MÚSICAS</span></div><h2>Quem canta<br><em>agora?</em> 🎤</h2></div>
-        <div id="queue-list" class="queue-list"><div class="queue-empty">Seu setlist começa com um QR Code. 👀</div></div>
-        <section class="stage-rank-panel" aria-label="Ranking da festa ao vivo">
-          <div class="rank-header"><span>🏆 RANKING DA FESTA</span><small id="rank-updated">Ao vivo</small></div>
-          <div id="stage-rank-list" class="stage-rank-list" aria-live="polite"><p class="rank-empty">O pódio começa depois da primeira música com nota. ✨</p></div>
-          <button class="button button-soft rank-full-button" type="button" id="ranking-full-link">VER RANKING COMPLETO ↗</button>
-        </section>
-        <section class="stage-hit-library" aria-label="Músicas mais tocadas"><div class="library-kicker">✳ O ACERVO DO POVO</div><h3>Nosso catálogo 🎶</h3><p class="library-subtitle">Playlist da casa + mais cantadas. Acesso grátis, sem busca externa.</p><button class="button button-primary catalog-open catalog-primary" type="button" data-catalog-open>📚 ABRIR CATÁLOGO COMPLETO <span>↗</span></button><div id="stage-library" class="hit-library-list">Carregando destaques...</div></section><div class="side-bottom"><button type="button" id="open-add-song" class="button button-primary full">+ Adicionar música</button><button type="button" id="open-scoreboard" class="button button-soft full">🏆 Ranking da festa</button><div class="playback-volume"><label for="playback-volume-range">🎵 Playback / YouTube <b id="playback-volume-label">80%</b></label><input type="range" id="playback-volume-range" min="0" max="100" step="1" value="80" aria-label="Volume do playback do YouTube"><small>Controla somente a música, sem alterar a voz dos celulares.</small></div><div class="master-volume"><span>🔉 Volume dos microfones</span><label for="volume-range" class="sr-only">Volume dos microfones</label><input type="range" id="volume-range" min="0" max="200" value="100"><span id="volume-label">100%</span></div><p class="side-helper">Os vídeos e as letras ficam no YouTube. Use versões oficiais de karaokê liberadas para incorporação.</p></div>
-      </aside>
-    </main>
-  </section>
-
-  <section id="guest" class="guest view" hidden>
-    <header class="guest-header"><div class="brand"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></div><div class="guest-live"><button id="guest-switch" type="button" class="button button-ghost" title="Ver todas as minhas festas">⇄ Minhas salas</button><span id="guest-sync-status" class="sync-state" role="status">◌ Sincronizando</span><span class="online-dot"></span> NO CAMARIM <button type="button" class="icon-button open-settings" title="Personalizar" aria-label="Personalizar">⚙</button></div></header>
-    <main class="guest-main"><div class="guest-welcome"><div class="mini-label">★ BACKSTAGE VIP ★</div><h1>Oii, <span id="guest-display-name">estrela</span><span>!</span></h1><div class="guest-profile-row"><img id="guest-profile-avatar" alt="Seu avatar" src="./diva.jpg"><button type="button" id="edit-guest-profile" class="button button-soft">✏️ Apelido e avatar</button></div><p>O palco é seu, a plateia é nossa. Escolha um hit e mostra a que veio!</p><div class="vox-guest-quip"><span class="vox-mini-face"><img src="./diva-gogo.svg" alt="" aria-hidden="true"></span><p id="vox-guest-line">“Entrou uma nova diva no camarim. Cadê o fã-clube?” — DIVA GOGÓ</p></div><button type="button" id="open-guest-faq" class="button button-soft guest-faq-button">❔ Ajuda rápida</button><div class="guest-room-info"><span>📍 <b id="guest-room-title">Sala</b></span><span>🎟️ <b id="guest-room-code">--------</b></span></div></div>
-      <section id="guest-preflight" class="guest-preflight" hidden aria-live="polite" role="status">
-  <div class="preflight-heading">🎤 VOCÊ FOI CHAMADO(A) PARA O PALCO!</div>
-  <strong id="guest-preflight-title">Prepare seu microfone</strong>
-  <p id="guest-preflight-message">Toque para ativar o microfone, teste sua voz e confirme que está pronto(a).</p>
-  <div id="guest-preflight-status" class="preflight-status">🔴 Microfone desligado</div>
-  <div class="preflight-actions"><button type="button" id="guest-preflight-mic" class="button button-soft">🎙️ ATIVAR MICROFONE</button><button type="button" id="guest-preflight-ready" class="button button-primary" disabled>✅ ESTOU PRONTO(A)</button></div>
+<section class="stage view" hidden="" id="stage">
+<header class="stage-header">
+<div class="stage-identity"><div class="brand"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></div><span class="stage-separator"></span><span class="room-title" id="stage-room-title">Meu karaokê</span><span class="live-label"><i></i> AO VIVO</span></div>
+<div class="stage-actions"><span class="sync-state" id="stage-sync-status" role="status">◌ Sincronizando</span><span class="stage-people" id="stage-count">👥 0 na festa</span><button aria-label="Ajuda" class="icon-button" id="open-stage-faq" title="Ajuda" type="button">❔</button><button aria-label="Próximo tema" class="icon-button" id="theme-cycle" title="Próximo tema" type="button">🎨</button><button aria-label="Ativar fala da Diva" aria-pressed="false" class="icon-button" id="diva-voice-toggle" title="Ativar fala da Diva (voz do navegador, opcional)" type="button">🔇</button><button aria-label="Personalizar a DIVA GOGÓ" class="icon-button open-settings" title="Personalizar a DIVA GOGÓ" type="button">⚙</button><button aria-label="Alto contraste" class="icon-button" id="contrast-toggle" title="Alto contraste" type="button">◐</button><button aria-label="Tela cheia" class="icon-button" id="fullscreen-button" title="Tela cheia" type="button">⛶</button><button aria-label="Minhas salas" class="icon-button" id="stage-switch" title="Minhas salas (sair da tela do palco sem encerrar a festa)" type="button">⇄</button><button aria-label="Encerrar esta festa" class="icon-button" id="stage-exit" title="Encerrar esta festa" type="button">✕</button></div>
+</header>
+<main class="stage-layout">
+<div class="stage-main">
+<div class="stage-meta"><div><div class="mini-label"><span class="pulse-dot"></span> ★ É HORA DO SHOW ★</div><h1 id="now-title">O palco tá esperando você! 🎶</h1><p id="now-by">Adicione a primeira música pelo celular ou pelo painel.</p></div><div class="song-pill" id="song-pill">✦ Prontos para o show?</div></div>
+<section aria-label="Central de comando e situação da festa" class="stage-command" id="stage-command">
+<div class="stage-command-title"><span>🎛️ CENTRAL DO HOST</span><strong id="command-live-state">Aguardando próximo show</strong></div>
+<div class="stage-command-stats"><span id="command-next">🎤 Próximo: aguardando fila</span><span id="command-mics">🎙️ Microfones: 0</span><span id="command-queue">🎵 Fila: 0</span></div>
+<div aria-live="polite" class="stage-command-participants" id="stage-command-participants"></div>
 </section>
-<div id="your-turn-banner" class="your-turn-banner" hidden role="status"><span class="turn-icon">🎤</span><div><b>É SUA VEZ DE BRILHAR!</b><small id="your-turn-track">O palco tá te esperando, estrela!</small></div><button type="button" id="go-mic-now" class="button button-primary">ABRIR MIC</button></div>
-      <div class="mobile-switch" role="tablist"><button type="button" id="mobile-tab-mic" class="mobile-tab active" aria-selected="true">🎙️ Meu microfone</button><button type="button" id="mobile-tab-queue" class="mobile-tab" aria-selected="false">🎶 Escolher música</button></div>
-      <div id="guest-mic-panel" class="mic-panel"><div class="mobile-card mic-card" id="mic-card"><div id="mic-turn-kicker" class="mic-turn-kicker" hidden>✦ A ESTRELA DA VEZ É VOCÊ ✦</div><div class="mic-card-top"><span class="card-eyebrow">SEU MICROFONE DIGITAL</span><span class="connection-pill" id="mic-status">● Desligado</span></div><div class="mic-capture-state" id="mic-capture-state" role="status">🔒 Microfone desligado — toque para autorizar</div><div class="large-mic-wrap"><div class="mic-orbit orbit-one"></div><div class="mic-orbit orbit-two"></div><button type="button" id="mic-toggle" class="mic-huge" aria-label="Ativar microfone"><span>🎙️</span></button></div><h2 id="mic-headline">Preparada pra entregar TUDO?</h2><p id="mic-description">Toque para permitir o microfone. O áudio vai direto para o palco pelo WebRTC.</p><div class="guest-mic-gain"><label for="guest-mic-gain">🎚️ Intensidade da minha voz na TV <strong id="guest-mic-gain-value">100%</strong></label><input type="range" id="guest-mic-gain" min="0" max="150" step="5" value="100"><small>Altera só o volume enviado à TV. Não mexe na nota; acima de 100% pode distorcer.</small></div><div class="level-wrapper"><span id="mic-volume-title">NÍVEL DO SOM • AGUARDANDO PERMISSÃO</span><div class="level-bars" id="guest-levels" aria-label="Nível do microfone"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="mic-score-sync" id="mic-score-sync" role="status">📡 Sua nota vem somente das medições deste celular. O notebook não será usado como microfone.</div><div class="mic-tip">💡 A avaliação NÃO mede afinação. Evite deixar o celular perto das caixas: o playback vazando pelo microfone pode confundir o medidor. Use fone para testar ou afaste as caixas do telefone.</div></div>
-        <div class="mobile-card now-mobile"><span class="mini-label">🎵 NO PALCO AGORA</span><h3 id="guest-now-playing">A próxima música pode ser a sua!</h3><p id="guest-now-singer">Aguardando a fila...</p></div></div>
-      <div id="guest-queue-panel" class="guest-queue-panel" hidden><div class="mobile-card"><span class="card-eyebrow">★ A PRÓXIMA ESTRELA ★</span><h2>O hit que vai parar o Brasil ✨</h2><p>Digite a música ou o artista. Primeiro buscamos no nosso acervo grátis; só se não achar, você pode consultar outras versões no YouTube! 🎤</p><button type="button" id="guest-install" class="button button-soft guest-install-shortcut" hidden>📲 Instalar Tem Gogó no celular</button><fieldset class="duet-choice" id="guest-duet-choice"><legend>🎙️ Quem vai cantar?</legend><div class="duet-pills"><label><input type="radio" name="guest-mode" value="solo" checked> 💚 Solo</label><label><input type="radio" name="guest-mode" value="duet"> 💕 Dueto</label></div><div class="duet-person" hidden><label for="guest-duet-partner">Com qual pessoa da sala?</label><select id="guest-duet-partner"><option value="">Escolha uma pessoa</option></select><small>O outro participante precisará entrar no próprio celular e autorizar seu microfone na hora da música.</small></div></fieldset><div class="search-row"><input id="youtube-search" type="search" placeholder="Ex.: Diamonds Rihanna" maxlength="100" autocomplete="off" aria-label="Procurar karaokês no YouTube"><button id="search-youtube" class="button button-soft" type="button">🔍 Buscar</button></div><button class="button button-soft catalog-open catalog-search-shortcut" type="button" data-catalog-open>📚 Explorar todas as músicas do Tem Gogó</button><div id="search-results" class="search-results" aria-live="polite"><div class="search-first-state">🎶 Procure no acervo primeiro — só busque fora quando precisar!</div></div><details class="manual-song"><summary>🔗 Tenho um link (a reprodução depende das regras do YouTube)</summary><form id="guest-song-form" class="manual-song-form"><label class="field-label" for="guest-video-url">Link do vídeo</label><input id="guest-video-url" type="url" required placeholder="https://youtube.com/watch?v=..." autocomplete="off"><label class="field-label" for="guest-song-title">Nome da música</label><input id="guest-song-title" type="text" maxlength="120" required placeholder="Artista — Nome da música"><button type="submit" class="button button-primary full">Adicionar esse link à fila ↗</button></form></details></div><section class="mobile-card guest-hit-library" aria-label="Mais cantadas"><span class="card-eyebrow">★ HIT ATRÁS DE HIT ★</span><h2>O acervo do povo 🔥</h2><p>Todas as músicas da playlist e as mais cantadas. Confira o catálogo completo sem gastar nenhuma pesquisa externa!</p><button class="button button-primary catalog-open catalog-primary" type="button" data-catalog-open>📚 VER TODAS AS MÚSICAS <span>↗</span></button><div id="guest-library" class="hit-library-list">Carregando destaques...</div></section><div class="mobile-card"><div class="mini-label">✦ O SETLIST</div><div id="guest-queue-list" class="mobile-queue-list"></div></div></div>
-      <div class="guest-bottom"><button id="leave-party" class="text-button" type="button">Sair desta festa (desvincular)</button><span>TEM GOGÓ ✳ O POVO É O SHOW</span></div>
-    </main>
-  </section>
-
-
-
-  <dialog id="catalog-dialog" class="modal catalog-dialog" aria-labelledby="catalog-heading">
-    <div class="catalog-modal-shell">
-      <header class="catalog-head"><div><span class="card-eyebrow">★ A BIBLIOTECA DO POVO ★</span><h2 id="catalog-heading">O catálogo inteiro! 🎶</h2><p>Pesquise artista, música ou trecho do título — a ordem das palavras não importa. <b>Sem SerpApi!</b></p></div><button type="button" id="catalog-close" class="catalog-close" aria-label="Fechar catálogo">✕</button></header>
-      <div class="catalog-toolbar"><label for="catalog-search" class="sr-only">Pesquisar no catálogo</label><input id="catalog-search" type="search" placeholder="Ex.: groove, gloria, diva, bad romanc..." autocomplete="off" maxlength="100" aria-label="Pesquisar artista ou música no catálogo"><label class="sr-only" for="catalog-filter">Filtrar catálogo</label><select id="catalog-filter"><option value="all">🎶 Tudo no catálogo</option><option value="played">🔥 Já tocadas</option><option value="suggested">📚 Da playlist / sugestões</option></select></div>
-      <div class="catalog-data-line"><span id="catalog-total" aria-live="polite">Carregando músicas...</span><span>Um toque em + FILA</span></div>
-      <div id="catalog-list" class="catalog-list" aria-live="polite"></div>
-      <footer class="catalog-bottom"><button id="catalog-more" type="button" class="button button-soft full" hidden>VER MAIS MÚSICAS ↓</button><small>O catálogo contém indicações da playlist e músicas já cantadas. Sugestões não testadas ainda podem ser bloqueadas pelo YouTube.</small></footer>
-    </div>
-  </dialog>
-  <dialog id="signup-dialog" class="modal signup-modal" aria-labelledby="signup-heading">
-    <div class="modal-inner signup-inner">
-      <button type="button" class="close-modal" id="signup-close" aria-label="Fechar cadastro">✕</button>
-      <div class="card-eyebrow">✦ SEU PASSAPORTE PRO ESTRELATO ✦</div>
-      <div class="signup-hero-icon" aria-hidden="true">🌟</div>
-      <h2 id="signup-heading">Nasce uma nova <em>estrela!</em></h2>
-      <p>Crie sua conta para apresentar suas próprias festas. Para cantar como convidado, basta entrar na sala pelo QR.</p>
-      <form id="signup-form" autocomplete="on">
-        <label class="field-label" for="signup-name">Como podemos te chamar?</label>
-        <input id="signup-name" name="name" type="text" maxlength="40" minlength="2" autocomplete="name" placeholder="Seu nome de palco ✨" required>
-        <label class="field-label" for="signup-email">Seu melhor e-mail</label>
-        <input id="signup-email" name="email" type="email" maxlength="180" autocomplete="email" placeholder="voce@exemplo.com" required>
-        <label class="field-label" for="signup-password">Crie uma senha forte</label>
-        <input id="signup-password" name="new-password" type="password" minlength="10" maxlength="128" autocomplete="new-password" placeholder="10+ caracteres, letras e números" required>
-        <label class="field-label" for="signup-confirm">Confirme sua senha</label>
-        <input id="signup-confirm" name="confirm-password" type="password" minlength="10" maxlength="128" autocomplete="new-password" placeholder="Repita a mesma senha" required>
-        <label class="signup-reveal"><input id="signup-show-password" type="checkbox"> Mostrar senhas</label>
-        <p id="signup-feedback" class="signup-feedback" role="status" aria-live="polite"></p>
-        <button id="signup-submit" type="submit" class="button button-primary full">CRIAR MINHA CONTA ✨</button>
-      </form>
-      <button type="button" id="signup-back-login" class="text-button signup-back">Já tem conta? Entrar com e-mail e senha</button>
-      <div class="signup-notice">🔒 Seu e-mail será usado para autenticação. Não compartilhe sua senha de login.</div>
-    </div>
-  </dialog>
-  <dialog id="room-ready-dialog" class="modal room-ready-modal" aria-labelledby="room-ready-title">
-    <div class="modal-inner"><div class="card-eyebrow">🎉 NASCEU MAIS UM HIT!</div><h2 id="room-ready-title">Sua festa está pronta!</h2><p>Seu palco já tem um convite exclusivo! Quem escanear o QR entra diretamente nesta festa, sem pedir senha.</p>
-      <div class="credential-pair"><div><span>🎟️ CÓDIGO DO CONVITE</span><strong id="ready-code">------------</strong></div><div><span>📱 ACESSO À FESTA</span><strong>SEM SENHA</strong></div></div>
-      <p class="room-ready-note">O QR é o convite. Não o publique em locais públicos se quiser uma festa reservada; você pode encerrar a sala a qualquer momento.</p>
-      <button type="button" id="copy-room-invite" class="button button-soft full">📋 Copiar convite da festa</button>
-      <button type="button" id="ready-open-stage" class="button button-primary full">🎬 ABRIR O PALCO</button>
-    </div>
-  </dialog>
-  <dialog id="mic-permission-dialog" class="modal" aria-labelledby="mic-permission-title"><div class="modal-inner mic-permission-inner">
-    <span class="mic-permission-icon" aria-hidden="true">🎤</span><div class="card-eyebrow">✦ SEU MICROFONE, SUAS REGRAS ✦</div>
-    <h2 id="mic-permission-title">Sua voz, seu show!</h2>
-    <p>Ao tocar em <strong>Permitir microfone</strong>, seu celular pedirá acesso ao microfone. Você verá as barras reagindo ao som captado.</p>
-    <p class="mic-permission-privacy">🔐 Não gravamos sua voz. Antes da sua música, você só testa o microfone neste aparelho; durante sua apresentação, o áudio vai ao palco e os dados de participação são sincronizados. O microfone do notebook nunca dá nota.</p>
-    <button id="mic-confirm-permission" type="button" class="button button-primary full">🎙️ PERMITIR MICROFONE</button>
-    <button id="mic-cancel-permission" type="button" class="button button-soft full">Agora não</button>
-  </div></dialog>
-  <dialog id="video-error-dialog" class="modal" aria-labelledby="video-error-title"><div class="modal-inner"><div class="card-eyebrow">🎙️ DIVA GOGÓ CHAMOU A PRODUÇÃO</div><h2 id="video-error-title">Esse vídeo não rolou!</h2><p id="video-error-text">O YouTube não liberou a reprodução fora do site.</p><p class="settings-note">Não é falha da sua conta. Alguns vídeos são bloqueados pelo YouTube mesmo após serem listados como incorporáveis.</p><button type="button" class="button button-primary full" id="video-replace">🔎 BUSCAR OUTRA VERSÃO</button><button type="button" class="button button-soft full" id="video-skip">⏭ PULAR SEM PONTUAR</button><button type="button" class="text-button" id="video-retry">Tentar reproduzir novamente</button><button type="button" class="text-button" id="video-error-close">Fechar aviso</button></div></dialog>
-  <dialog id="guest-profile-dialog" class="modal" aria-labelledby="guest-profile-heading">
-    <form id="guest-profile-form" class="modal-inner"><button id="guest-profile-close" type="button" class="close-modal" aria-label="Fechar">✕</button><span class="card-eyebrow">★ SUA IDENTIDADE ★</span><h2 id="guest-profile-heading">Seu perfil no Tem Gogó</h2><label class="field-label" for="guest-profile-name">Seu apelido</label><input type="text" id="guest-profile-name" minlength="2" maxlength="24" required><fieldset class="avatar-picker"><legend>Escolha outro avatar</legend><div id="profile-avatar-options" class="avatar-options"></div></fieldset><button type="submit" class="button button-primary full">SALVAR ALTERAÇÕES</button></form>
-  </dialog>
-  <dialog id="faq-dialog" class="modal" aria-labelledby="faq-heading"><div class="modal-inner"><button type="button" class="close-modal" id="faq-close" aria-label="Fechar">✕</button><h2 id="faq-heading">❔ Como usar o Tem Gogó</h2><details open><summary>Como entro na festa?</summary><p>Escaneie o QR da TV, digite um apelido e escolha seu avatar.</p></details><details><summary>Como canto?</summary><p>Escolha uma música e espere o aviso. Antes do vídeo, ative o microfone no celular e toque em Estou pronto(a). O anfitrião inicia o show.</p></details><details><summary>Como sei se o microfone funciona?</summary><p>No celular, libere o acesso ao microfone e veja as barrinhas reagirem. Microfone liberado não significa que o áudio já esteja conectado à TV — essa conexão é feita ao iniciar a música.</p></details><details><summary>Como funciona a nota?</summary><p>É uma nota divertida calculada a partir da atividade de áudio enviada pelo celular, não de afinação. O notebook do anfitrião não participa da avaliação.</p></details><details><summary>O vídeo não abre?</summary><p>Alguns vídeos não permitem reprodução incorporada. O anfitrião pode escolher outra versão.</p></details><button type="button" id="faq-done" class="button button-primary full">ENTENDI!</button></div></dialog>
-  <dialog id="song-dialog" class="modal"><form method="dialog" class="modal-inner"><button type="submit" class="close-modal" aria-label="Fechar">✕</button><div class="card-eyebrow">★ A PLAYLIST DO POVO ★</div><h2>Manda o hit, mona! 🎶</h2><p>Digite o artista ou a música. Buscamos primeiro no acervo sem gastar consultas externas. Toque em <b>+ FILA</b>!</p><fieldset class="duet-choice" id="host-duet-choice"><legend>🎙️ Quem vai cantar?</legend><div class="duet-pills"><label><input type="radio" name="host-mode" value="solo" checked> 💚 Solo</label><label><input type="radio" name="host-mode" value="duet"> 💕 Dueto</label></div><div class="duet-person" hidden><label for="host-duet-partner">Com qual pessoa da sala?</label><select id="host-duet-partner"><option value="">Escolha uma pessoa</option></select><small>O outro participante precisará entrar no próprio celular e autorizar seu microfone na hora da música.</small></div></fieldset><div class="search-row"><input id="host-search" type="search" placeholder="Ex.: Diamonds Rihanna" maxlength="100" autocomplete="off" aria-label="Buscar músicas de karaokê"><button id="host-search-button" class="button button-soft" type="button">🔍 Buscar</button></div><button class="button button-soft catalog-open catalog-search-shortcut" type="button" data-catalog-open>📚 Explorar catálogo completo</button><div id="host-results" class="search-results" aria-live="polite"><div class="search-first-state">🎧 Manda o nome daquele hino que todo mundo canta!</div></div></form><details class="manual-song host-manual"><summary>🔗 Adicionar pelo link (a disponibilidade depende do YouTube)</summary><form id="host-song-form" class="modal-extra manual-song-form"><label class="field-label" for="host-url">URL do YouTube</label><input required id="host-url" type="url" placeholder="https://youtu.be/..."><label class="field-label" for="host-song-title">Título</label><input required id="host-song-title" maxlength="120" placeholder="Artista — Canção"><button type="submit" class="button button-primary full">Adicionar esse link à fila ↗</button></form></details><details id="playlist-import-panel" class="playlist-import"><summary>📚 Importar vídeos da minha playlist (sem gastar buscas)</summary><p>Cole títulos e links individuais neste formato, um por linha: <b>Artista - Música | https://www.youtube.com/watch?v=ID</b>. Entram como sugestões não verificadas até realmente tocar metade do vídeo no palco.</p><label for="playlist-import-lines">Músicas da playlist</label><textarea id="playlist-import-lines" rows="5" placeholder="Artista - Música (karaokê) | https://youtube.com/watch?v=XXXXXXXXXXX"></textarea><button type="button" id="playlist-import-submit" class="button button-primary full">Importar indicações</button><small>Apenas o link da playlist não identifica os itens nesta versão. Os títulos e links individuais precisam ser fornecidos.</small></details></dialog>
-  <dialog id="score-dialog" class="modal"><div class="modal-inner"><button type="button" class="close-modal" data-close-score aria-label="Fechar">✕</button><div class="card-eyebrow">HALL DA FAMA DO BRASIL</div><h2>Lendas do rolê 🏆</h2><p>Ranking de participação vocal desta festa. Não mede afinação.</p><div id="score-list" class="score-list"></div><button type="button" class="button button-soft full" data-close-score>Voltar à festa</button></div></dialog>
-  <dialog id="party-recap-dialog" class="modal party-recap-modal" aria-labelledby="recap-title">
-    <div class="modal-inner recap-inner">
-      <div class="recap-eyebrow">✳ TEM GOGÓ • GRANDE FINAL ✳</div>
-      <h2 id="recap-title">A DIVA GOGÓ ENCERRA A FESTA! 👑</h2>
-      <p id="recap-room-title" class="recap-room-name">Noite das estrelas</p>
-      <div class="recap-stats"><div><strong id="recap-total">0</strong><span>Músicas concluídas</span></div><div><strong id="recap-scored">0</strong><span>Com avaliação</span></div><div><strong id="recap-duets">0</strong><span>Duetos</span></div></div>
-      <div class="recap-heading">🏆 TOP 3 • MAIORES NOTAS</div><div id="recap-podium" class="recap-podium"></div>
-      <div id="recap-flop" class="recap-flop" hidden><span>🫠 PERRRENGUE DA NOITE</span><b id="recap-flop-name">Estrela</b><small id="recap-flop-score">0/100</small><p>“Não ganhou a nota, mas entregou entretenimento. A DIVA GOGÓ respeita!”</p></div>
-      <p class="recap-disclaimer">O ranking usa a maior nota válida de cada pessoa. Duetos contam uma música e duas avaliações. Música pulada não pontua. As notas avaliam tempo e volume captados nos celulares, não afinação.</p>
-      <button id="recap-copy" type="button" class="button button-primary full">📋 Copiar placar para compartilhar</button>
-      <button id="recap-done" type="button" class="button button-soft full">✨ Fechar cerimônia</button>
-    </div>
-  </dialog>
-  <dialog id="settings-dialog" class="modal settings-modal" aria-labelledby="settings-title"><div class="modal-inner"><button type="button" class="close-modal" id="settings-close" aria-label="Fechar configurações">✕</button><div class="card-eyebrow">✦ PERSONALIZAÇÃO SEM LIMITES ✦</div><h2 id="settings-title">Seu rolê, suas regras.</h2><p>Você é a direção de arte dessa novela musical. A DIVA GOGÓ cuida da resenha!</p><div class="setting-group"><h3>🎨 Qual é a estética de hoje?</h3><div class="theme-picker" role="group" aria-label="Temas do palco"><button type="button" data-theme-choice="baile"><span class="theme-swatch swatch-baile"></span>Baile Neon</button><button type="button" data-theme-choice="diva"><span class="theme-swatch swatch-diva"></span>Diva Pop</button><button type="button" data-theme-choice="boteco"><span class="theme-swatch swatch-boteco"></span>Boteco Superstar</button><button type="button" data-theme-choice="glam"><span class="theme-swatch swatch-glam"></span>Glam Futurista</button></div></div><div class="setting-group"><label class="field-label" for="humor-mode">🎭 Personalidade da DIVA GOGÓ</label><select id="humor-mode"><option value="debochado">💅 Debochado (padrão)</option><option value="familia">🥰 Família — sem alfinetadas</option><option value="caos">🔥 Caos total — extra dramático</option></select><p class="settings-note">O comentário final muda de acordo com o estilo escolhido pelo anfitrião.</p></div><div class="setting-group"><label class="setting-switch"><span><b>🪩 GIFs animados</b><small>Carrega GIPHY no resultado se houver chave configurada.</small></span><input type="checkbox" id="gifs-enabled" checked></label><label class="setting-switch"><span><b>✨ Efeitos de festa</b><small>Confete e animações (respeita preferências de acessibilidade).</small></span><input type="checkbox" id="effects-enabled" checked></label><label class="setting-switch"><span><b>👁️ Alto contraste</b><small>Mais conforto visual para letras e botões.</small></span><input type="checkbox" id="settings-contrast"></label></div><div class="settings-tip">🎤 <b>DIVA GOGÓ AVISA:</b> os memes são pela diversão. A nota não mede afinação. Os GIFs dependem de uma chave GIPHY opcional e da internet.</div><button type="button" id="settings-done" class="button button-primary full">TÁ LINDO, PODE COMEÇAR →</button></div></dialog>
+<div aria-label="Apresentadora Diva Gogó" class="vox-stage-banner diva-speaking-card" data-mood="opening" id="diva-stage-banner"><div class="diva-mascot-wrap"><img alt="Diva Gogó" aria-hidden="true" class="vox-banner-mascot" src="./diva-busto.png"/><span aria-hidden="true" class="diva-voice-waves">● ● ●</span></div><div class="vox-banner-copy"><span class="vox-stage-name">🎙️ DIVA GOGÓ AO VIVO <span class="vox-onair-dot">●</span></span><span aria-live="polite" id="vox-line">“Boa noite, meu povo! Deixem o julgamento pro placar e o carão pra câmera!”</span></div></div>
+<div class="screen-row"><div class="video-frame" id="video-frame">
+<div class="youtube-player" id="youtube-player"></div>
+<div class="video-placeholder vox-idle-stage" id="video-placeholder"><div class="vox-idle-character diva-idle-hero" data-mood="opening" id="diva-idle-hero"><span aria-hidden="true" class="diva-expression" id="diva-idle-expression">👑</span><img alt="Diva Gogó, a apresentadora do Tem Gogó" src="./diva-busto.png"/><span>✦ DIVA GOGÓ AO VIVO ✦<i aria-hidden="true" class="diva-voice-waves">● ● ●</i></span></div><div class="vox-idle-copy"><span class="vox-idle-kicker">★ TÁ VALENDO, BRASIL! ★</span><strong>QUEM VAI<br/><em>DIVAR?</em></strong><p aria-live="polite" class="diva-speech-bubble" id="vox-idle-line">“O palco é seu, o talento é negociável e a resenha é garantida!”</p><small>Escolha sua música pelo QR ou pelo catálogo. A DIVA GOGÓ tá de olho! 👀</small></div></div>
+<div class="final-overlay" hidden="" id="final-overlay"><div aria-live="polite" class="final-window" role="status"><div class="final-visual"><span class="final-kicker">✦ PRÊMIO TEM GOGÓ ✦</span><img alt="Diva Gogó apresentando o resultado" class="diva-results-mascot" src="./diva-busto.png"/><span aria-hidden="true" class="diva-result-expression" id="diva-result-expression">🏆</span><div class="final-reaction" id="final-reaction"><span class="final-meme" id="final-meme">👑</span><img alt="Reação animada ao resultado" class="final-gif" hidden="" id="final-gif" loading="lazy"/><a class="gif-powered" hidden="" href="https://giphy.com" id="gif-powered" rel="noopener noreferrer" target="_blank">Powered by GIPHY ↗</a></div><span class="final-brand">TEM GOGÓ / SHOW DE TALENTOS</span></div><div class="final-content"><div class="final-headline">A DIVA GOGÓ DEU O VEREDITO!</div><div class="final-person" id="final-person">Artista</div><div class="final-number" id="final-number">88<span>/100</span></div><div aria-label="Estrelas conquistadas" class="final-stars" id="final-stars">★★★★★</div><p class="final-caption" id="final-caption">A internet não está preparada!</p><div class="final-duet-details" hidden="" id="final-duet-details"></div><p class="final-disclaimer">Nota divertida baseada em tempo e volume, não em afinação.</p><button class="button button-dark" id="final-close" type="button">PRÓXIMA ESTRELA →</button></div></div></div>
+</div>
+<aside aria-label="Convide a plateia" class="qr-rail"> <div aria-label="Ampliar ou reduzir o QR Code" class="qr-bubble" id="qr-bubble" role="button" tabindex="0"><div class="qr-heading"><span>📱</span><strong>ENTRA NO SHOW</strong></div><div class="qr-box" id="stage-qr"></div><div class="qr-footer"><span class="qr-code-text" id="room-code">--------</span><small>Escaneou? Entrou no rolê!</small></div></div>
+<div class="qr-rail-copy"><b>ENTRA NA FILA,<br/>MEU AMOR!</b><span>Escaneia, escolhe um hit e participa do reality.</span></div><div class="qr-rail-stamp">✦ CADA FESTA, SEU QR ✦</div></aside></div>
+<section aria-live="polite" class="stage-preflight" hidden="" id="stage-preflight">
+<div class="diva-preflight-intro"><span aria-hidden="true" class="diva-preflight-expression" id="diva-preflight-expression">🎤</span><img alt="Diva Gogó chamando o elenco" class="diva-preflight-face" src="./diva-busto.png"/><div><span class="preflight-heading">🎬 TODOS NO CAMARIM?</span><p id="diva-preflight-speech">“Pode liberar o microfone, meu amor. O playback só sai depois que a galera estiver pronta!”</p></div></div>
+<strong id="stage-preflight-track">Próxima apresentação</strong>
+<div class="stage-preflight-singers" id="stage-preflight-singers"></div>
+<p class="preflight-feedback" id="stage-preflight-feedback">Aguardando confirmação dos celulares...</p>
+<div class="stage-preflight-actions"><button class="button button-primary" disabled="" id="stage-preflight-start" type="button">▶ COMEÇAR APRESENTAÇÃO</button><button class="button button-soft" id="stage-preflight-resend" type="button">📣 Reenviar aviso</button><button class="button button-outline" id="stage-preflight-cancel" type="button">Cancelar</button><button class="text-button" id="stage-preflight-override" type="button">Iniciar sem todos prontos (exceção)</button></div>
+</section>
+<div class="stage-bottom"><div class="track-controls"><button class="button button-light" id="play-pause" type="button">▶ Reproduzir</button><button class="button button-outline" id="skip-track" type="button">⏭ Próxima</button><button class="button button-outline" id="start-audio" type="button">🔊 Ativar som</button></div><div class="progress-wrap"><span id="time-now">0:00</span><div class="progress-track"><div id="progress-fill"></div></div><span id="time-all">0:00</span></div></div>
+<div class="singer-strip"><div class="strip-heading"><div><span class="mini-label">MICROFONES DO CELULAR • NOTAS SINCRONIZADAS</span><h3>A galera tá no vocal <span>🎙️</span></h3></div><div class="mic-count" id="active-mic-count">0 conectados</div></div><div class="mic-list" id="mic-list"><div class="mic-empty">Quando alguém ativar o microfone, aparece aqui. ✨</div></div><div aria-live="polite" class="live-scoring-card"><span class="live-score-label">✦ NOTAS DA APRESENTAÇÃO • DIRETO DOS CELULARES</span><div class="live-score-list" id="live-score-list">As notas aparecem aqui quando a música começar.</div></div></div>
+</div>
+<aside class="stage-sidebar"><div class="sidebar-top"><div class="side-title-line"><span>FILA DO SHOW</span><span class="queue-counter" id="queue-counter">0 MÚSICAS</span></div><h2>Quem canta<br/><em>agora?</em> 🎤</h2></div>
+<div class="queue-list" id="queue-list"><div class="queue-empty">Seu setlist começa com um QR Code. 👀</div></div>
+<section aria-label="Ranking da festa ao vivo" class="stage-rank-panel">
+<div class="rank-header"><span>🏆 RANKING DA FESTA</span><small id="rank-updated">Ao vivo</small></div>
+<div aria-live="polite" class="stage-rank-list" id="stage-rank-list"><p class="rank-empty">O pódio começa depois da primeira música com nota. ✨</p></div>
+<button class="button button-soft rank-full-button" id="ranking-full-link" type="button">VER RANKING COMPLETO ↗</button>
+</section>
+<section aria-label="Músicas mais tocadas" class="stage-hit-library"><div class="library-kicker">✳ O ACERVO DO POVO</div><h3>Nosso catálogo 🎶</h3><p class="library-subtitle">Playlist da casa + mais cantadas. Acesso grátis, sem busca externa.</p><button class="button button-primary catalog-open catalog-primary" data-catalog-open="" type="button">📚 ABRIR CATÁLOGO COMPLETO <span>↗</span></button><div class="hit-library-list" id="stage-library">Carregando destaques...</div></section><div class="side-bottom"><button class="button button-primary full" id="open-add-song" type="button">+ Adicionar música</button><button class="button button-soft full" id="open-scoreboard" type="button">🏆 Ranking da festa</button><div class="playback-volume"><label for="playback-volume-range">🎵 Playback / YouTube <b id="playback-volume-label">80%</b></label><input aria-label="Volume do playback do YouTube" id="playback-volume-range" max="100" min="0" step="1" type="range" value="80"/><small>Controla somente a música, sem alterar a voz dos celulares.</small></div><div class="master-volume"><span>🔉 Volume dos microfones</span><label class="sr-only" for="volume-range">Volume dos microfones</label><input id="volume-range" max="200" min="0" type="range" value="100"/><span id="volume-label">100%</span></div><p class="side-helper">Os vídeos e as letras ficam no YouTube. Use versões oficiais de karaokê liberadas para incorporação.</p></div>
+</aside>
+</main>
+<section aria-label="Direção da Diva Gogó" class="tg16-host-director"><div class="tg16-director-head"><strong>🎭 HUMOR DA DIVA GOGÓ</strong><small>Só o anfitrião muda. A plateia assiste!</small></div>
+<div aria-label="Escolha o humor da apresentadora" class="tg16-moods" role="group">
+<button data-diva-mode="debochado" type="button">💅 Ácida</button><button data-diva-mode="familia" type="button">💞 Família</button><button data-diva-mode="caos" type="button">🔥 Caos total</button><button data-diva-mode="lgbt" type="button">🏳️‍🌈 Memes LGBT</button><button data-diva-mode="reality" type="button">📺 Reality</button><button data-diva-mode="bafao" type="button">🪭 Babado</button></div>
+<div class="tg16-custom-diva"><label for="tg16-diva-custom">📣 Recado especial da apresentadora</label><input id="tg16-diva-custom" maxlength="160" placeholder="Ex.: Vamos chamar a próxima estrela!" type="text"/><button id="tg16-diva-announce" type="button">🎙️ Anunciar</button></div></section></section>
+<section class="guest view" hidden="" id="guest">
+<header class="guest-header"><div class="brand"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></div><div class="guest-live"><button class="button button-ghost" id="guest-switch" title="Ver todas as minhas festas" type="button">⇄ Minhas salas</button><span class="sync-state" id="guest-sync-status" role="status">◌ Sincronizando</span><span class="online-dot"></span> NO CAMARIM <button aria-label="Personalizar" class="icon-button open-settings" title="Personalizar" type="button">⚙</button></div></header>
+<main class="guest-main"><div class="guest-welcome"><div class="mini-label">✦ SUA ÁREA NO TEM GOGÓ ✦</div><h1>Oii, <span id="guest-display-name">estrela</span><span>!</span></h1><div class="guest-profile-row"><img alt="Seu avatar" id="guest-profile-avatar" src="./diva.png"/><button class="button button-soft" id="edit-guest-profile" type="button">✏️ Apelido e avatar</button></div><div class="vox-guest-quip"><span class="vox-mini-face"><img alt="Diva Gogó" src="./diva.png"/></span><p aria-live="polite" id="vox-guest-line">“Escolhe teu hit e depois vem ativar o mic. Eu vigio esse palco!” — DIVA GOGÓ</p></div><button class="button button-soft guest-faq-button" id="open-guest-faq" type="button">❔ Ajuda</button><div class="guest-room-info"><span>📍 <b id="guest-room-title">Sala</b></span><span>🎟️ <b id="guest-room-code">--------</b></span></div></div>
+<div aria-label="Ações rápidas da festa" class="tg16-guest-actions">
+<button class="tg16-action" data-catalog-open="" type="button">🎵 <span>Escolher músicas</span></button>
+<button class="tg16-action" id="tg16-mic-shortcut" type="button">🎙️ <span>Meu microfone</span></button>
+<button class="tg16-action" id="tg16-queue-shortcut" type="button">📋 <span>Minha fila</span></button>
+<button class="tg16-action" id="tg16-score-shortcut" type="button">🏆 <span>Placar</span></button>
+</div>
+<section aria-label="Resumo da festa" class="guest-show-hub"><div class="guest-show-current"><span>▶ NO PALCO</span><strong id="guest-hub-current">Aguardando o show</strong></div><div class="guest-show-next"><span>⏭ PRÓXIMOS</span><strong id="guest-hub-next">Sem músicas na fila</strong></div><div class="guest-show-mic"><span>🎙️ MEU MICROFONE</span><strong id="guest-hub-mic">Desligado</strong></div></section>
+<section aria-live="polite" class="guest-latest-score" hidden="" id="guest-latest-score"><img alt="" aria-hidden="true" src="./diva.png"/><div><span>🏆 SEU ÚLTIMO SHOW</span><strong id="guest-latest-score-value">—</strong><small id="guest-latest-score-comment">Mandou bem!</small></div><button class="button button-soft" id="guest-all-scores" type="button">Ver placar</button></section>
+<section aria-live="polite" class="guest-preflight" hidden="" id="guest-preflight" role="status">
+<div class="guest-preflight-diva"><img alt="Diva Gogó chamando você" src="./diva.png"/><div><span class="preflight-heading">🎤 DIVA GOGÓ TE CHAMOU!</span><small>Sua apresentação só começa quando confirmar.</small></div></div>
+<strong id="guest-preflight-title">Prepare seu microfone</strong>
+<p id="guest-preflight-message">Toque para ativar o microfone, teste sua voz e confirme que está pronto(a).</p>
+<div class="preflight-status" id="guest-preflight-status">🔴 Microfone desligado</div>
+<div class="preflight-actions"><button class="button button-soft" id="guest-preflight-mic" type="button">🎙️ ATIVAR MICROFONE</button><button class="button button-primary" disabled="" id="guest-preflight-ready" type="button">✅ ESTOU PRONTO(A)</button></div>
+</section>
+<div class="your-turn-banner" hidden="" id="your-turn-banner" role="status"><span class="turn-icon">🎤</span><div><b>É SUA VEZ DE BRILHAR!</b><small id="your-turn-track">O palco tá te esperando, estrela!</small></div><button class="button button-primary" id="go-mic-now" type="button">ABRIR MIC</button></div>
+<nav aria-label="Navegação da festa" class="mobile-switch" role="tablist"><button aria-controls="guest-queue-panel" aria-selected="true" class="mobile-tab" id="mobile-tab-queue" role="tab" type="button">🎵 <span>Músicas</span></button><button aria-controls="guest-mic-panel" aria-selected="false" class="mobile-tab" id="mobile-tab-mic" role="tab" type="button">🎙️ <span>Microfone</span></button><button class="mobile-tab" id="mobile-tab-score" title="Placar da festa" type="button">🏆 <span>Placar</span></button></nav>
+<div class="mic-panel" id="guest-mic-panel"><div class="mobile-card mic-card" id="mic-card"><div class="mic-turn-kicker" hidden="" id="mic-turn-kicker">✦ A ESTRELA DA VEZ É VOCÊ ✦</div><div class="mic-card-top"><span class="card-eyebrow">SEU MICROFONE DIGITAL</span><span class="connection-pill" id="mic-status">● Desligado</span></div><div class="mic-capture-state" id="mic-capture-state" role="status">🔒 Microfone desligado — toque para autorizar</div><div class="large-mic-wrap"><div class="mic-orbit orbit-one"></div><div class="mic-orbit orbit-two"></div><button aria-label="Ativar microfone" class="mic-huge" id="mic-toggle" type="button"><span>🎙️</span></button></div><h2 id="mic-headline">Preparada pra entregar TUDO?</h2><p id="mic-description">Toque para permitir o microfone. O áudio vai direto para o palco pelo WebRTC.</p><div class="guest-mic-gain"><label for="guest-mic-gain">🎚️ Intensidade da minha voz na TV <strong id="guest-mic-gain-value">100%</strong></label><input id="guest-mic-gain" max="150" min="0" step="5" type="range" value="100"/><small>Altera só o volume enviado à TV. Não mexe na nota; acima de 100% pode distorcer.</small></div><div class="level-wrapper"><span id="mic-volume-title">NÍVEL DO SOM • AGUARDANDO PERMISSÃO</span><div aria-label="Nível do microfone" class="level-bars" id="guest-levels"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="mic-score-sync" id="mic-score-sync" role="status">📡 Sua nota vem somente das medições deste celular. O notebook não será usado como microfone.</div><div class="mic-tip">💡 A avaliação NÃO mede afinação. Evite deixar o celular perto das caixas: o playback vazando pelo microfone pode confundir o medidor. Use fone para testar ou afaste as caixas do telefone.</div></div>
+<div class="mobile-card now-mobile"><span class="mini-label">🎵 NO PALCO AGORA</span><h3 id="guest-now-playing">A próxima música pode ser a sua!</h3><p id="guest-now-singer">Aguardando a fila...</p></div></div>
+<div class="guest-queue-panel" hidden="" id="guest-queue-panel"><div class="mobile-card guest-song-search-card"><span class="card-eyebrow">🔎 BUSCAR NO CATÁLOGO</span><p>Primeiro usamos nosso acervo gratuito. Uma busca externa só acontece quando você pedir.</p><button class="button button-soft guest-install-shortcut" hidden="" id="guest-install" type="button">📲 Instalar Tem Gogó no celular</button><fieldset class="duet-choice" id="guest-duet-choice"><legend>🎙️ Quem vai cantar?</legend><div class="duet-pills"><label><input checked="" name="guest-mode" type="radio" value="solo"/> 💚 Solo</label><label><input name="guest-mode" type="radio" value="duet"/> 💕 Dueto</label><label><input name="guest-mode" type="radio" value="group"/> 🎤 Grupo (3–4)</label></div><div class="duet-person" data-duet-single="true" hidden=""><label for="guest-duet-partner">Com qual pessoa da sala?</label><select id="guest-duet-partner"><option value="">Escolha uma pessoa</option></select><small>O outro participante precisará entrar no próprio celular e autorizar seu microfone na hora da música.</small></div><div class="group-people" data-group-people="guest" hidden=""><p class="field-label">Escolha mais 2 ou 3 cantores da sala, além de você:</p><div class="group-member-list" id="guest-group-members"></div><small>Todos precisam ter entrado na festa pelo próprio celular e confirmar o microfone antes do vídeo.</small></div></fieldset><div class="search-row"><input aria-label="Procurar karaokês no YouTube" autocomplete="off" id="youtube-search" maxlength="100" placeholder="Ex.: Diamonds Rihanna" type="search"/><button class="button button-soft" id="search-youtube" type="button">🔍 Buscar</button></div><button class="button button-soft catalog-open catalog-search-shortcut" data-catalog-open="" type="button">📚 Explorar todas as músicas do Tem Gogó</button><div aria-live="polite" class="search-results" id="search-results"><div class="search-first-state">🎶 Procure no acervo primeiro — só busque fora quando precisar!</div></div><details class="manual-song"><summary>🔗 Tenho um link (a reprodução depende das regras do YouTube)</summary><form class="manual-song-form" id="guest-song-form"><label class="field-label" for="guest-video-url">Link do vídeo</label><input autocomplete="off" id="guest-video-url" placeholder="https://youtube.com/watch?v=..." required="" type="url"/><label class="field-label" for="guest-song-title">Nome da música</label><input id="guest-song-title" maxlength="120" placeholder="Artista — Nome da música" required="" type="text"/><button class="button button-primary full" type="submit">Adicionar esse link à fila ↗</button></form></details></div><div class="mobile-card"><div class="mini-label">✦ O SETLIST</div><div class="mobile-queue-list" id="guest-queue-list"></div></div><section aria-label="Mais cantadas" class="mobile-card guest-hit-library"><span class="card-eyebrow">★ HIT ATRÁS DE HIT ★</span><h2>O acervo do povo 🔥</h2><p>Todas as músicas da playlist e as mais cantadas. Confira o catálogo completo sem gastar nenhuma pesquisa externa!</p><button class="button button-primary catalog-open catalog-primary" data-catalog-open="" type="button">📚 VER TODAS AS MÚSICAS <span>↗</span></button><div class="hit-library-list" id="guest-library">Carregando destaques...</div></section></div>
+<div class="guest-bottom"><button class="text-button" id="leave-party" type="button">Sair desta festa (desvincular)</button><span>TEM GOGÓ ✳ O POVO É O SHOW</span></div>
+</main>
+</section>
+<dialog aria-labelledby="catalog-heading" class="modal catalog-dialog" id="catalog-dialog">
+<div class="catalog-modal-shell">
+<header class="catalog-head"><div><span class="card-eyebrow">★ A BIBLIOTECA DO POVO ★</span><h2 id="catalog-heading">O catálogo inteiro! 🎶</h2><p>Pesquise artista, música ou trecho do título — a ordem das palavras não importa. <b>Sem SerpApi!</b></p></div><button aria-label="Fechar catálogo" class="catalog-close" id="catalog-close" type="button">✕</button></header>
+<div class="catalog-toolbar"><label class="sr-only" for="catalog-search">Pesquisar no catálogo</label><input aria-label="Pesquisar artista ou música no catálogo" autocomplete="off" id="catalog-search" maxlength="100" placeholder="Ex.: groove, gloria, diva, bad romanc..." type="search"/><label class="sr-only" for="catalog-filter">Filtrar catálogo</label><select id="catalog-filter"><option value="all">🎶 Tudo no catálogo</option><option value="played">🔥 Já tocadas</option><option value="suggested">📚 Da playlist / sugestões</option></select></div>
+<div class="catalog-data-line"><span aria-live="polite" id="catalog-total">Carregando músicas...</span><span>Um toque em + FILA</span></div>
+<div aria-live="polite" class="catalog-list" id="catalog-list"></div>
+<footer class="catalog-bottom"><button class="button button-soft full" hidden="" id="catalog-more" type="button">VER MAIS MÚSICAS ↓</button><small>O catálogo contém indicações da playlist e músicas já cantadas. Sugestões não testadas ainda podem ser bloqueadas pelo YouTube.</small></footer>
+</div>
+</dialog>
+<dialog aria-labelledby="signup-heading" class="modal signup-modal" id="signup-dialog">
+<div class="modal-inner signup-inner">
+<button aria-label="Fechar cadastro" class="close-modal" id="signup-close" type="button">✕</button>
+<div class="card-eyebrow">✦ SEU PASSAPORTE PRO ESTRELATO ✦</div>
+<div aria-hidden="true" class="signup-hero-icon">🌟</div>
+<h2 id="signup-heading">Nasce uma nova <em>estrela!</em></h2>
+<p>Crie sua conta para apresentar suas próprias festas. Para cantar como convidado, basta entrar na sala pelo QR.</p>
+<form autocomplete="on" id="signup-form">
+<label class="field-label" for="signup-name">Como podemos te chamar?</label>
+<input autocomplete="name" id="signup-name" maxlength="40" minlength="2" name="name" placeholder="Seu nome de palco ✨" required="" type="text"/>
+<label class="field-label" for="signup-email">Seu melhor e-mail</label>
+<input autocomplete="email" id="signup-email" maxlength="180" name="email" placeholder="voce@exemplo.com" required="" type="email"/>
+<label class="field-label" for="signup-password">Crie uma senha forte</label>
+<input autocomplete="new-password" id="signup-password" maxlength="128" minlength="10" name="new-password" placeholder="10+ caracteres, letras e números" required="" type="password"/>
+<label class="field-label" for="signup-confirm">Confirme sua senha</label>
+<input autocomplete="new-password" id="signup-confirm" maxlength="128" minlength="10" name="confirm-password" placeholder="Repita a mesma senha" required="" type="password"/>
+<label class="signup-reveal"><input id="signup-show-password" type="checkbox"/> Mostrar senhas</label>
+<p aria-live="polite" class="signup-feedback" id="signup-feedback" role="status"></p>
+<button class="button button-primary full" id="signup-submit" type="submit">CRIAR MINHA CONTA ✨</button>
+</form>
+<button class="text-button signup-back" id="signup-back-login" type="button">Já tem conta? Entrar com e-mail e senha</button>
+<div class="signup-notice">🔒 Seu e-mail será usado para autenticação. Não compartilhe sua senha de login.</div>
+</div>
+</dialog>
+<dialog aria-labelledby="room-ready-title" class="modal room-ready-modal" id="room-ready-dialog">
+<div class="modal-inner"><div class="card-eyebrow">🎉 NASCEU MAIS UM HIT!</div><h2 id="room-ready-title">Sua festa está pronta!</h2><p>Seu palco já tem um convite exclusivo! Quem escanear o QR entra diretamente nesta festa, sem pedir senha.</p>
+<div class="credential-pair"><div><span>🎟️ CÓDIGO DO CONVITE</span><strong id="ready-code">------------</strong></div><div><span>📱 ACESSO À FESTA</span><strong>SEM SENHA</strong></div></div>
+<p class="room-ready-note">O QR é o convite. Não o publique em locais públicos se quiser uma festa reservada; você pode encerrar a sala a qualquer momento.</p>
+<button class="button button-soft full" id="copy-room-invite" type="button">📋 Copiar convite da festa</button>
+<button class="button button-primary full" id="ready-open-stage" type="button">🎬 ABRIR O PALCO</button>
+</div>
+</dialog>
+<dialog aria-labelledby="mic-permission-title" class="modal" id="mic-permission-dialog"><div class="modal-inner mic-permission-inner">
+<span aria-hidden="true" class="mic-permission-icon">🎤</span><div class="card-eyebrow">✦ SEU MICROFONE, SUAS REGRAS ✦</div>
+<h2 id="mic-permission-title">Sua voz, seu show!</h2>
+<p>Ao tocar em <strong>Permitir microfone</strong>, seu celular pedirá acesso ao microfone. Você verá as barras reagindo ao som captado.</p>
+<p class="mic-permission-privacy">🔐 Não gravamos sua voz. Antes da sua música, você só testa o microfone neste aparelho; durante sua apresentação, o áudio vai ao palco e os dados de participação são sincronizados. O microfone do notebook nunca dá nota.</p>
+<button class="button button-primary full" id="mic-confirm-permission" type="button">🎙️ PERMITIR MICROFONE</button>
+<button class="button button-soft full" id="mic-cancel-permission" type="button">Agora não</button>
+</div></dialog>
+<dialog aria-labelledby="video-error-title" class="modal" id="video-error-dialog"><div class="modal-inner"><div class="card-eyebrow">🎙️ DIVA GOGÓ CHAMOU A PRODUÇÃO</div><h2 id="video-error-title">Esse vídeo não rolou!</h2><p id="video-error-text">O YouTube não liberou a reprodução fora do site.</p><p class="settings-note">Não é falha da sua conta. Alguns vídeos são bloqueados pelo YouTube mesmo após serem listados como incorporáveis.</p><button class="button button-primary full" id="video-replace" type="button">🔎 BUSCAR OUTRA VERSÃO</button><button class="button button-soft full" id="video-skip" type="button">⏭ PULAR SEM PONTUAR</button><button class="text-button" id="video-retry" type="button">Tentar reproduzir novamente</button><button class="text-button" id="video-error-close" type="button">Fechar aviso</button></div></dialog>
+<dialog aria-labelledby="guest-profile-heading" class="modal" id="guest-profile-dialog">
+<form class="modal-inner" id="guest-profile-form"><button aria-label="Fechar" class="close-modal" id="guest-profile-close" type="button">✕</button><span class="card-eyebrow">★ SUA IDENTIDADE ★</span><h2 id="guest-profile-heading">Seu perfil no Tem Gogó</h2><label class="field-label" for="guest-profile-name">Seu apelido</label><input id="guest-profile-name" maxlength="24" minlength="2" required="" type="text"/><fieldset class="avatar-picker"><legend>Escolha outro avatar</legend><div class="avatar-options" id="profile-avatar-options"></div></fieldset><button class="button button-primary full" type="submit">SALVAR ALTERAÇÕES</button></form>
+</dialog>
+<dialog aria-labelledby="faq-heading" class="modal" id="faq-dialog"><div class="modal-inner"><button aria-label="Fechar" class="close-modal" id="faq-close" type="button">✕</button><h2 id="faq-heading">❔ Como usar o Tem Gogó</h2><details open=""><summary>Como entro na festa?</summary><p>Escaneie o QR da TV, digite um apelido e escolha seu avatar.</p></details><details><summary>Como canto?</summary><p>Escolha uma música e espere o aviso. Antes do vídeo, ative o microfone no celular e toque em Estou pronto(a). O anfitrião inicia o show.</p></details><details><summary>Como sei se o microfone funciona?</summary><p>No celular, libere o acesso ao microfone e veja as barrinhas reagirem. Microfone liberado não significa que o áudio já esteja conectado à TV — essa conexão é feita ao iniciar a música.</p></details><details><summary>Como funciona a nota?</summary><p>É uma nota divertida calculada a partir da atividade de áudio enviada pelo celular, não de afinação. O notebook do anfitrião não participa da avaliação.</p></details><details><summary>Quem é a Diva Gogó?</summary><p>É a apresentadora da festa. Ela anuncia os cantores, orienta sobre o microfone e comenta os resultados. A voz falada é opcional e só pode ser ativada pelo anfitrião, quando o navegador oferecer suporte.</p></details><details><summary>Onde vejo minha nota?</summary><p>Ao terminar uma música, procure o cartão de pontuação no seu celular ou abra o placar pelo botão na barra inferior.</p></details><details><summary>O vídeo não abre?</summary><p>Alguns vídeos não permitem reprodução incorporada. O anfitrião pode escolher outra versão.</p></details><details><summary>Posso cantar com até quatro pessoas?</summary><p>Sim. Ao escolher a música, selecione Solo, Dueto ou Grupo (3–4), marque os cantores que já estão nesta festa e confirme a seleção. O grupo depende da migração SQL 015 no Supabase.</p></details><details><summary>Como leio o QR da festa no celular?</summary><p>Use o botão Ler QR da festa quando o navegador oferecer leitura nativa. Se não aparecer câmera, aponte a câmera normal do celular para o QR da TV ou digite o código.</p></details><details><summary>Quem pode mudar o humor da Diva Gogó?</summary><p>Somente o anfitrião usa os botões de humor da sala: Ácida, Família, Caos total, Memes LGBT, Reality e Babado. Convidados podem escolher músicas e avatar, mas não comandam a personagem.</p></details><details><summary>O que significa Estou pronto?</summary><p>O botão só é liberado quando seu celular autorizou e ativou o microfone. A conexão de áudio com a televisão é confirmada depois que a apresentação começar. O host só libera o vídeo quando todos os participantes confirmarem.</p></details><details><summary>Como recupero senha e vejo festas encerradas?</summary><p>Quem tem conta de e-mail pode alterar a senha em Minhas festas ou selecionar Esqueci minha senha na entrada. Festas encerradas aparecem com a opção Ver placar, quando o histórico estiver disponível.</p></details><details><summary>Como volto sem sair da festa?</summary><p>No celular, o botão Voltar navega entre músicas e microfone. Para se desvincular da festa, use o comando Sair desta festa no próprio aplicativo.</p></details><button class="button button-primary full" id="faq-done" type="button">ENTENDI!</button></div></dialog>
+<dialog class="modal" id="song-dialog"><form class="modal-inner" method="dialog"><button aria-label="Fechar" class="close-modal" type="submit">✕</button><div class="card-eyebrow">★ A PLAYLIST DO POVO ★</div><h2>Manda o hit, mona! 🎶</h2><p>Digite o artista ou a música. Buscamos primeiro no acervo sem gastar consultas externas. Toque em <b>+ FILA</b>!</p><fieldset class="duet-choice" id="host-duet-choice"><legend>🎙️ Quem vai cantar?</legend><div class="duet-pills"><label><input checked="" name="host-mode" type="radio" value="solo"/> 💚 Solo</label><label><input name="host-mode" type="radio" value="duet"/> 💕 Dueto</label><label><input name="host-mode" type="radio" value="group"/> 🎤 Grupo (3–4)</label></div><div class="duet-person" data-duet-single="true" hidden=""><label for="host-duet-partner">Com qual pessoa da sala?</label><select id="host-duet-partner"><option value="">Escolha uma pessoa</option></select><small>O outro participante precisará entrar no próprio celular e autorizar seu microfone na hora da música.</small></div><div class="group-people" data-group-people="host" hidden=""><p class="field-label">Escolha mais 2 ou 3 cantores da sala, além de você:</p><div class="group-member-list" id="host-group-members"></div><small>Todos precisam ter entrado na festa pelo próprio celular e confirmar o microfone antes do vídeo.</small></div></fieldset><div class="search-row"><input aria-label="Buscar músicas de karaokê" autocomplete="off" id="host-search" maxlength="100" placeholder="Ex.: Diamonds Rihanna" type="search"/><button class="button button-soft" id="host-search-button" type="button">🔍 Buscar</button></div><button class="button button-soft catalog-open catalog-search-shortcut" data-catalog-open="" type="button">📚 Explorar catálogo completo</button><div aria-live="polite" class="search-results" id="host-results"><div class="search-first-state">🎧 Manda o nome daquele hino que todo mundo canta!</div></div></form><details class="manual-song host-manual"><summary>🔗 Adicionar pelo link (a disponibilidade depende do YouTube)</summary><form class="modal-extra manual-song-form" id="host-song-form"><label class="field-label" for="host-url">URL do YouTube</label><input id="host-url" placeholder="https://youtu.be/..." required="" type="url"/><label class="field-label" for="host-song-title">Título</label><input id="host-song-title" maxlength="120" placeholder="Artista — Canção" required=""/><button class="button button-primary full" type="submit">Adicionar esse link à fila ↗</button></form></details><details class="playlist-import" id="playlist-import-panel"><summary>📚 Importar vídeos da minha playlist (sem gastar buscas)</summary><p>Cole títulos e links individuais neste formato, um por linha: <b>Artista - Música | https://www.youtube.com/watch?v=ID</b>. Entram como sugestões não verificadas até realmente tocar metade do vídeo no palco.</p><label for="playlist-import-lines">Músicas da playlist</label><textarea id="playlist-import-lines" placeholder="Artista - Música (karaokê) | https://youtube.com/watch?v=XXXXXXXXXXX" rows="5"></textarea><button class="button button-primary full" id="playlist-import-submit" type="button">Importar indicações</button><small>Apenas o link da playlist não identifica os itens nesta versão. Os títulos e links individuais precisam ser fornecidos.</small></details></dialog>
+<dialog class="modal" id="score-dialog"><div class="modal-inner"><button aria-label="Fechar" class="close-modal" data-close-score="" type="button">✕</button><div class="card-eyebrow">HALL DA FAMA DO BRASIL</div><h2>Lendas do rolê 🏆</h2><p>Ranking de participação vocal desta festa. Não mede afinação.</p><div class="score-list" id="score-list"></div><button class="button button-soft full" data-close-score="" type="button">Voltar à festa</button></div></dialog>
+<dialog aria-labelledby="recap-title" class="modal party-recap-modal" id="party-recap-dialog">
+<div class="modal-inner recap-inner">
+<div class="recap-eyebrow">✳ TEM GOGÓ • GRANDE FINAL ✳</div>
+<h2 id="recap-title">A DIVA GOGÓ ENCERRA A FESTA! 👑</h2>
+<p class="recap-room-name" id="recap-room-title">Noite das estrelas</p>
+<div class="recap-stats"><div><strong id="recap-total">0</strong><span>Músicas concluídas</span></div><div><strong id="recap-scored">0</strong><span>Com avaliação</span></div><div><strong id="recap-duets">0</strong><span>Duetos</span></div></div>
+<div class="recap-heading">🏆 TOP 3 • MAIORES NOTAS</div><div class="recap-podium" id="recap-podium"></div>
+<div class="recap-flop" hidden="" id="recap-flop"><span>🫠 PERRRENGUE DA NOITE</span><b id="recap-flop-name">Estrela</b><small id="recap-flop-score">0/100</small><p>“Não ganhou a nota, mas entregou entretenimento. A DIVA GOGÓ respeita!”</p></div>
+<p class="recap-disclaimer">O ranking usa a maior nota válida de cada pessoa. Duetos contam uma música e duas avaliações. Música pulada não pontua. As notas avaliam tempo e volume captados nos celulares, não afinação.</p>
+<button class="button button-primary full" id="recap-copy" type="button">📋 Copiar placar para compartilhar</button>
+<button class="button button-soft full" id="recap-done" type="button">✨ Fechar cerimônia</button>
+</div>
+</dialog>
+<dialog aria-labelledby="settings-title" class="modal settings-modal" id="settings-dialog"><div class="modal-inner"><button aria-label="Fechar configurações" class="close-modal" id="settings-close" type="button">✕</button><div class="card-eyebrow">✦ PERSONALIZAÇÃO SEM LIMITES ✦</div><h2 id="settings-title">Seu rolê, suas regras.</h2><p>Você é a direção de arte dessa novela musical. A DIVA GOGÓ cuida da resenha!</p><div class="setting-group"><h3>🎨 Qual é a estética de hoje?</h3><div aria-label="Temas do palco" class="theme-picker" role="group"><button data-theme-choice="baile" type="button"><span class="theme-swatch swatch-baile"></span>Baile Neon</button><button data-theme-choice="diva" type="button"><span class="theme-swatch swatch-diva"></span>Diva Pop</button><button data-theme-choice="boteco" type="button"><span class="theme-swatch swatch-boteco"></span>Boteco Superstar</button><button data-theme-choice="glam" type="button"><span class="theme-swatch swatch-glam"></span>Glam Futurista</button></div></div><div class="setting-group" data-host-only="true"><label class="field-label" for="humor-mode">🎭 Personalidade da DIVA GOGÓ</label><select id="humor-mode"><option value="debochado">💅 Debochado (padrão)</option><option value="familia">🥰 Família — sem alfinetadas</option><option value="caos">🔥 Caos total — extra dramático</option><option value="lgbt">🏳️‍🌈 Memes LGBT — cultura pop e deboche</option><option value="reality">📺 Reality show — jurada icônica</option><option value="bafao">🪭 Babado &amp; close — festa e internet</option></select><p class="settings-note">O comentário final muda de acordo com o estilo escolhido pelo anfitrião.</p></div><div class="setting-group"><label class="setting-switch"><span><b>🪩 GIFs animados</b><small>Carrega GIPHY no resultado se houver chave configurada.</small></span><input checked="" id="gifs-enabled" type="checkbox"/></label><label class="setting-switch"><span><b>✨ Efeitos de festa</b><small>Confete e animações (respeita preferências de acessibilidade).</small></span><input checked="" id="effects-enabled" type="checkbox"/></label><label class="setting-switch"><span><b>👁️ Alto contraste</b><small>Mais conforto visual para letras e botões.</small></span><input id="settings-contrast" type="checkbox"/></label></div><div class="settings-tip">🎤 <b>DIVA GOGÓ AVISA:</b> os memes são pela diversão. A nota não mede afinação. Os GIFs dependem de uma chave GIPHY opcional e da internet.</div><button class="button button-primary full" id="settings-done" type="button">TÁ LINDO, PODE COMEÇAR →</button></div></dialog>
+<dialog aria-labelledby="tg16-password-title" class="modal" id="tg16-password-dialog"><div class="modal-inner">
+<button aria-label="Fechar" class="close-modal" id="tg16-password-close" type="button">✕</button>
+<div class="card-eyebrow">🔒 SEGURANÇA DA CONTA</div><h2 id="tg16-password-title">Trocar senha</h2>
+<p>Somente contas cadastradas por e-mail têm senha. Participantes convidados não precisam.</p>
+<form autocomplete="on" id="tg16-password-form"><label for="tg16-old-password" id="tg16-old-label">Senha atual</label><input autocomplete="current-password" id="tg16-old-password" minlength="6" type="password"/>
+<label for="tg16-new-password">Nova senha (mínimo 10 caracteres)</label><input autocomplete="new-password" id="tg16-new-password" maxlength="128" minlength="10" required="" type="password"/>
+<label for="tg16-confirm-password">Confirmar nova senha</label><input autocomplete="new-password" id="tg16-confirm-password" maxlength="128" minlength="10" required="" type="password"/><p aria-live="polite" id="tg16-password-feedback" role="status"></p><button class="button button-primary full" type="submit">Salvar nova senha</button></form>
+</div></dialog>
+<dialog aria-labelledby="tg16-scan-title" class="modal" id="tg16-scan-dialog"><div class="modal-inner tg16-scanner"><button aria-label="Fechar câmera" class="close-modal" id="tg16-scan-close" type="button">✕</button><div class="card-eyebrow">📷 ENTRAR NA FESTA</div><h2 id="tg16-scan-title">Aponte para o QR da TV</h2><p aria-live="polite" id="tg16-scan-feedback" role="status">Autorize a câmera quando o navegador pedir. O vídeo não é gravado.</p><video autoplay="" id="tg16-scan-video" muted="" playsinline=""></video><button class="button button-outline full" id="tg16-scan-manual" type="button">Prefiro digitar o código</button></div></dialog>
+<dialog aria-labelledby="tg16-confirm-title" class="modal" id="tg16-confirm-music"><div class="modal-inner"><div class="card-eyebrow">🎵 CONFIRME SUA ESCOLHA</div><h2 id="tg16-confirm-title">Entrar na fila?</h2><p id="tg16-confirm-song"></p><p id="tg16-confirm-people"></p><div class="tg16-confirm-actions"><button class="button button-outline" id="tg16-confirm-cancel" type="button">Voltar</button><button class="button button-primary" id="tg16-confirm-yes" type="button">✅ Adicionar à fila</button></div></div></dialog>
 </body>
 </html>
