@@ -1,0 +1,118 @@
+/* TEM GOGÓ v19 — TV, cantor e controle. Mantém todas as folhas anteriores. */
+[hidden]{display:none!important}
+#stage,#guest,#tg18-remote{min-width:0}
+#stage .stage-layout,#stage .stage-main,#stage .screen-row,#stage .video-frame,#stage .qr-rail{min-width:0;max-width:100%}
+/* TV: sala limpa, QR completamente dentro do card, central e com respiro. */
+#stage .qr-rail{align-self:start;display:grid;place-items:center;gap:0;min-width:0;padding:clamp(8px,1vw,15px);box-sizing:border-box}
+#stage .qr-bubble{position:static!important;inset:auto!important;transform:none!important;transform-origin:center!important;box-sizing:border-box;max-width:100%!important;width:min(100%,228px)!important;min-width:0;overflow:hidden;padding:clamp(9px,1vw,15px)!important;margin:0!important;display:flex;flex-direction:column;align-items:center;gap:7px}
+#stage .qr-bubble.qr-expanded{width:min(100%,248px)!important;transform:none!important;box-shadow:0 0 28px #ed74ff70}
+#stage .qr-box{width:min(100%,180px)!important;height:auto!important;aspect-ratio:1;max-width:100%;padding:4px!important;margin:0 auto!important;box-sizing:border-box;display:grid;place-items:center;background:#fff;border-radius:10px;overflow:hidden}
+#stage .qr-box canvas,#stage .qr-box img,#stage .qr-bubble.qr-expanded .qr-box canvas,#stage .qr-bubble.qr-expanded .qr-box img{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain;display:block}
+#stage .qr-footer{width:100%;min-width:0;text-align:center;overflow-wrap:anywhere}
+#stage .qr-code-text{display:block;max-width:100%;font-size:clamp(12px,1.3vw,18px)!important;letter-spacing:.04em;overflow-wrap:anywhere}
+#stage .qr-heading{max-width:100%;text-align:center;font-size:clamp(10px,1vw,13px)}
+#stage .qr-footer small{display:block;max-width:100%;font-size:clamp(9px,.85vw,11px)}
+#stage .stage-command{padding:8px 14px;margin:0 0 12px;max-width:100%;overflow:hidden}
+#stage .stage-command-title{margin:0;align-items:center}
+#stage .stage-command-stats{display:flex;flex-wrap:wrap;gap:5px 17px;font-size:11px}
+#stage .stage-command-participants{display:none!important}
+#stage .stage-header{align-items:center;gap:10px}
+#stage .stage-actions{flex-wrap:wrap;justify-content:flex-end;gap:7px}
+#stage .stage-people{white-space:nowrap}
+#stage .stage-meta{margin-bottom:9px}
+#stage .tg18-solo-status{margin:0 0 10px;max-width:100%;border:0;background:transparent;padding:0;color:#cab6d7;font-size:11px}
+#stage .stage-meta #now-title{line-height:1.12}
+#stage .tg19-stage-footer{grid-column:1/-1;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;padding:20px 18px 30px;border-top:1px solid #ffffff23;background:#190d29}
+#stage .tg19-stage-footer .icon-button,#stage .tg19-stage-footer .button{min-height:38px;min-width:38px;border:1px solid #a875b177}
+#stage .tg19-stage-footer .stage-rank-panel,#stage .tg19-stage-footer .stage-hit-library{flex:1 1 290px;max-width:520px;align-self:stretch;margin:5px}
+#stage:fullscreen{height:100dvh;width:100vw;overflow:auto;max-height:none;background:#17091e}
+#stage:fullscreen .stage-layout{width:100%;max-width:none}
+#stage:fullscreen .stage-header{z-index:300}
+#stage:fullscreen #tg17-console,#stage:fullscreen #stage-qr,#stage:fullscreen .qr-rail{display:revert}
+/* A Diva toma conta da tela apenas durante a preparação; QR e mesa continuam à vista. */
+#stage .video-frame{position:relative}
+#stage #stage-preflight:not([hidden]){position:absolute!important;inset:0;z-index:90;display:grid!important;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);grid-template-rows:auto auto auto 1fr;align-content:center;gap:clamp(4px,.65vw,12px);overflow:auto;box-sizing:border-box;background:radial-gradient(circle at 23% 35%,#702778 0,#32133e 42%,#14081f 100%);padding:clamp(10px,1.8vw,27px);border:2px solid #e790f5;border-radius:inherit;isolation:isolate;color:#fff}
+#stage #stage-preflight .diva-preflight-intro{grid-column:1;grid-row:1/5;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:4px;min-width:0;margin:0!important;padding:0!important;background:transparent!important;border:0!important}
+#stage #stage-preflight .diva-preflight-intro .diva-preflight-expression{display:none!important}
+#stage #stage-preflight .diva-preflight-face{width:auto!important;height:clamp(140px,20vw,360px)!important;max-width:100%;max-height:65%;object-fit:contain;filter:drop-shadow(0 0 24px #ff86eb88)}
+#stage #stage-preflight .diva-preflight-intro>div{min-width:0}
+#stage #stage-preflight .preflight-heading{display:block;font-weight:900;font-size:clamp(12px,1.4vw,23px);color:#f9ccff;letter-spacing:.04em}
+#stage #stage-preflight .tg19-next-singer{font-size:clamp(24px,3.25vw,55px);line-height:1.02;letter-spacing:-.04em;font-weight:900;color:#ffe66c;margin:7px 0 4px;overflow-wrap:anywhere;text-shadow:0 3px 20px #fe5aa877}
+#stage #stage-preflight .diva-preflight-intro p{font-size:clamp(10px,1vw,15px);line-height:1.3;margin:0;max-width:460px}
+#stage #stage-preflight #stage-preflight-track{grid-column:2;grid-row:1;font-size:clamp(14px,1.75vw,29px);font-weight:900;line-height:1.16;overflow-wrap:anywhere;display:block;text-align:center}
+#stage #stage-preflight .stage-preflight-singers{grid-column:2;grid-row:2;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;align-items:center;max-height:unset;overflow:visible}
+#stage #stage-preflight .preflight-singer{min-width:0;flex:1 1 118px;max-width:240px;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:7px;border-radius:12px;background:#ffffff13}
+#stage #stage-preflight .preflight-singer img{width:clamp(28px,3vw,48px);height:clamp(28px,3vw,48px);object-fit:contain}
+#stage #stage-preflight .preflight-singer strong{font-size:clamp(10px,1vw,15px)}
+#stage #stage-preflight .preflight-singer small,#stage #stage-preflight .preflight-singer span{font-size:clamp(9px,.75vw,12px)}
+#stage #stage-preflight #stage-preflight-feedback{grid-column:2;grid-row:3;text-align:center;color:#f4d9f7;font-size:clamp(10px,1vw,14px);margin:0}
+#stage #stage-preflight .stage-preflight-actions{grid-column:2;grid-row:4;align-self:center;display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0}
+#stage #stage-preflight .stage-preflight-actions button{min-width:0;white-space:normal;line-height:1.1;padding:7px 5px;font-size:clamp(9px,.9vw,13px);min-height:34px}
+#stage #stage-preflight .stage-preflight-actions button:first-child{grid-column:1/-1;font-weight:900;font-size:clamp(12px,1.3vw,18px);min-height:clamp(36px,4vw,56px)}
+#stage #stage-preflight .stage-preflight-actions button:last-child{grid-column:1/-1;color:#ffb9f0}
+/* Celular: só mostrar painel de voz quando a Diva convocar. */
+#guest #mobile-tab-mic[hidden],#guest #tg16-mic-shortcut[hidden],#guest #guest-mic-panel[hidden]{display:none!important}
+#guest .tg18-account-promo{order:99;max-width:unset;margin-top:22px}
+#guest .guest-bottom{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+#guest #tg17-guest-message{margin-top:16px}
+#guest .guest-preflight{border:2px solid #e9b0ff;box-shadow:0 6px 24px #c134ae34}
+#guest #guest-preflight-mic{min-height:55px;width:100%;font-weight:900;background:#ddfc75;color:#281239}
+#guest .mobile-switch{grid-template-columns:repeat(2,minmax(0,1fr))}
+#guest .mobile-switch:has(#mobile-tab-mic:not([hidden])){grid-template-columns:repeat(3,minmax(0,1fr))}
+#guest .tg18-account-promo small{color:#dcc0e9}
+/* Controle de bolso: 2 abas permanentes, microfone só durante chamada ou apresentação. */
+#tg18-remote .tg19-remote-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:5px;border:1px solid #f2a2ec66;background:#11091c;border-radius:16px;margin:17px 0}
+#tg18-remote .tg19-remote-tab{min-height:56px;border-radius:12px;background:#ffffff10;color:#f5dcff;font-weight:900;font-size:clamp(13px,3.5vw,17px);padding:8px}
+#tg18-remote .tg19-remote-tab.active{background:#e5f970;color:#220d31;box-shadow:0 0 15px #d4ed6999}
+#tg18-remote #tg19-remote-control,#tg18-remote #tg19-remote-singing{min-width:0;max-width:100%}
+#tg18-remote #tg19-remote-control .tg18-remote-status{margin:0 0 14px}
+#tg18-remote #tg19-remote-control label{font-size:13px;font-weight:700}
+#tg18-remote #tg19-remote-control input[type=range]{accent-color:#ddff72;min-height:28px}
+#tg18-remote #tg19-remote-idle{display:grid;justify-items:center;text-align:center;gap:8px;margin:10px 0;padding:12px;background:#34113d;border-radius:18px}
+#tg18-remote #tg19-remote-idle img{width:auto;height:clamp(150px,42vw,240px);max-width:100%;object-fit:contain}
+#tg18-remote #tg19-remote-idle h2{font-size:clamp(20px,5vw,30px);font-weight:900;color:#f2ff87;margin:0}
+#tg18-remote #tg19-remote-idle p{font-size:13px;margin:0}
+#tg18-remote #tg18-remote-mic{position:static!important;inset:auto!important;z-index:auto!important;display:block;align-items:initial;margin:14px 0;padding:17px;border:2px solid #f39cf3;border-radius:21px;background:linear-gradient(155deg,#41134d,#180925);max-height:none;overflow:visible}
+#tg18-remote #tg18-remote-mic[hidden]{display:none!important}
+#tg18-remote #tg18-remote-mic .tg18-remote-mic-inner{width:100%;gap:13px}
+#tg18-remote #tg18-remote-mic h2{font-size:clamp(27px,7vw,42px);color:#e9fe67;font-weight:900}
+#tg18-remote .tg18-remote-mic-status{background:#1e193d;color:#ddffd4;border-color:#bcb3ff}
+#tg18-remote .tg19-remote-levels{display:flex;gap:5px;height:50px;align-items:end;border-radius:13px;padding:9px;background:#130824}
+#tg18-remote .tg19-remote-levels i{height:10%;flex:1;border-radius:5px;background:#564261;transition:height .12s}
+#tg18-remote .tg19-remote-levels i.lit{background:linear-gradient(0deg,#90ecdc,#eafd86)}
+#tg18-remote .tg19-remote-vocal-gain{font-size:13px;color:#fff;font-weight:800;display:block;text-align:left}
+#tg18-remote .tg19-remote-vocal-gain input{width:100%;accent-color:#e7ff75}
+#tg18-remote .tg19-remote-score{text-align:center;font-size:13px;border-radius:12px;padding:10px;background:#ffffff12}
+#tg18-remote .tg18-remote-singer-tools{grid-template-columns:1fr;gap:8px;margin:13px 0}
+#tg18-remote #tg18-remote-stage{margin:20px 0 0;opacity:.77;font-size:12px}
+@media(max-width:920px){#stage .stage-header .stage-actions{justify-content:center}#stage .stage-command{margin-top:7px}#stage .qr-bubble{width:min(100%,206px)!important}}
+@media(max-width:740px){#stage .qr-rail{width:100%;max-width:100%;display:grid;place-items:center}#stage #stage-preflight:not([hidden]){grid-template-columns:37% 63%;padding:6px;gap:4px}#stage #stage-preflight .diva-preflight-face{height:clamp(100px,24vw,190px)!important}#stage #stage-preflight .tg19-next-singer{font-size:clamp(16px,4vw,27px)}#stage #stage-preflight .diva-preflight-intro p{display:none}#stage #stage-preflight .preflight-heading{font-size:clamp(10px,2.2vw,13px)}#stage #stage-preflight .preflight-singer{padding:4px;flex:1 1 90px}#stage #stage-preflight .preflight-singer img{width:23px;height:23px}#stage #stage-preflight .stage-preflight-actions button{padding:4px;min-height:28px;font-size:10px}#stage .tg19-stage-footer{padding:14px 9px}}
+@media(max-width:390px){#stage .stage-actions{gap:5px}#stage .tg18-stage-tool{max-width:155px}#stage #stage-preflight .stage-preflight-actions button{font-size:9px}#tg18-remote .tg18-remote-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){#stage .diva-preflight-face,#tg18-remote #tg19-remote-idle img{animation:none!important}}
+
+/* Telas menores: três ações claras quando o mic está bloqueado. */
+#guest .tg16-guest-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+#guest .tg16-guest-actions:has(#tg16-mic-shortcut:not([hidden])){grid-template-columns:repeat(2,minmax(0,1fr))}
+#guest .tg16-action{min-width:0;overflow-wrap:anywhere}
+#guest .guest-show-mic[hidden]{display:none!important}
+
+#guest .tg19-push-shortcut{display:block;width:100%;max-width:100%;margin:4px 0 16px;padding:10px 14px;border:1px solid #e69af399;border-radius:13px;color:#fff;background:#381743;text-align:center;font-size:12px;line-height:1.3;font-weight:800;white-space:normal}
+#guest .tg19-push-shortcut:hover{border-color:#edfc83}
+body.tg18-singing #guest .tg19-push-shortcut{display:none!important}
+
+/* Evita avisos repetidos de fila no palco; a mesa e a fila lateral já bastam. */
+#stage .stage-command{display:none!important}
+
+/* Host móvel: fila de músicas com gestão e ações seguras. */
+#tg18-remote .tg19-remote-queue{margin:18px 0 4px;padding:14px 10px;border:1px solid #ec9ffc66;border-radius:17px;background:#180c27}
+#tg18-remote .tg19-remote-queue>h2{font-size:18px;line-height:1.2;font-weight:900;color:#edff93;margin:0 0 5px}
+#tg18-remote .tg19-remote-queue-hint{margin:0 0 12px;color:#d3bedf;font-size:12px;line-height:1.3}
+#tg18-remote .tg19-remote-queue-list{display:grid;gap:8px}
+#tg18-remote .tg19-remote-queue-item{padding:12px 9px;border-radius:12px;background:#ffffff0d;display:flex;align-items:center;gap:10px;min-width:0}
+#tg18-remote .tg19-remote-queue-name{flex:1;min-width:0;display:grid;gap:3px}
+#tg18-remote .tg19-remote-queue-name small{color:#d0bade;font-size:11px}
+#tg18-remote .tg19-remote-queue-name strong{overflow-wrap:anywhere;font-size:13px}
+#tg18-remote .tg19-remote-queue-actions{display:flex;flex-shrink:0;gap:4px;align-items:center}
+#tg18-remote .tg19-remote-queue-actions button{font-size:12px;min-height:36px;padding:7px 9px;min-width:36px}
+#tg18-remote .tg19-remote-queue-empty{color:#e3d0eb;font-size:13px;text-align:center;padding:10px 4px;margin:0}
+@media(max-width:350px){#tg18-remote .tg19-remote-queue-item{flex-wrap:wrap}#tg18-remote .tg19-remote-queue-actions{width:100%;justify-content:end}}

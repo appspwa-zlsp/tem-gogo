@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"urbano", lastProfileSent: 0, divaVoiceEnabled: false, divaSpeakingTimer: null, divaLastSpokenAt: 0, lastGuestResultKey: null, micPermissions: new Map(), remoteLastSent:0, soloMic:null, pushAsked:false, guestMicLock:false
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"urbano", lastProfileSent: 0, divaVoiceEnabled: false, divaSpeakingTimer: null, divaLastSpokenAt: 0, lastGuestResultKey: null, micPermissions: new Map(), remoteLastSent:0, soloMic:null, pushAsked:false, guestMicLock:false, remoteTab:"control", remotePending:new Map(), deviceChannelReady:false, lastDevicePoll:0, deviceId:(typeof crypto.randomUUID==="function"?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2))
   };
 
 
@@ -43,11 +43,20 @@
   // V18: controle remoto por sinais autenticados e dirigidos ao palco (sem segundo player).
   async function enterRoomAsRemote(room){
     if(!state.user || room.owner_id!==state.user.id || isAnonymous(state.user)){toast('Somente a conta anfitriã pode usar o controle remoto.',true);return;}
-    await stopSession();state.room=room;state.role='remote';show('tg18-remote');
+    await stopSession();state.room=room;state.role='remote';state.remoteTab='control';show('tg18-remote');switchRemoteTab('control');
     $('tg18-remote-room').textContent=room.title;document.body.classList.add('tg18-remote-active');
     try{await hydrateRoom();await subscribeRoom();startTicker();renderRemote();void loadCatalog();await sendProfileToHost();toast('Controle remoto conectado. Você também pode cantar pelo celular!');}
     catch(err){toast('Não foi possível conectar o controle: '+humanError(err),true);}
   }
+  function switchRemoteTab(tab='control'){
+    if(state.role!=='remote')return;
+    const next=tab==='singing'?'singing':'control';state.remoteTab=next;
+    for(const [name,id] of [['control','tg19-remote-control'],['singing','tg19-remote-singing']]){
+      const panel=$(id),button=$('tg19-tab-'+name),active=name===next;
+      panel.hidden=!active;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));
+    }
+  }
+  function callActive(){return Boolean(state.guestPreflightSong||isMyTurn());}
   function renderRemote(){
     if(state.role!=='remote'||!state.room)return;
     const playing=state.songs.find(x=>x.status==='playing');
@@ -55,21 +64,41 @@
     $('tg18-remote-now').textContent=playing?.title||'Palco aguardando música';
     $('tg18-remote-next').textContent=next?.title||'Fim da fila';
     $('tg18-remote-count').textContent=state.songs.filter(x=>x.status==='queued').length+' na fila';
+    const personal=state.scores.find(x=>x.user_id===state.user?.id);
+    $('tg19-remote-score').textContent=personal?'🏆 Sua última nota: '+personal.score+'/100 · A Diva avaliou sua participação':'🏆 Seu placar aparece depois de cantar';
+    renderRemoteQueue();
     renderRemoteMic();
+  }
+  function renderRemoteQueue(){
+    const list=$('tg19-remote-queue-list');if(!list||state.role!=='remote')return;
+    const pending=state.songs.filter(song=>song.status==='queued');
+    list.innerHTML=pending.length?pending.map((song,index)=>`<article class="tg19-remote-queue-item">
+      <div class="tg19-remote-queue-name"><small>#${index+1} · ${escapeHTML(songSingerLabel(song))}</small><strong>${escapeHTML(song.title)}</strong></div>
+      <div class="tg19-remote-queue-actions"><button class="button button-primary" type="button" data-tg19-prepare="${song.id}">🎬 Preparar</button><button class="button button-soft" type="button" data-tg19-remove="${song.id}">✕</button></div>
+    </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Use “Eu cantando” para escolher seu hit!</p>';
+  }
+  async function remoteRemoveSong(songId){
+    if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
+    const song=state.songs.find(s=>s.id===songId&&s.status==='queued');
+    if(!song||!window.confirm('Remover “'+song.title+'” da fila?'))return;
+    try{await callRPC('karaoke_remove_song',{p_room:state.room.id,p_song:song.id});await fetchSongs();toast('Música removida da fila.');}
+    catch(err){toast('Não foi possível remover a música: '+humanError(err),true);}
   }
   function renderRemoteMic(){
     const panel=$('tg18-remote-mic');if(!panel||state.role!=='remote')return;
     const playing=state.songs.find(s=>s.status==='playing'&&isSinger(s,state.user?.id));
-    const upcoming=state.guestPreflightSong||state.songs.find(s=>s.status==='queued'&&isSinger(s,state.user?.id));
-    const active=Boolean(playing);document.body.classList.toggle('tg18-remote-singing',active);
-    panel.hidden=!upcoming&&!active;
-    $('tg18-remote-song').textContent=playing?.title||upcoming?.title||'Sua próxima música';
-    $('tg18-remote-mic-title').textContent=active?'🎤 VOCÊ ESTÁ CANTANDO!':state.guestPreflightSong?'🎤 DIVA GOGÓ TE CHAMOU!':'⏳ Sua apresentação está na fila';
-    $('tg18-remote-mic-status').textContent=!availableMic()?'🔴 Microfone desligado':state.localPeer?.connectionState==='connected'?'🟢 Áudio conectado à TV':'🟡 Microfone autorizado no celular';
-    $('tg18-remote-mic-toggle').textContent=availableMic()?'🔇 Desligar microfone':'🎙️ Ativar microfone';
-    const ready=$('tg18-remote-mic-ready');ready.hidden=!state.guestPreflightSong||Boolean(playing);ready.disabled=!availableMic()||state.guestReady;
-    ready.textContent=state.guestReady?'✅ Pronto(a)! Aguardando vídeo':'✅ ESTOU PRONTO(A)';
-    $('tg18-remote-mic-note').textContent=active?'O controle remoto ficará em segundo plano até a música terminar. Sua voz segue à TV pelo WebRTC; a nota vem das amostras do celular.':state.guestPreflightSong?'Confirme após liberar o microfone e confira se a TV reconheceu a conexão.':'O host também pode cantar! A Diva chamará seu celular quando chegar sua vez.';
+    const called=Boolean(state.guestPreflightSong);
+    const active=Boolean(playing);
+    document.body.classList.toggle('tg18-remote-singing',active);
+    panel.hidden=!called&&!active;
+    $('tg19-remote-idle').hidden=called||active;
+    $('tg18-remote-song').textContent=playing?.title||state.guestPreflightSong?.title||'Sua próxima música';
+    $('tg18-remote-mic-title').textContent=active?'🎤 VOCÊ ESTÁ CANTANDO!':'👑 VOCÊ É O PRÓXIMO!';
+    $('tg18-remote-mic-status').textContent=!availableMic()?'🔴 Microfone desligado':state.localPeer?.connectionState==='connected'?'🟢 Áudio conectado à TV':state.guestReady?'✅ Pronto(a) · aguarde a TV':'🟡 Autorizado no celular';
+    $('tg18-remote-mic-toggle').textContent=availableMic()?'🔇 Desligar microfone':called?'🎙️ ATIVAR MIC E FICAR PRONTO(A)':'🎙️ Ativar microfone';
+    const ready=$('tg18-remote-mic-ready');ready.hidden=true;
+    $('tg18-remote-mic-note').textContent=active?'Seu áudio está sendo enviado à TV por WebRTC; a nota vem do medidor deste celular. O controle permanece acessível na outra aba.':called?'Um toque autoriza seu microfone e avisa o anfitrião automaticamente. A TV só libera o vídeo quando todos estiverem preparados.':'Sua voz só é capturada quando a Diva chamar.';
+    if($('tg19-remote-vocal-gain'))$('tg19-remote-vocal-gain').value=String(Math.round(state.guestMicGain*100));
   }
   async function renameRemoteSinger(){
     if(state.role!=='remote'||!state.room||state.room.owner_id!==state.user?.id)return;
@@ -85,19 +114,26 @@
       await fetchMembers();renderRemote();toast('Apelido atualizado no palco!');
     }catch(err){toast('Não foi possível alterar o apelido: '+humanError(err),true);}
   }
-  async function remoteCommand(cmd,value){
+  async function remoteCommand(cmd,value,songId=null){
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
-    const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume'];
+    const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song'];
     if(!allowed.includes(cmd))return;
     if(cmd.endsWith('volume')&&Date.now()-state.remoteLastSent<280)return;
     state.remoteLastSent=Date.now();
-    try{await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'?value:null,at:Date.now()});
-      $('tg18-remote-feedback').textContent='✓ Comando enviado à TV: '+cmd;}
-    catch(err){toast('Controle remoto indisponível: '+humanError(err),true);}
+    try{const id=crypto.randomUUID();
+      $('tg18-remote-feedback').textContent='◌ Enviando ao palco…';
+      await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'?value:null,songId:typeof songId==='string'?songId:null,at:Date.now(),id});
+      $('tg18-remote-feedback').textContent='◌ Comando enviado; aguardando confirmação da TV…';
+      state.remotePending.set(id,Date.now());
+      setTimeout(()=>{if(state.remotePending.has(id)){state.remotePending.delete(id);if(state.role==='remote')$('tg18-remote-feedback').textContent='⚠ Sem confirmação da TV. Verifique a conexão e o SQL 019.';}},8500);}
+    catch(err){$('tg18-remote-feedback').textContent='⚠ '+humanError(err);toast('Controle remoto indisponível: '+humanError(err),true);}
   }
   async function handleRemoteCommand(data){
     if(state.role!=='host'||!state.room||Math.abs(Date.now()-Number(data.at))>20000)return;
     const cmd=data.command;
+    const ack=()=>{if(data.id)void sendSignal(state.user.id,'host-remote-ack',{id:data.id,command:cmd,at:Date.now()}).catch(console.warn);};
+    ack();
+    if(cmd==='prepare-song'){const song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');if(song)await prepareSong(song);return;}
     if(cmd==='toggle'){await togglePlayback();return;}
     if(cmd==='play'){if(state.currentSong){state.player?.playVideo();}else if(state.preflight)await startPreparedSong();else await advanceSong();return;}
     if(cmd==='pause'){if(state.currentSong)state.player?.pauseVideo();return;}
@@ -177,7 +213,7 @@
     }catch(err){host.textContent='Histórico indisponível: '+humanError(err)+'. Verifique as permissões da base.';}
   }
   async function enableTurnPush(){
-    if(!state.user||state.role!=='guest'){toast('Entre numa festa para ligar os avisos.',true);return;}
+    if(!state.user||!isPhoneSingerRole()){toast('Entre numa festa pelo celular para ligar os avisos.',true);return;}
     if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
       toast('Este navegador não oferece Web Push. O aviso dentro do app continuará funcionando.',true);return;}
     if(!cfg.VAPID_PUBLIC_KEY){toast('Push externo ainda não foi configurado pelo administrador. O aviso dentro do app continua ativo.',true);return;}
@@ -192,7 +228,7 @@
       const json=sub.toJSON();
       const {error}=await state.client.from('karaoke_push_subscriptions').upsert({user_id:state.user.id,endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth},{onConflict:'endpoint'});
       if(error)throw error;
-      toast('✅ Avisos de chamada ativados neste aparelho!');$('tg18-push-cta').textContent='🔔 Avisos ativados';
+      toast('✅ Avisos de chamada ativados neste aparelho!');$('tg18-push-cta').textContent='🔔 Avisos ativados';$('tg19-push-shortcut').textContent='🔔 Alertas de chamada ativados neste celular';if($('tg19-remote-push'))$('tg19-remote-push').textContent='🔔 Avisos ativados';
     }catch(err){toast('Não foi possível ativar Push: '+humanError(err),true);}
   }
   async function dispatchPushForSong(song){
@@ -202,11 +238,12 @@
   }
   function openGuestCall(){
     if(!isPhoneSingerRole()||!state.guestPreflightSong)return;
+    if(state.role==='remote'){switchRemoteTab('singing');toast('🎤 Você é o próximo! Abra Eu cantando para liberar seu microfone.');if(navigator.vibrate)navigator.vibrate([120,80,120]);return;}
     $('tg18-turn-track').textContent=state.guestPreflightSong.title||'Seu show';
     $('tg18-turn-overlay').hidden=false;
     $('tg18-turn-mic-state').textContent=availableMic()?'🟢 Microfone ligado • confirme quando estiver pronto(a)':'🔴 Microfone desligado • ative antes de confirmar';
-    $('tg18-turn-ready').disabled=!availableMic();
-    $('tg18-turn-ready').textContent=state.guestReady?'✅ PRONTO(A) — AGUARDANDO':'✅ ESTOU PRONTO(A)';
+    $('tg18-turn-ready').hidden=true;
+    $('tg18-turn-mic').textContent=availableMic()?'✅ MICROFONE PRONTO':'🎙️ ATIVAR MIC E FICAR PRONTO(A)';
   }
   function closeGuestCall(){if($('tg18-turn-overlay'))$('tg18-turn-overlay').hidden=true;}
 
@@ -285,7 +322,9 @@
     if(state.preflight&&state.soloMic&&isSinger(state.preflight.song,state.user?.id))state.preflight.statuses.set(state.user.id,{mic:true,ready:true,at:Date.now()});
     const pre=state.preflight,box=$('stage-preflight');
     box.hidden=!pre;showHostCommand();if(!pre)return;
-    $('stage-preflight-track').textContent=pre.song.title;setDivaStageState('preflight');
+    $('stage-preflight-track').textContent=pre.song.title;
+    $('tg19-next-singer').textContent='VOCÊ É O PRÓXIMO: '+songSingerLabel(pre.song).toUpperCase();
+    setDivaStageState('preflight');
     const singers=songSingers(pre.song);
     $('stage-preflight-singers').innerHTML=singers.map(uid=>{
       const raw=pre.statuses.get(uid);const s=raw&&Date.now()-raw.at<25000?raw:null;const online=s?.mic?'🎙️ MIC LIBERADO':'🔇 MIC DESLIGADO';
@@ -304,19 +343,30 @@
       mic:availableMic(),avatar:state.avatar,sentAt:Date.now()
     });}catch(err){console.warn('Aviso de preparação:',err);}
   }
+  function renderGuestCallVisibility(){
+    if(state.role!=='guest')return;
+    const called=callActive();
+    $('mobile-tab-mic').hidden=!called;
+    $('tg16-mic-shortcut').hidden=!called;
+    document.querySelector('#guest .guest-show-mic').hidden=!called;
+    $('guest-preflight').hidden=!state.guestPreflightSong;
+    $('guest-mic-panel').hidden=!called||state.mobileTab!=='mic';
+    if(!called&&state.mobileTab==='mic')switchMobileTab('queue',false);
+  }
   function renderGuestPreflight(){
     const playing=state.songs.find(s=>s.status==='playing'&&isSinger(s,state.user?.id));
     const urgent=Boolean(playing&&!availableMic());
     const song=urgent?playing:state.guestPreflightSong,box=$('guest-preflight');
-    box.hidden=!song;if(!song)return;
-    $('guest-preflight-ready').hidden=urgent;
-    $('guest-preflight-mic').hidden=!urgent&&availableMic();
-    if(urgent){$('guest-preflight-message').textContent='O vídeo já começou e seu microfone está desligado! Libere agora para participar da apresentação.';}
+    if(state.role==='guest')renderGuestCallVisibility();
+    box.hidden=state.role!=='guest'||!song;
+    if(!song){renderRemoteMic();return;}
     $('guest-preflight-title').textContent=song.title||'Próximo show';
-    $('guest-preflight-status').textContent=availableMic()?'🟢 Microfone autorizado e ativo neste celular; conexão com a TV será verificada na hora da música':'🔴 Microfone desligado — libere para continuar';
-    $('guest-preflight-ready').disabled=!availableMic();updateGuestMicLabel();renderRemoteMic();
-    $('guest-preflight-ready').textContent=state.guestReady&&availableMic()?'✅ PRONTO(A) — AGUARDANDO HOST':'✅ ESTOU PRONTO(A)';
-    if(!urgent)$('guest-preflight-message').textContent=state.guestReady&&availableMic()?'Tudo certo! Espere o anfitrião soltar o vídeo. Mantenha o microfone ligado.':'Ative o microfone, confira as barrinhas e confirme quando estiver pronto(a).';
+    $('guest-preflight-status').textContent=availableMic()?(state.guestReady?'✅ Pronto(a)! Aguardando liberação da TV':'🟡 Microfone ativo no celular'):'🔴 Microfone desligado';
+    $('guest-preflight-ready').hidden=true;
+    $('guest-preflight-mic').hidden=Boolean(availableMic());
+    $('guest-preflight-mic').textContent=urgent?'🎙️ LIGAR MICROFONE AGORA':'🎙️ ATIVAR MIC E FICAR PRONTO(A)';
+    $('guest-preflight-message').textContent=urgent?'Sua música começou. Ative o microfone para cantar!':state.guestReady&&availableMic()?'Tudo certo! O anfitrião já sabe que você está pronto(a).':'Um toque autoriza o microfone e confirma sua prontidão à TV. A apresentação só começa quando o host liberar.';
+    updateGuestMicLabel();renderRemoteMic();
   }
   async function sendProfileToHost(){
     if(!isPhoneSingerRole()||!state.room||!state.user)return;
@@ -363,7 +413,7 @@
     // startSong retorna erro tratado internamente; confira no estado antes de encerrar o preparo.
     await startSong(song);
     if(state.currentSong?.id===song.id){
-      for(const uid of singers)void sendSignal(uid,'stage-prepare-cancel',{songId:song.id,token:pre.token}).catch(console.warn);
+      for(const uid of singers)void sendSignal(uid,'stage-prepare-cancel',{songId:song.id,token:pre.token,started:true}).catch(console.warn);
       clearHostPreflight(false);
     } else {pre.starting=false;renderPreflightHost();}
   }
@@ -603,8 +653,8 @@
     initPWA();
     loadPreferences();
     renderAvatarOptions();
-    // Na preparação, o lugar do vídeo vira a área de confirmação — sem diminuir o player durante o canto.
-    $('video-placeholder').appendChild($('stage-preflight'));
+    // A preparação ocupa a moldura do vídeo (sem esconder o QR ou a mesa).
+    $('video-frame').appendChild($('stage-preflight'));
     attachEvents();
     const linkRoom=normalizeRoom(new URL(location.href).searchParams.get('room'));
     const savedRoom=normalizeRoom(localStorage.getItem('tem-gogo-pending-room'));
@@ -861,7 +911,11 @@
   function startSyncFallback(){
     clearInterval(state.roomPoller);clearInterval(state.signalPoller);
     state.roomPoller=setInterval(()=>{if(state.room&&navigator.onLine)void refreshRoomSnapshot();},5500);
-    state.signalPoller=setInterval(()=>{if(state.room&&navigator.onLine&&(state.role==='host'||isPhoneSingerRole()))void fetchRecentSignals();},state.role==='host'?3500:8500);
+    state.signalPoller=setInterval(()=>{
+      if(state.room&&navigator.onLine&&(state.role==='host'||isPhoneSingerRole())){
+        void fetchRecentSignals();void fetchHostDeviceSignals();
+      }
+    },state.role==='remote'?2000:state.role==='host'?2400:7000);
   }
 
   async function fetchRoom() {
@@ -1023,6 +1077,7 @@
     $('your-turn-banner').hidden=!mine;$('mic-turn-kicker').hidden=!mine;
     $('mic-card').classList.toggle('my-turn',mine);
     $('mobile-tab-mic').classList.toggle('turn-highlight',mine);
+    if(state.role==='remote'&&mine)switchRemoteTab('singing');
     if(mine){$('your-turn-track').textContent=playing.title;}renderGuestPreflight();renderRemoteMic();
     if(state.lastMySong!==playing?.id){
       const wasMine=Boolean(state.lastMySong);
@@ -1044,7 +1099,7 @@
   }
   function drawQR() {
     const holder=$('stage-qr');holder.replaceChildren();
-    if(window.QRCode){new window.QRCode(holder,{text:currentURL(state.room.code),width:240,height:240,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});}
+    if(window.QRCode){new window.QRCode(holder,{text:currentURL(state.room.code),width:176,height:176,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});}
     else {holder.textContent='QR indisponível';toast('Biblioteca de QR Code não carregou. Compartilhe o código da sala.',true);}
   }
   function queueChanged(){clearTimeout(state.roomReloadTimer);state.roomReloadTimer=setTimeout(()=>{void refreshRoomSnapshot();},180);}
@@ -1057,7 +1112,8 @@
       .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_members',filter:`room_id=eq.${state.room.id}`},queueChanged)
       .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_rooms',filter:`id=eq.${state.room.id}`},queueChanged)
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_scores',filter:`room_id=eq.${state.room.id}`},queueChanged)
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_signals',filter:`receiver_id=eq.${uid}`},payload=>receiveSignal(payload.new));
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_signals',filter:`receiver_id=eq.${uid}`},payload=>receiveSignal(payload.new))
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_host_device_signals',filter:`owner_id=eq.${uid}`},payload=>receiveHostDeviceSignal(payload.new));
     startSyncFallback();setSyncStatus('fallback');
     await new Promise(resolve=>{
       let resolved=false;
@@ -1074,6 +1130,7 @@
       });
     });
     await fetchRecentSignals();
+    await fetchHostDeviceSignals();
     if(state.role==='host'){
       state.signalCleaner=setInterval(()=>{callRPC('karaoke_clean_signals',{p_room:state.room?.id}).catch(console.warn);},180000);
     }
@@ -1086,6 +1143,25 @@
     if(error){console.warn('Inbox:',error);return;}
     (data||[]).forEach(receiveSignal);
   }
+  function receiveHostDeviceSignal(record){
+    if(!state.room||record.room_id!==state.room.id||record.owner_id!==state.user?.id)return;
+    if(!['host','remote'].includes(state.role)||record.receiver_role!==state.role)return;
+    if(record.sender_role===state.role||record.payload?._device===state.deviceId)return;
+    const signal={...record,id:'device-'+record.id,sender_id:record.owner_id,receiver_id:record.owner_id,_ownerDevice:true};
+    receiveSignal(signal);
+  }
+  async function fetchHostDeviceSignals(){
+    if(!state.room||!['host','remote'].includes(state.role)||state.room.owner_id!==state.user?.id)return;
+    try{
+      const {data,error}=await state.client.from('karaoke_host_device_signals').select('*')
+        .eq('room_id',state.room.id).eq('owner_id',state.user.id).eq('receiver_role',state.role)
+        .gte('created_at',new Date(Date.now()-95000).toISOString()).order('created_at',{ascending:true}).limit(120);
+      if(error)throw error;
+      for(const item of data||[])receiveHostDeviceSignal(item);
+    }catch(err){
+      if(Date.now()-state.lastDevicePoll>15000){state.lastDevicePoll=Date.now();console.warn('Sincronia host/celular: ',err.message);}
+    }
+  }
   function receiveSignal(signal) {
     if(!state.room||signal.room_id!==state.room.id)return;
     if(state.processedSignals.has(signal.id))return;
@@ -1095,6 +1171,17 @@
   }
   async function sendSignal(to,kind,payload={}) {
     if(!state.room||!state.user)return;
+    // Conta do host em TV e celular tem o MESMO UID. O banco antigo de sinais
+    // não permite (ou distingue) envio para si próprio. Canal dedicado + RLS.
+    if(to===state.user.id&&state.room.owner_id===state.user.id&&['host','remote'].includes(state.role)){
+      const {error}=await state.client.from('karaoke_host_device_signals').insert({
+        room_id:state.room.id,owner_id:state.user.id,
+        sender_role:state.role,receiver_role:state.role==='host'?'remote':'host',
+        kind,payload:{...payload,_device:state.deviceId}
+      });
+      if(error)throw new Error('Canal host/celular não configurado: '+error.message+' (aplique o SQL 019)');
+      return;
+    }
     const {error}=await state.client.from('karaoke_signals').insert({room_id:state.room.id,sender_id:state.user.id,receiver_id:to,kind,payload});
     if(error)throw error;
   }
@@ -1144,7 +1231,7 @@
     if(!state.room)return;
     const from=signal.sender_id,data=signal.payload||{};
     if(state.role==='host'){
-      if(signal.kind==='host-remote'){if(from===state.room.owner_id)await handleRemoteCommand(data);return;}
+      if(signal.kind==='host-remote'){if(from===state.room.owner_id&&signal._ownerDevice===true)await handleRemoteCommand(data);return;}
       if(signal.kind==='stage-recado'){
         const text=typeof data.text==='string'?data.text.replace(/\s+/g,' ').trim():'';
         const member=state.members.find(m=>m.user_id===from);
@@ -1187,6 +1274,13 @@
         }
       } else if(signal.kind==='bye')closePeer(from);
     }else if(isPhoneSingerRole()&&from===state.room.owner_id){
+      if(signal.kind==='host-remote-ack'&&state.role==='remote'){
+        if(data.id&&state.remotePending.has(data.id)){
+          state.remotePending.delete(data.id);
+          $('tg18-remote-feedback').textContent='✅ TV recebeu: '+String(data.command||'comando');
+        }
+        return;
+      }
       if(signal.kind==='stage-prepare'){
         if(Date.now()-Number(data.sentAt||0)>95000)return;
         if(!state.songs.some(s=>s.id===data.songId&&s.status==='queued'&&isSinger(s,state.user.id)))await fetchSongs();
@@ -1195,7 +1289,12 @@
         state.guestPreflightSong={id:data.songId,token:data.token,title:data.title};
         renderGuestPreflight();if(state.role==='guest')switchMobileTab('mic');if(!state.guestReady)openGuestCall();await notifyPreflightGuest();renderRemoteMic();return;
       }
-      if(signal.kind==='stage-prepare-cancel'&&state.guestPreflightSong?.id===data.songId&&state.guestPreflightSong?.token===data.token){state.guestPreflightSong=null;state.guestReady=false;renderGuestPreflight();closeGuestCall();return;}
+      if(signal.kind==='stage-prepare-cancel'&&state.guestPreflightSong?.id===data.songId&&state.guestPreflightSong?.token===data.token){
+        state.guestPreflightSong=null;state.guestReady=false;
+        if(data.started===true){try{await fetchSongs();}catch(err){console.warn('Início do show:',err);}}
+        else if(!isMyTurn()&&state.localStream)void stopMicrophone(true);
+        renderGuestPreflight();renderGuestCallVisibility();closeGuestCall();return;
+      }
       const pc=state.localPeer;
       if(signal.kind==='answer'&&pc) {await pc.setRemoteDescription(new RTCSessionDescription(data));await flushCandidates(from,pc);}
       else if(signal.kind==='candidate') {
@@ -1227,13 +1326,22 @@
   }
   function openMicPermission(){
     if(!isPhoneSingerRole())return;
-    if(state.localStream){void stopMicrophone(true);return;}
-    if(!navigator.mediaDevices?.getUserMedia){toast('Microfone exige HTTPS, permissão e navegador compatível.',true);return;}
-    $('mic-permission-dialog').showModal();
+    if(!callActive()){toast('A Diva libera o microfone quando chegar sua chamada. Enquanto isso, escolha músicas!');return;}
+    if(availableMic()){
+      if(state.guestPreflightSong&&!state.guestReady){state.guestReady=true;void notifyPreflightGuest();renderGuestPreflight();renderRemoteMic();closeGuestCall();}
+      else toast('Seu microfone já está ativado. Para desligar, toque no botão do microfone.');
+      return;
+    }
+    if(!navigator.mediaDevices?.getUserMedia){toast('Microfone exige HTTPS e navegador compatível.',true);return;}
+    // Chamada direta de getUserMedia a partir do clique: sem modal intermediário.
+    void startMicrophone();
   }
-  async function toggleMic(){openMicPermission();}
+  async function toggleMic(){
+    if(availableMic()){await stopMicrophone(true);return;}
+    openMicPermission();
+  }
   async function startMicrophone(){
-    if(!state.room||!isPhoneSingerRole())return;
+    if(!state.room||!isPhoneSingerRole()||!callActive())return;
     if(!navigator.mediaDevices?.getUserMedia){toast('Microfone exige HTTPS (ou localhost) e navegador compatível.',true);return;}
     const btn=$('mic-toggle');btn.disabled=true;
     try{
@@ -1259,7 +1367,8 @@
       $('mic-capture-state').textContent='🎙️ Microfone ligado • fale ou cante para testar';
       $('mic-volume-title').textContent='NÍVEL DO SOM • CAPTAÇÃO LOCAL';
       if(isMyTurn()){const playing=state.songs.find(s=>s.status==='playing');if(playing)resetLocalMicActivity(playing.id);await connectMicToStage();}
-      renderGuestPreflight();renderRemoteMic();if(state.guestPreflightSong&&!state.guestReady)openGuestCall();void notifyPreflightGuest();
+      if(state.guestPreflightSong){state.guestReady=true;closeGuestCall();toast('✅ Microfone autorizado! A Diva avisou ao anfitrião que você está pronto(a).');}
+      renderGuestPreflight();renderRemoteMic();void notifyPreflightGuest();
     }catch(err){console.error(err);toast(humanError(err),true);await stopMicrophone(false);}finally{btn.disabled=false;}
   }
   async function connectMicToStage(){
@@ -1309,6 +1418,11 @@
     let power=0;for(let i=0;i<values.length;i++)power+=values[i]*values[i];
     return Math.sqrt(power/values.length);
   }
+  function drawRemoteLevels(value){
+    const list=$('tg19-remote-levels')?.children||[];
+    const count=Math.round(Math.min(1,value/.12)*list.length);
+    Array.from(list).forEach((bar,i)=>{bar.classList.toggle('lit',i<count);bar.style.height=(i<count?Math.min(100,20+value*500+(i%3)*7):10)+'%';});
+  }
   function drawMobileLevels(value){
     const bars=$('guest-levels')?.children||[];
     const count=Math.round(Math.min(1,value/.12)*bars.length);
@@ -1349,7 +1463,7 @@
   }
   function sampleAudio(){
     sampleSoloMic();
-    if(isPhoneSingerRole()&&state.localAnalyzer){const rms=calculateRMS(state.localAnalyzer);drawMobileLevels(rms);collectLocalMicActivity(rms);if(state.role==='remote'&&((state.remoteMicTick=(state.remoteMicTick||0)+1)%14===0))renderRemoteMic();}
+    if(isPhoneSingerRole()&&state.localAnalyzer){const rms=calculateRMS(state.localAnalyzer);drawMobileLevels(rms);collectLocalMicActivity(rms);if(state.role==='remote'){drawRemoteLevels(rms);if(((state.remoteMicTick=(state.remoteMicTick||0)+1)%14===0))renderRemoteMic();}}
     if(state.role!=='host')return;
     if(state.isPlaying&&state.currentSong)state.songFrames=(state.songFrames||0)+1;
     state.peers.forEach((entry,uid)=>{
@@ -2162,7 +2276,7 @@ function renderFullCatalog(){
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
     hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;nextGuestRecadoAt=0;
     state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
-    state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing');
+    state.remotePending.clear();state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing');
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
   async function leaveGuest(){
@@ -2367,17 +2481,32 @@ function renderFullCatalog(){
     $('settings-contrast').addEventListener('change',e=>toggleContrast(e.target.checked));
     $('contrast-toggle').addEventListener('click',()=>toggleContrast(!document.body.classList.contains('high-contrast')));
     $('tg18-solo-button').addEventListener('click',()=>void toggleSoloMic());
-    $('tg18-remote-open').addEventListener('click',()=>{if(state.room)void enterRoomAsRemote(state.room);});
+    $('tg18-remote-open').addEventListener('click',()=>{
+      if(!state.room)return;
+      const url=new URL(currentURL(state.room.code));url.searchParams.set('remote','1');
+      const message='Abra ESTE endereço no celular, entre na mesma conta e escolha a aba Controle: '+url.href;
+      if(navigator.clipboard?.writeText){navigator.clipboard.writeText(url.href).then(()=>toast('📱 Link do controle copiado! Abra no seu celular.')).catch(()=>window.prompt(message,url.href));}
+      else window.prompt(message,url.href);
+    });
     $('tg18-remote-back').addEventListener('click',()=>void goToMyRooms());
     $('tg18-remote-music').addEventListener('click',()=>void openFullCatalog());
     $('tg18-remote-rename').addEventListener('click',()=>void renameRemoteSinger());
+    $('tg19-tab-control').addEventListener('click',()=>switchRemoteTab('control'));
+    $('tg19-tab-singing').addEventListener('click',()=>switchRemoteTab('singing'));
+    $('tg19-remote-queue-list').addEventListener('click',event=>{
+      const prepare=event.target.closest('[data-tg19-prepare]');
+      if(prepare){void remoteCommand('prepare-song',null,prepare.dataset.tg19Prepare);return;}
+      const remove=event.target.closest('[data-tg19-remove]');
+      if(remove)void remoteRemoveSong(remove.dataset.tg19Remove);
+    });
     $('tg18-remote-stage').addEventListener('click',()=>{if(isMyTurn()){toast('Termine sua música antes de trocar o celular para o modo palco.',true);return;}if(state.room)void enterRoomAsHost(state.room);});
-    $('tg18-remote-mic-toggle').addEventListener('click',()=>openMicPermission());
-    $('tg18-remote-mic-ready').addEventListener('click',()=>{if(!state.guestPreflightSong||!availableMic()){toast('Ative seu microfone e aguarde sua chamada.',true);return;}state.guestReady=true;renderGuestPreflight();void notifyPreflightGuest();closeGuestCall();renderRemoteMic();toast('✅ Pronto(a)! Seu celular vai cantar e continuar controlando a festa.');});
+    $('tg18-remote-mic-toggle').addEventListener('click',()=>void toggleMic());
+    $('tg18-remote-mic-ready').addEventListener('click',openMicPermission);
     document.querySelectorAll('[data-tg18-command]').forEach(b=>b.addEventListener('click',()=>void remoteCommand(b.dataset.tg18Command)));
     for(const [id,cmd] of [['tg18-remote-playback','playback-volume'],['tg18-remote-mics','mic-volume']])$(id).addEventListener('change',e=>void remoteCommand(cmd,Number(e.target.value)));
-    $('tg18-turn-mic').addEventListener('click',()=>{closeGuestCall();if(state.role==='guest')switchMobileTab('mic');openMicPermission();});
-    $('tg18-turn-ready').addEventListener('click',()=>{if(!availableMic()){toast('Microfone ainda desligado.',true);return;}state.guestReady=true;renderGuestPreflight();void notifyPreflightGuest();closeGuestCall();toast('✅ Pronto(a)! O host foi avisado.');});
+    $('tg19-remote-vocal-gain').addEventListener('input',event=>{const value=Number(event.target.value);$('guest-mic-gain').value=String(value);$('guest-mic-gain').dispatchEvent(new Event('input',{bubbles:true}));});
+    $('tg18-turn-mic').addEventListener('click',()=>{if(state.role==='guest')switchMobileTab('mic');openMicPermission();});
+    $('tg18-turn-ready').addEventListener('click',openMicPermission);
     $('tg18-turn-dismiss').addEventListener('click',()=>{closeGuestCall();if(state.role==='guest')switchMobileTab('mic');else renderRemoteMic();});
     $('tg18-account-cta').addEventListener('click',()=>$('tg18-account-dialog').showModal());
     $('tg18-account-close').addEventListener('click',()=>$('tg18-account-dialog').close());
@@ -2387,6 +2516,8 @@ function renderFullCatalog(){
     $('tg18-install').addEventListener('click',installFromInvite);
     $('tg18-history-close').addEventListener('click',()=>$('tg18-history-dialog').close());
     $('tg18-push-cta').addEventListener('click',enableTurnPush);
+    $('tg19-push-shortcut').addEventListener('click',enableTurnPush);
+    $('tg19-remote-push').addEventListener('click',enableTurnPush);
     $('fullscreen-button').addEventListener('click',async()=>{
       try{if(document.fullscreenElement)await document.exitFullscreen();else await $('stage').requestFullscreen();}
       catch{toast('Tela cheia não disponível neste navegador.',true);}
@@ -2452,7 +2583,7 @@ function renderFullCatalog(){
     $('stage-preflight-cancel').addEventListener('click',()=>clearHostPreflight());
     $('stage-preflight-resend').addEventListener('click',()=>{updateVoxLine('reminder');void sendPreflightInvites(true);});
     $('guest-preflight-mic').addEventListener('click',()=>{switchMobileTab('mic');openMicPermission();});
-    $('guest-preflight-ready').addEventListener('click',()=>{if(!availableMic()){toast('Ative o microfone primeiro.',true);return;}state.guestReady=true;renderGuestPreflight();void notifyPreflightGuest();toast('Confirmação enviada ao anfitrião! ✅');});
+    $('guest-preflight-ready').addEventListener('click',openMicPermission);
     $('mobile-tab-score').addEventListener('click',openScoreboard);
     $('guest-all-scores').addEventListener('click',openScoreboard);
     $('edit-guest-profile').addEventListener('click',()=>{$('guest-profile-name').value=$('guest-display-name').textContent;$('guest-profile-dialog').showModal();});
@@ -2461,7 +2592,7 @@ function renderFullCatalog(){
     for(const id of ['open-stage-faq','open-guest-faq'])$(id).addEventListener('click',()=>$('faq-dialog').showModal());
     for(const id of ['faq-close','faq-done'])$(id).addEventListener('click',()=>$('faq-dialog').close());
     $('mic-toggle').addEventListener('click',toggleMic);
-    $('mic-confirm-permission').addEventListener('click',()=>{$('mic-permission-dialog').close();void startMicrophone();});
+    $('mic-confirm-permission').addEventListener('click',()=>{$('mic-permission-dialog').close();openMicPermission();});
     $('mic-cancel-permission').addEventListener('click',()=>$('mic-permission-dialog').close());
     $('go-mic-now').addEventListener('click',()=>{switchMobileTab('mic');$('mic-toggle').focus({preventScroll:true});});
     $('leave-party').addEventListener('click',leaveGuest);
@@ -2483,6 +2614,7 @@ function renderFullCatalog(){
   }
   function switchMobileTab(tab,push=true){
     if(state.guestMicLock&&tab!=='mic')return;
+    if(tab==='mic'&&!callActive()){toast('Seu microfone aparece quando a Diva chamar.');tab='queue';}
     if(!['mic','queue'].includes(tab))tab='queue';
     const before=state.mobileTab;state.mobileTab=tab;
     const mic=tab==='mic';$('guest-mic-panel').hidden=!mic;$('guest-queue-panel').hidden=mic;
