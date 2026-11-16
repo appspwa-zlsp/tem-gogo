@@ -1099,8 +1099,12 @@
   }
   function drawQR() {
     const holder=$('stage-qr');holder.replaceChildren();
-    if(window.QRCode){new window.QRCode(holder,{text:currentURL(state.room.code),width:176,height:176,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});}
-    else {holder.textContent='QR indisponível';toast('Biblioteca de QR Code não carregou. Compartilhe o código da sala.',true);}
+    const hostHolder=$('stage-host-qr');if(hostHolder)hostHolder.replaceChildren();
+    if(window.QRCode){
+      new window.QRCode(holder,{text:currentURL(state.room.code),width:176,height:176,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});
+      if(hostHolder){const controlUrl=new URL(currentURL(state.room.code));controlUrl.searchParams.set('remote','1');new window.QRCode(hostHolder,{text:controlUrl.href,width:176,height:176,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});}
+    }
+    else {holder.textContent='QR indisponível';if(hostHolder)hostHolder.textContent='QR indisponível';toast('Biblioteca de QR Code não carregou. Compartilhe o código da sala.',true);}
   }
   function queueChanged(){clearTimeout(state.roomReloadTimer);state.roomReloadTimer=setTimeout(()=>{void refreshRoomSnapshot();},180);}
   async function subscribeRoom(){

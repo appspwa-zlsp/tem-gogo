@@ -116,3 +116,23 @@ body.tg18-singing #guest .tg19-push-shortcut{display:none!important}
 #tg18-remote .tg19-remote-queue-actions button{font-size:12px;min-height:36px;padding:7px 9px;min-width:36px}
 #tg18-remote .tg19-remote-queue-empty{color:#e3d0eb;font-size:13px;text-align:center;padding:10px 4px;margin:0}
 @media(max-width:350px){#tg18-remote .tg19-remote-queue-item{flex-wrap:wrap}#tg18-remote .tg19-remote-queue-actions{width:100%;justify-content:end}}
+
+
+/* Rodapé do palco: ações com nome visível + QR do controle do anfitrião. */
+#stage .tg19-stage-footer{align-items:stretch;justify-content:flex-start}
+#stage .tg19-host-remote-card{flex:1 1 360px;max-width:520px;display:grid;grid-template-columns:minmax(0,1.2fr) 164px;gap:14px;padding:16px;border:1px solid #ffffff29;border-radius:22px;background:linear-gradient(145deg,#2a1237,#170c24);box-shadow:0 10px 32px rgba(0,0,0,.18)}
+#stage .tg19-host-remote-copy{display:grid;align-content:start;gap:8px}
+#stage .tg19-host-remote-copy h3{margin:0;font-size:clamp(22px,2vw,28px);line-height:1.05}
+#stage .tg19-host-remote-copy p{margin:0;color:#dbcfe3;font-size:12px;line-height:1.45}
+#stage .tg19-host-remote-action{display:grid;gap:10px;align-content:start}
+#stage .tg19-host-remote-qr{padding:10px;border-radius:16px;background:#fff;display:grid;place-items:center;min-width:0}
+#stage .tg19-host-remote-qr .tg19-host-qr-box{width:136px;height:136px;margin:0}
+#stage .tg19-host-remote-qr .tg19-host-qr-box canvas,#stage .tg19-host-remote-qr .tg19-host-qr-box img{width:136px!important;height:136px!important;max-width:136px!important;max-height:136px!important}
+#stage .tg19-stage-tool-grid{flex:1 1 320px;display:grid;grid-template-columns:repeat(2,minmax(160px,1fr));gap:10px;align-content:start}
+#stage .tg19-stage-action{width:100%;justify-content:flex-start;gap:10px;padding:12px 14px;font-size:13px;font-weight:800;border-radius:16px;white-space:normal;text-align:left}
+#stage .tg19-stage-action-icon{font-size:18px;line-height:1;display:inline-flex;align-items:center;justify-content:center;min-width:20px}
+#stage .tg19-stage-tool-grid .open-settings{display:flex}
+@media(max-width:1100px){#stage .tg19-host-remote-card{grid-template-columns:minmax(0,1fr) 154px}#stage .tg19-host-remote-qr .tg19-host-qr-box,#stage .tg19-host-remote-qr .tg19-host-qr-box canvas,#stage .tg19-host-remote-qr .tg19-host-qr-box img{width:124px!important;height:124px!important;max-width:124px!important;max-height:124px!important}}
+@media(max-width:820px){#stage .tg19-stage-tool-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#stage .tg19-host-remote-card{max-width:none}}
+@media(max-width:740px){#stage .tg19-stage-footer{gap:12px}#stage .tg19-host-remote-card{grid-template-columns:1fr;max-width:none}#stage .tg19-host-remote-action{grid-template-columns:1fr;justify-items:center}#stage .tg19-stage-tool-grid{grid-template-columns:1fr 1fr;width:100%}}
+@media(max-width:480px){#stage .tg19-stage-tool-grid{grid-template-columns:1fr}#stage .tg19-stage-action{font-size:12px;padding:11px 12px}}
