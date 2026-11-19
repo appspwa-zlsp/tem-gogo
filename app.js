@@ -80,7 +80,7 @@
   async function remoteRemoveSong(songId){
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
     const song=state.songs.find(s=>s.id===songId&&s.status==='queued');
-    if(!song||!window.confirm('Remover “'+song.title+'” da fila?'))return;
+    if(!song||!await window.TG_UI.confirm('Remover “'+song.title+'” da fila?',{title:'Organizar fila',confirmText:'Remover música',danger:true}))return;
     try{await callRPC('karaoke_remove_song',{p_room:state.room.id,p_song:song.id});await fetchSongs();toast('Música removida da fila.');}
     catch(err){toast('Não foi possível remover a música: '+humanError(err),true);}
   }
@@ -103,8 +103,8 @@
   async function renameRemoteSinger(){
     if(state.role!=='remote'||!state.room||state.room.owner_id!==state.user?.id)return;
     const current=state.members.find(m=>m.user_id===state.user.id)?.display_name||'Anfitrião';
-    const name=window.prompt('Como quer aparecer na fila e no placar?',current)?.trim();
-    if(name===undefined||name===current)return;
+    const answer=await window.TG_UI.prompt('Como quer aparecer na fila e no placar?',current,'Nome de cantor');const name=answer?.trim();
+    if(name==null||name===current)return;
     if(name.length<2||name.length>24){toast('Use um apelido de 2 a 24 caracteres.',true);return;}
     try{
       const {data,error}=await state.client.from('karaoke_members').update({display_name:name})
@@ -432,7 +432,7 @@
     const singers=songSingers(pre.song);
     const ready=singers.every(uid=>{const s=pre.statuses.get(uid);return s?.ready&&s?.mic&&Date.now()-s.at<25000;});
     if(!ready&&!override){toast('Aguarde o microfone e a confirmação de todas as pessoas.',true);return;}
-    if(!ready&&override&&!window.confirm('Iniciar sem todos prontos? As pessoas sem microfone podem ficar sem voz ou nota.'))return;
+    if(!ready&&override&&!await window.TG_UI.confirm('Iniciar sem todos prontos? As pessoas sem microfone podem ficar sem voz ou nota.',{title:'Liberar apresentação',confirmText:'Iniciar mesmo assim'}))return;
     pre.starting=true;renderPreflightHost();
     const song=pre.song;
     // startSong retorna erro tratado internamente; confira no estado antes de encerrar o preparo.
@@ -936,8 +936,8 @@
         card.addEventListener('click',async()=>{
           if(finished){try{showPartyRecap(await callRPC('karaoke_get_party_recap',{p_room:room.id}));}catch(error){toast(humanError(error),true);}return;}
           if(host && matchMedia('(max-width: 750px)').matches){
-            const remote=window.confirm('Usar este celular como CONTROLE REMOTO da TV?\n\nOK = controle remoto (sem vídeo)\nCancelar = abrir o palco neste aparelho');
-            if(remote)await enterRoomAsRemote(room);else await enterRoomAsHost(room);
+            const choice=await window.TG_UI.choose({title:'Como vai usar este aparelho?',message:'A TV pode continuar no palco enquanto você controla a festa ou canta pelo celular.',choices:[{label:'🎛️ Controle no celular',value:'remote',primary:true},{label:'📺 Abrir palco aqui',value:'stage'}]});
+            if(choice==='remote')await enterRoomAsRemote(room);else if(choice==='stage')await enterRoomAsHost(room);
           }else if(host)await enterRoomAsHost(room);
           else await enterRoomAsGuest(room,names.get(room.id)||localStorage.getItem('tem-gogo-display-name')||'Estrela');
         });
@@ -948,7 +948,7 @@
     }
   }
   async function goToMyRooms(){
-    if(state.role==='host' && state.currentSong && !confirm('Ao trocar de sala neste aparelho, o vídeo e o som do palco serão interrompidos. Sua festa continuará aberta. Deseja sair desta tela?'))return;
+    if(state.role==='host' && state.currentSong && !await window.TG_UI.confirm('Ao trocar de sala neste aparelho, o vídeo e o som do palco serão interrompidos. A festa continuará aberta.',{title:'Trocar de sala',confirmText:'Sair desta tela'}))return;
     await stopSession();
     history.replaceState(null,'',new URL('./',location.href).href);
     if(state.user)await openLobby();
@@ -2553,7 +2553,7 @@ function renderFullCatalog(){
   }
   async function exitStage(){
     if(state.role!=='host'||!state.room)return;
-    if(!window.confirm('Encerrar a festa e apresentar o TOP 3? A fila será encerrada.'))return;
+    if(!await window.TG_UI.confirm('Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:'Finalizar a festa',confirmText:'Encerrar festa',danger:true}))return;
     const id=state.room.id;
     try{
       // Uma música ainda tocando será registrada como interrompida, sem nota inventada.
@@ -2714,8 +2714,8 @@ function renderFullCatalog(){
       if(!state.room)return;
       const url=new URL(currentURL(state.room.code));url.searchParams.set('remote','1');
       const message='Abra ESTE endereço no celular, entre na mesma conta e escolha a aba Controle: '+url.href;
-      if(navigator.clipboard?.writeText){navigator.clipboard.writeText(url.href).then(()=>toast('📱 Link do controle copiado! Abra no seu celular.')).catch(()=>window.prompt(message,url.href));}
-      else window.prompt(message,url.href);
+      if(navigator.clipboard?.writeText){navigator.clipboard.writeText(url.href).then(()=>toast('📱 Link do controle copiado! Abra no seu celular.')).catch(()=>void window.TG_UI.shareLink(message,url.href));}
+      else void window.TG_UI.shareLink(message,url.href);
     });
     $('tg18-remote-back').addEventListener('click',()=>void goToMyRooms());
     $('tg18-remote-music').addEventListener('click',()=>void openFullCatalog());
@@ -2770,11 +2770,11 @@ function renderFullCatalog(){
       $('volume-label').textContent=event.target.value+'%';
       state.peers.forEach(record=>{if(record.gain)record.gain.gain.value=state.masterGain;});
     });
-    $('queue-list').addEventListener('click',e=>{
+    $('queue-list').addEventListener('click',async e=>{
       const remove=e.target.closest('[data-remove-song]');
       if(remove){
         const target=state.songs.find(s=>s.id===remove.dataset.removeSong);
-        if(!target||!window.confirm('Tirar esta música da fila?'))return;
+        if(!target||!await window.TG_UI.confirm('Tirar esta música da fila?',{title:'Organizar fila',confirmText:'Remover música',danger:true}))return;
         callRPC('karaoke_remove_song',{p_room:state.room.id,p_song:target.id})
           .then(()=>{toast('Música retirada da fila.');queueChanged();})
           .catch(err=>toast(humanError(err),true));
