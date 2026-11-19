@@ -1,5 +1,5 @@
-const CACHE='tem-gogo-shell-v19-remote-push-mic-rev1';
-const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./visual-v18.css','./visual-v19.css','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='tem-gogo-shell-v19-3-tour-suporte-rev1';
+const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./visual-v18.css','./visual-v19.css','./refinamento-v19-2.css','./tour-suporte-v19-3.css','./bora-pro-role-logo.png','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });

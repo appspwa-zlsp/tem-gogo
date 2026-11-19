@@ -1,0 +1,45 @@
+
+/* Tem Gogó 19.3: suporte/tour discretos, sem afetar vídeo, fila, QR ou microfone */
+#stage .tg193-help-tools{flex:1 1 100%;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;order:-1}
+.tg193-help-tools{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin:12px 0}
+.tg193-help-button,#tg18-remote .tg193-remote-help button{border:1px solid rgba(255,255,255,.25);border-radius:14px;background:#22132c;color:#f5e9fc;padding:10px 13px;font:700 12px 'DM Sans',sans-serif;cursor:pointer;min-height:44px}
+.tg193-help-button:hover,.tg193-help-button:focus-visible,#tg18-remote .tg193-remote-help button:focus-visible{border-color:#cbff83;outline-offset:3px}
+#tg18-remote .tg193-remote-help{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+#tg18-remote .tg193-remote-help button{min-height:38px;font-size:11px;padding:7px 9px}
+.tg193-tour-dialog,.tg193-support-dialog{max-width:min(96vw,560px)}
+.tg193-tour-dialog .modal-inner,.tg193-support-dialog .modal-inner{position:relative;padding:clamp(18px,4vw,29px);max-height:min(86dvh,800px);overflow-y:auto}
+.tg193-tour-progress{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#d2f8b3;margin:12px 0}
+#tg193-tour-bars{display:flex;gap:5px;flex:1;max-width:210px}
+#tg193-tour-bars i{display:block;flex:1;height:5px;background:#ffffff28;border-radius:9px}
+#tg193-tour-bars i.active{background:#caff76}
+.tg193-tour-dialog .tg193-tour-diva{float:right;object-fit:contain;width:clamp(95px,30%,150px);max-height:190px;margin:0 -6px 4px 8px}
+.tg193-tour-dialog h2{font-size:clamp(24px,6vw,37px);line-height:1.06;margin:18px 0 8px}
+.tg193-tour-dialog p{font-size:15px;line-height:1.55;white-space:pre-line;color:#efdef3}
+.tg193-tour-actions{display:flex;gap:8px;clear:both;margin:20px 0 12px;flex-wrap:wrap}
+.tg193-tour-actions .button{flex:1;min-width:90px}
+.tg193-support-dialog form{display:grid;gap:9px;margin:14px 0}
+.tg193-support-dialog form label{font-size:12px;font-weight:800;margin-top:5px}
+.tg193-support-dialog form :is(input,textarea,select){box-sizing:border-box;width:100%;min-height:44px;border-radius:12px;color:#f9f0fc;background:#1b1230;border:1px solid #ad86c46c;padding:10px;font:inherit}
+.tg193-support-dialog form small{font-size:11px;color:#cbbdd3;line-height:1.4}
+.tg193-support-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:18px 0 10px}
+.tg193-support-tabs button{padding:11px 8px;min-height:44px;color:#fff;border:1px solid #aa87be5c;border-radius:12px;background:#241432;font-weight:800}
+.tg193-support-tabs button[aria-selected=true]{background:#47305d;border-color:#ceff86}
+#tg193-support-feedback{font-size:12px;color:#eaffad;min-height:20px}
+#tg193-support-tickets{display:grid;gap:10px;margin:13px 0}
+.tg193-ticket{border-radius:13px;border:1px solid #ffffff29;padding:13px;background:#251a36}
+.tg193-ticket>header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.tg193-ticket>header strong{font-size:14px;overflow-wrap:anywhere}
+.tg193-ticket small{color:#c7b8d2;font-size:11px}
+.tg193-ticket .tg193-status{font-size:10px;border-radius:20px;padding:5px 8px;background:#583b7a;color:white;font-weight:800}
+.tg193-ticket .tg193-replies{display:grid;gap:8px;margin:12px 0}
+.tg193-ticket .tg193-reply{border-left:3px solid #b0e98c;padding:6px 10px;background:#ffffff08;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.tg193-ticket .tg193-reply.staff{border-color:#ff9cc1}
+.tg193-ticket form{display:flex;gap:8px;flex-wrap:wrap}
+.tg193-ticket form textarea{flex:1 1 180px}
+.tg193-ticket form button{flex:0 0 auto;align-self:end}
+#tg193-support-list[hidden],#tg193-support-new[hidden]{display:none!important}
+@media(max-width:520px){#stage .tg193-help-tools{gap:6px}#stage .tg193-help-button{padding:8px 10px}#tg18-remote .tg193-remote-help{width:100%;justify-content:center}.tg193-tour-dialog .tg193-tour-diva{width:104px}.tg193-tour-actions .button{font-size:12px}}
+
+#landing>.tg193-help-tools{margin:3px auto 8px}#lobby>.tg193-help-tools{padding:8px 16px;margin:0;justify-content:end}
+/* Pequena projeção de sombra/pseudo-elemento do controle, sem permitir rolagem lateral */
+#tg18-remote{max-width:100vw;overflow-x:clip}
