@@ -50,7 +50,9 @@
   }
   function switchRemoteTab(tab='control'){
     if(state.role!=='remote')return;
-    const next=tab==='singing'?'singing':'control';state.remoteTab=next;
+    const next=tab==='singing'?'singing':'control';
+    if((state.guestPreflightSong||isMyTurn())&&next==='control')return;
+    state.remoteTab=next;
     for(const [name,id] of [['control','tg19-remote-control'],['singing','tg19-remote-singing']]){
       const panel=$(id),button=$('tg19-tab-'+name),active=name===next;
       panel.hidden=!active;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));
@@ -90,11 +92,16 @@
     const called=Boolean(state.guestPreflightSong);
     const active=Boolean(playing);
     document.body.classList.toggle('tg18-remote-singing',active);
+    document.body.classList.toggle('tg103-remote-mic-focus',called||active);
+    if(called||active){if(state.remoteTab!=='singing')switchRemoteTab('singing');}
+    else if(state.remoteTab==='singing')switchRemoteTab('control');
     panel.hidden=!called&&!active;
     $('tg19-remote-idle').hidden=called||active;
     $('tg18-remote-song').textContent=playing?.title||state.guestPreflightSong?.title||'Sua próxima música';
     $('tg18-remote-mic-title').textContent=active?'VOCÊ ESTÁ CANTANDO!':'VOCÊ É O PRÓXIMO!';
-    $('tg18-remote-mic-status').textContent=!availableMic()?'Microfone desligado':state.localPeer?.connectionState==='connected'?'Ao vivo · TV conectada':state.guestReady?'Pronto(a) · aguardando TV':'Autorizado · conectando';
+    $('tg18-remote-mic-status').classList.toggle('tg103-status-on',availableMic());
+    $('tg18-remote-mic-status').classList.toggle('tg103-status-off',!availableMic());
+    $('tg18-remote-mic-status').textContent=!availableMic()?'🔴 MICROFONE DESLIGADO':state.localPeer?.connectionState==='connected'?'Ao vivo · TV conectada':state.guestReady?'Pronto(a) · aguardando TV':'Autorizado · conectando';
     const micAction=availableMic()?'Desligar microfone':called?'Ativar mic e ficar pronto(a)':'Ativar microfone';$('tg192-remote-mic-action').textContent=micAction;$('tg18-remote-mic-toggle').setAttribute('aria-label',micAction);$('tg18-remote-mic-toggle').classList.toggle('active',availableMic());
     const ready=$('tg18-remote-mic-ready');ready.hidden=true;
     $('tg18-remote-mic-note').textContent=active?'Seu áudio está sendo enviado à TV por WebRTC; a nota vem do medidor deste celular. O controle permanece acessível na outra aba.':called?'Um toque autoriza seu microfone e avisa o anfitrião automaticamente. A TV só libera o vídeo quando todos estiverem preparados.':'Sua voz só é capturada quando a Diva chamar.';
@@ -174,6 +181,7 @@
       ctx.createMediaStreamSource(stream).connect(analyser);await ctx.resume();
       state.soloMic={stream,ctx,analyser,samples:0,vocal:0,volume:0,last:0,songId:null};
       $('tg192-solo-dock').hidden=false;
+      $('tg192-solo-label').textContent='MIC SOLO ATIVO';
       stream.getAudioTracks().forEach(t=>t.onended=()=>stopSoloMic());
       $('tg18-solo-button').textContent='🎙️ Desligar microfone solo';
       $('tg18-solo-status').textContent='🟢 Mic ativo no celular · áudio não sai pelos alto-falantes para evitar eco';
@@ -183,6 +191,7 @@
   function stopSoloMic(){
     const m=state.soloMic;if(!m)return;state.soloMic=null;$('tg192-solo-dock').hidden=true;
     m.stream.getTracks().forEach(t=>t.stop());m.ctx.close().catch(()=>{});
+    if(document.body.classList.contains('tg104-single-device')){$('tg192-solo-dock').hidden=false;$('tg192-solo-label').textContent='MIC SOLO DESLIGADO';}
     $('tg18-solo-button').textContent='🎙️ Ativar microfone solo';
     $('tg18-solo-status').textContent='Microfone solo desligado';
   }
@@ -213,6 +222,7 @@
     try{
       const {error}=await state.client.auth.updateUser({email});if(error)throw error;localStorage.setItem('tem-gogo-upgrading-account','1');
       $('tg18-account-feedback').textContent='Confira sua caixa de entrada e confirme o e-mail. Depois da confirmação, defina sua senha no menu de conta. Não saia da conta anônima antes de concluir!';
+      $('tg18-account-email').value='';
       toast('E-mail de confirmação solicitado. Sua identidade atual foi preservada.');
     }catch(err){$('tg18-account-feedback').textContent=humanError(err);}
     finally{setLoading(btn,false);}
@@ -375,6 +385,9 @@
     $('tg16-mic-shortcut').hidden=!called;
     document.querySelector('#guest .guest-show-mic').hidden=!called;
     $('guest-preflight').hidden=!state.guestPreflightSong;
+    state.guestMicLock=called;
+    document.body.classList.toggle('tg103-mic-focus',called);
+    if(called && state.mobileTab!=='mic')switchMobileTab('mic',false);
     $('guest-mic-panel').hidden=!called||state.mobileTab!=='mic';
     if(!called&&state.mobileTab==='mic')switchMobileTab('queue',false);
   }
@@ -460,7 +473,9 @@
   function toast(message, error = false) {
     const node = $('toast'); node.textContent = message;
     node.classList.toggle('error', error); node.classList.add('visible');
-    clearTimeout(toast.timer); toast.timer = setTimeout(() => node.classList.remove('visible'), 4200);
+    // Erros de encerramento e mensagens longas precisam de tempo para leitura no celular.
+    const visibleMs = error && String(message).length > 110 ? 11000 : 4200;
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => node.classList.remove('visible'), visibleMs);
   }
   function humanError(err) {
     const msg = String(err?.message || err || 'Ocorreu um erro inesperado.');
@@ -469,7 +484,12 @@
     if (/user already registered/i.test(msg)) return 'Esse e-mail já está cadastrado. Tente entrar.';
     if (/password should be at least/i.test(msg)) return 'Escolha uma senha com pelo menos 6 caracteres.';
     if (/rate limit|too many requests/i.test(msg)) return 'Muitas tentativas. Aguarde e tente novamente.';
-    if (/permission denied|notallowederror/i.test(msg)) return 'Microfone bloqueado. Libere a permissão nas configurações do navegador.';
+    // Mensagens do PostgreSQL/PostgREST não são falhas de permissão do microfone.
+    // NotAllowedError é produzido pela API de mídia do navegador.
+    if (['NotAllowedError','PermissionDeniedError','SecurityError'].includes(String(err?.name||'')) || /notallowederror|permission denied by user|permission dismissed|microphone permission/i.test(msg))
+      return 'Microfone bloqueado. Libere a permissão nas configurações do navegador.';
+    if (String(err?.code||'')==='42501' || /permission denied|row.level security|insufficient.privilege|not authorized|unauthorized/i.test(msg))
+      return 'Acesso negado pelo Supabase. Confira a conta conectada e as permissões para esta operação.';
     if (/notfounderror/i.test(msg)) return 'Nenhum microfone foi encontrado no celular.';
     if (/network|failed to fetch/i.test(msg)) return 'Falha de conexão. Confira sua internet e o Supabase.';
     return msg;
@@ -699,7 +719,7 @@
   function showRemoteLogin(code){
     show('landing');document.body.classList.remove('invite-active','entry-active');
     $('invite-welcome').hidden=true;$('access-tabs').hidden=false;
-    $('tab-host').click();$('auth-state').textContent='📱 Controle do anfitrião: entre com a mesma conta usada na TV. Seu acesso abrirá a aba Controle.';
+    $('tab-host').click();$('auth-state').textContent='🔐 Você precisa entrar primeiro com a mesma conta do anfitrião da TV. Depois do login, o Controle abrirá automaticamente.';
     if(code)localStorage.setItem('tem-gogo-pending-remote',code);
   }
   async function resumeRemoteAfterLogin(){
@@ -708,7 +728,7 @@
     const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id').eq('code',roomCode).eq('owner_id',state.user.id)
       .eq('status','open').gt('expires_at',new Date().toISOString()).maybeSingle();
     if(error)throw error;
-    if(!data)return false;
+    if(!data){$('auth-state').textContent='Este QR é exclusivo do anfitrião. Entre na conta que criou a festa na TV.';return false;}
     localStorage.removeItem('tem-gogo-pending-remote');
     await enterRoomAsRemote(data);return true;
   }
@@ -838,6 +858,7 @@
     initPWA();loadPreferences();renderAvatarOptions();
     document.getElementById('tg-beta-external-go')?.addEventListener('click',()=>{document.getElementById('catalog-dialog')?.close();document.getElementById('youtube-search')?.focus({preventScroll:false});});
     $('video-frame').appendChild($('stage-preflight'));
+    setupHostCockpit();
     attachEvents();tg193AttachEvents();
     state.recoveryIntent=isRecoveryReturn();
     const url=new URL(location.href);
@@ -882,7 +903,8 @@
       if(remoteIntent){
         if(state.user&&!isAnonymous(state.user)){
           if(!await resumeRemoteAfterLogin()){
-            await openLobby();toast('Este QR pertence a outra conta ou a uma festa encerrada.',true);
+            showRemoteLogin(linkRoom);
+            toast('Este QR é do anfitrião: entre com a mesma conta usada na TV.',true);
           }
         }else showRemoteLogin(linkRoom);
         return;
@@ -950,6 +972,7 @@
   async function goToMyRooms(){
     if(state.role==='host' && state.currentSong && !await window.TG_UI.confirm('Ao trocar de sala neste aparelho, o vídeo e o som do palco serão interrompidos. A festa continuará aberta.',{title:'Trocar de sala',confirmText:'Sair desta tela'}))return;
     await stopSession();
+    document.body.classList.remove('tg104-single-device');
     history.replaceState(null,'',new URL('./',location.href).href);
     if(state.user)await openLobby();
     else showGuestEntry('');
@@ -1011,6 +1034,7 @@
       state.readyRoom={room};
       $('ready-code').textContent=room.code;
       $('room-ready-dialog').showModal();
+      $('room-title').value='';
       await loadMyRooms();
     }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
   }
@@ -1285,7 +1309,7 @@
   function syncGuestTurn(playing){
     if(!isPhoneSingerRole())return;
     const mine=Boolean(playing&&isSinger(playing,state.user?.id));
-    document.body.classList.toggle('tg18-singing',mine);state.guestMicLock=mine;if(mine)closeGuestCall();
+    document.body.classList.toggle('tg18-singing',mine);state.guestMicLock=mine||Boolean(state.guestPreflightSong);if(mine)closeGuestCall();
     $('your-turn-banner').hidden=!mine;$('mic-turn-kicker').hidden=!mine;
     $('mic-card').classList.toggle('my-turn',mine);
     $('mobile-tab-mic').classList.toggle('turn-highlight',mine);
@@ -1553,7 +1577,10 @@
     void startMicrophone();
   }
   async function toggleMic(){
-    if(availableMic()){await stopMicrophone(true);return;}
+    if(availableMic()){
+      const yes=callActive()?await window.TG_UI.confirm('Seu microfone está ativo. Desligar agora? O palco deixará de receber sua voz até você ligá-lo novamente.',{title:'Desligar microfone?',confirmText:'Sim, desligar',danger:true}):true;
+      if(yes)await stopMicrophone(true);return;
+    }
     openMicPermission();
   }
   async function startMicrophone(){
@@ -1607,6 +1634,11 @@
     badge.classList.toggle('active',connection==='connected');
     badge.dataset.status=connection;
     $('mic-card').classList.toggle('stage-connected',connection==='connected');
+    $('mic-card').classList.toggle('tg103-mic-on',availableMic());
+    $('mic-card').classList.toggle('tg103-mic-off',!availableMic());
+    const statusCard=$('mic-card').querySelector('.tg103-mic-status-banner');
+    if(statusCard){statusCard.querySelector('strong').textContent=availableMic()?'MICROFONE LIGADO':'MICROFONE DESLIGADO';statusCard.querySelector('span:last-child').textContent=availableMic()?'Captando sua voz':'Toque no microfone para ligar';}
+    badge.textContent=availableMic()?(connection==='connected'?'🟢 LIGADO · AO VIVO':connection==='connecting'?'🟢 LIGADO · CONECTANDO':'🟢 LIGADO · CAPTANDO'):'🔴 DESLIGADO';
     if(connection==='failed')toast('WebRTC falhou. Confira a conexão ou configure um servidor TURN.',true);
     if(connection==='disconnected'||connection==='failed'){
       $('mic-capture-state').textContent='⚠ O celular capta, mas não está conectado à TV.';
@@ -1621,6 +1653,7 @@
     state.localAudioContext=null;state.localAnalyzer=null;state.micGainNode=null;
     state.micSendStream?.getTracks().forEach(track=>track.stop());state.micSendStream=null;
     const btn=$('mic-toggle');btn.classList.remove('active','voice-detected');btn.setAttribute('aria-label','Ativar microfone');
+    $('mic-card').classList.remove('tg103-mic-on');$('mic-card').classList.add('tg103-mic-off');
     $('mic-headline').textContent=isMyTurn()?'É sua vez! Ative seu microfone 🎤':'Preparado pro seu momento?';
     $('mic-description').textContent='Toque para autorizar o microfone. Antes da sua música, o som fica apenas no celular.';
     $('mic-volume-title').textContent='NÍVEL DO SOM • AGUARDANDO PERMISSÃO';
@@ -2505,7 +2538,7 @@ function renderFullCatalog(){
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
     hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;nextGuestRecadoAt=0;
     state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
-    state.remotePending.clear();state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing');
+    state.remotePending.clear();state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
   async function leaveGuest(){
@@ -2551,17 +2584,53 @@ function renderFullCatalog(){
       showPartyRecap(data);
     }catch(error){toast(humanError(error),true);}
   }
+  // O encerramento é uma operação de banco; nunca confundir recusa de autorização
+  // com permissão do microfone, nem descartar o placar se a limpeza local falhar.
+  function finalizePartyError(error){
+    const code=String(error?.code||'');
+    const message=String(error?.message||error||'');
+    if(code==='42501'||/permission denied|row.level security|not authorized|insufficient.privilege/i.test(message))
+      return 'O Supabase não autorizou o encerramento desta festa. Ela não foi marcada como encerrada. Confira se esta conta é a anfitriã; se persistir, verifique as permissões da função karaoke_finalize_party.';
+    if(code==='P0001'&&/manuten|maintenance|bloquead/i.test(message)||/Tem Gogó em manutenção geral/i.test(message))
+      return 'A manutenção geral está bloqueando o encerramento no banco. Desative a manutenção pela Central antes de tentar novamente.';
+    if(code==='PGRST202'||/function.*karaoke_finalize_party.*(not found|does not exist)/i.test(message))
+      return 'A função de encerramento não foi encontrada no Supabase. Confira a instalação do banco antes de tentar novamente.';
+    if(/failed to fetch|network|fetch error/i.test(message))
+      return 'Sem conexão com o Supabase. Confira a internet e tente novamente. Não é possível confirmar o encerramento agora.';
+    const reference=code?' (código '+code+')':'';
+    return 'Não foi possível confirmar o encerramento no Supabase'+reference+'. '+humanError(error);
+  }
   async function exitStage(){
     if(state.role!=='host'||!state.room)return;
+    if(state.finishing){toast('Concluindo a música atual. Aguarde um instante para encerrar a festa.');return;}
     if(!await window.TG_UI.confirm('Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:'Finalizar a festa',confirmText:'Encerrar festa',danger:true}))return;
+    if(state.role!=='host'||!state.room||state.finishing)return;
     const id=state.room.id;
+    const button=$('stage-exit');
+    state.finishing=true;
+    if(button)button.disabled=true;
     try{
-      // Uma música ainda tocando será registrada como interrompida, sem nota inventada.
-      const recap=await callRPC('karaoke_finalize_party',{p_room:id});
-      localStorage.setItem('tem-gogo-last-recap-room',id);
-      try{state.player?.stopVideo();}catch{}
-      await stopSession();await openLobby();showPartyRecap(recap);
-    }catch(err){toast('Não foi possível encerrar: '+humanError(err),true);}
+      let recap;
+      try{
+        // Só o retorno bem-sucedido da função no banco confirma a festa como encerrada.
+        recap=await callRPC('karaoke_finalize_party',{p_room:id});
+      }catch(error){
+        console.error('Tem Gogó: falha ao encerrar festa no Supabase',{
+          code:error?.code||null,message:error?.message||String(error),hint:error?.hint||null
+        });
+        toast(finalizePartyError(error),true);
+        return;
+      }
+      // Depois do sucesso no banco, nenhuma falha de limpeza pode esconder o placar.
+      try{localStorage.setItem('tem-gogo-last-recap-room',id);}catch(error){console.warn('Não foi possível guardar o atalho local do placar',error);}
+      try{state.player?.stopVideo();}catch(error){console.warn('Falha ao parar vídeo já encerrado',error);}
+      try{await stopSession();}catch(error){console.error('Festa encerrada no banco; falha ao limpar recursos locais',error);}
+      try{await openLobby();}catch(error){console.error('Festa encerrada no banco; falha ao atualizar Minhas festas',error);show('lobby');}
+      try{showPartyRecap(recap);}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
+    }finally{
+      state.finishing=false;
+      if(button)button.disabled=false;
+    }
   }
   async function logout(){
     if(state.client){const {error}=await state.client.auth.signOut();if(error){toast(humanError(error),true);return;}}
@@ -2709,6 +2778,7 @@ function renderFullCatalog(){
     $('effects-enabled').addEventListener('change',e=>{state.effectsEnabled=e.target.checked;localStorage.setItem('tem-gogo-effects',String(state.effectsEnabled));document.body.classList.toggle('effects-off',!state.effectsEnabled);});
     $('settings-contrast').addEventListener('change',e=>toggleContrast(e.target.checked));
     $('contrast-toggle').addEventListener('click',()=>toggleContrast(!document.body.classList.contains('high-contrast')));
+    $('tg103-solo-entry')?.addEventListener('click',startSingleDeviceMode);
     $('tg18-solo-button').addEventListener('click',()=>void toggleSoloMic());$('tg192-solo-off').addEventListener('click',()=>void toggleSoloMic());
     $('tg18-remote-open').addEventListener('click',()=>{
       if(!state.room)return;
@@ -2841,6 +2911,88 @@ function renderFullCatalog(){
       }
     });
   }
+  // BETA 1.0.4 — Cockpit modular do host: MOVE nós existentes, preserva IDs,
+  // listeners, playback YouTube, microfones, QR, ranking, fila e políticas.
+  function setupHostCockpit(){
+    const stage=$('stage'),layout=stage?.querySelector('.stage-layout'),main=stage?.querySelector('.stage-main');
+    if(!layout||!main||$('tg104-cockpit'))return;
+    const cockpit=document.createElement('section');cockpit.id='tg104-cockpit';cockpit.className='tg104-cockpit';
+    cockpit.setAttribute('aria-label','Cockpit do anfitrião');
+    cockpit.innerHTML=`<header class="tg104-cockpit-header"><div><small>✦ CENTRAL DO SHOW · TEM GOGÓ</small><h2>Comande seu palco</h2><p>Vídeo e QR continuam no ar enquanto você organiza a festa.</p></div><span class="tg104-cockpit-live">● MESA DO HOST</span></header>
+    <nav class="tg104-cockpit-tabs" role="tablist" aria-label="Ferramentas do anfitrião">
+      <button type="button" class="active" data-tg104-tab="mesa" role="tab" aria-selected="true">🎛️ Mesa</button>
+      <button type="button" data-tg104-tab="fila" role="tab" aria-selected="false">🎶 Fila</button>
+      <button type="button" data-tg104-tab="catalogo" role="tab" aria-selected="false">📚 Catálogo</button>
+      <button type="button" data-tg104-tab="sala" role="tab" aria-selected="false">⚙️ Sala e controle</button>
+    </nav>
+    <div class="tg104-cockpit-panels">
+      <section data-tg104-panel="mesa" class="tg104-panel tg104-show-panel" role="tabpanel"><div class="tg104-live-controls"></div><aside class="tg104-live-side"></aside></section>
+      <section data-tg104-panel="fila" class="tg104-panel tg104-queue-panel" role="tabpanel" hidden></section>
+      <section data-tg104-panel="catalogo" class="tg104-panel tg104-catalog-panel" role="tabpanel" hidden></section>
+      <section data-tg104-panel="sala" class="tg104-panel tg104-room-panel" role="tabpanel" hidden></section>
+    </div>`;
+    main.append(cockpit);
+    const move=(selector,panel)=>{const element=stage.querySelector(selector),parent=cockpit.querySelector(panel);if(element&&parent)parent.append(element);};
+    move('#tg17-console','.tg104-live-controls');
+    move('.singer-strip','.tg104-live-side');
+    move('.stage-rank-panel','.tg104-live-side');
+    move('.stage-sidebar','.tg104-queue-panel');
+    move('.stage-hit-library','.tg104-catalog-panel');
+    move('.tg19-host-remote-card','.tg104-room-panel');
+    move('.tg19-stage-tool-grid','.tg104-room-panel');
+    move('.tg19-stage-footer > .tg193-help-tools','.tg104-room-panel');
+    move('.tg192-bora-ad','.tg104-room-panel');
+    const footer=layout.querySelector(':scope > .tg19-stage-footer');if(footer)footer.remove();
+    const swap=tab=>{
+      for(const button of cockpit.querySelectorAll('[data-tg104-tab]')){
+        const chosen=button.dataset.tg104Tab===tab;
+        button.classList.toggle('active',chosen);button.setAttribute('aria-selected',String(chosen));
+      }
+      for(const panel of cockpit.querySelectorAll('[data-tg104-panel]'))panel.hidden=panel.dataset.tg104Panel!==tab;
+    };
+    cockpit.querySelectorAll('[data-tg104-tab]').forEach(button=>button.addEventListener('click',()=>swap(button.dataset.tg104Tab)));
+    // Dê acesso rápido à fila sem criar um segundo sistema de gerenciamento.
+    stage.querySelector('.stage-command')?.addEventListener('click',e=>{
+      if(e.target.closest('button,a,input'))return;
+      if(!state.currentSong&&!state.preflight)swap('fila');
+    });
+    // O QR de controle é acessível pela aba Sala; o QR dos convidados fica na tela.
+    stage.classList.add('tg104-cockpit-ready');
+  }
+
+  // Acesso seguro ao modo solo: não cria outro fluxo de música ou altera a pontuação.
+  async function startSingleDeviceMode(){
+    if(!state.client||!state.user||isAnonymous(state.user)){
+      toast('Entre com sua conta de anfitrião para cantar sozinho neste aparelho.',true);return;
+    }
+    const button=$('tg103-solo-entry');button.disabled=true;
+    try{
+      const {data,error}=await state.client.from('karaoke_rooms')
+        .select('id,code,title,owner_id,status,expires_at,current_song_id')
+        .eq('owner_id',state.user.id).eq('status','open')
+        .gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).limit(1);
+      if(error)throw error;
+      if(data?.length){
+        if(data[0].current_song_id){
+          const proceed=await window.TG_UI.confirm('Esta sala tem uma música em andamento. Abrir o palco aqui pode disputar a reprodução com a TV. Prefere aguardar e usar Controle no celular?',{title:'Sala já está tocando',confirmText:'Abrir palco neste aparelho',danger:true});
+          if(!proceed)return;
+        }
+        await enterRoomAsHost(data[0]);
+      }
+      else{
+        const results=await callRPC('karaoke_create_room',{p_title:'Meu show solo 🎤'});
+        if(!results?.[0]?.room_id)throw new Error('Não foi possível preparar sua sala solo.');
+        const x=results[0];await enterRoomAsHost({id:x.room_id,code:x.room_code,title:x.room_title,owner_id:state.user.id});
+      }
+      document.body.classList.add('tg104-single-device');
+      $('tg192-solo-dock').hidden=false;
+      $('tg192-solo-label').textContent='MODO SOLO · TOQUE EM ATIVAR MIC';
+      $('tg18-solo-status').textContent='🎤 Modo solo: toque em Ativar microfone solo. A letra continua no vídeo e sua nota usa a captação local.';
+      toast('Modo solo pronto! Ative o microfone para captar sua voz. O vídeo permanece em destaque.');
+      $('tg18-solo-button')?.focus({preventScroll:true});
+    }catch(err){toast('Não foi possível iniciar o modo solo: '+humanError(err),true);}
+    finally{button.disabled=false;}
+  }
   function switchMobileTab(tab,push=true){
     if(state.guestMicLock&&tab!=='mic')return;
     if(tab==='mic'&&!callActive()){toast('Seu microfone aparece quando a Diva chamar.');tab='queue';}
@@ -2853,6 +3005,14 @@ function renderFullCatalog(){
     if(push&&state.role==='guest'&&state.room&&before&&before!==tab)history.pushState({temGogo:true,view:'guest',tab},'',currentURL(state.room.code));
   }
 
+  // Bloqueio administrativo – recursos locais param quando o estado chega ao navegador.
+  window.TG_MAINTENANCE_STOP=async()=>{
+    try{if(state.player?.pauseVideo)state.player.pauseVideo();}catch(e){console.warn('Pausa por manutenção',e);}
+    try{await stopMicrophone(false);}catch(e){console.warn('Fechamento do microfone',e);}
+    try{if(state.soloMic)stopSoloMic();}catch(e){console.warn(e);}
+    try{for(const peer of state.peers.values()){peer?.pc?.close?.();peer?.peer?.close?.();peer?.gain?.disconnect?.();}state.peers.clear();}catch(e){console.warn(e);}
+    state.isPlaying=false;
+  };
   // Beta 1.0: apenas a interface social usa este contexto; não expõe chaves administrativas.
   window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
     members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,
