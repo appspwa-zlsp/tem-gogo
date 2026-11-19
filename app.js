@@ -281,6 +281,7 @@
   function showNextGuestRecado(after=null){
     if(state.role!=='host'||state.currentSong||state.isPlaying||recadoShowing||!pendingGuestRecados.length)return false;
     const msg=pendingGuestRecados.shift();const el=$('tg17-message-screen');
+    if(msg.messageId && state.client){void state.client.from('tg_party_messages').update({status:'displayed',displayed_at:new Date().toISOString()}).eq('id',msg.messageId).eq('room_id',state.room.id).then(({error})=>{if(error)console.warn('Auditoria de recados:',error.message);});}
     if(!el)return false;
     $('tg17-message-from').textContent='Recado de '+msg.name;
     $('tg17-message-text').textContent=msg.text; // Never render user text as HTML.
@@ -299,7 +300,13 @@
     if(Date.now()<nextGuestRecadoAt){toast('Espere alguns segundos para mandar outro recado.',true);return;}
     const btn=$('tg17-send-message');setLoading(btn,true,'Enviando…');
     try{
-      await sendSignal(state.room.owner_id,'stage-recado',{text,sentAt:Date.now()});
+      let auditedId=null;
+      try{const myName=state.members.find(m=>m.user_id===state.user.id)?.display_name||'Cantor(a)';
+        const saved=await state.client.from('tg_party_messages').insert({room_id:state.room.id,author_id:state.user.id,nickname:myName,body:text}).select('id').single();
+        if(saved.error)throw saved.error;auditedId=saved.data.id;
+      }catch(auditError){console.warn('Auditoria de recados não disponível:',auditError);
+        toast('Auditoria indisponível: o recado será enviado sem registro persistente. Avise a equipe.',true);}
+      await sendSignal(state.room.owner_id,'stage-recado',{text,sentAt:Date.now(),messageId:auditedId});
       nextGuestRecadoAt=Date.now()+25000;
       $('tg17-message-input').value='';
       toast('💌 Recado entregue ao host! Ele aparecerá entre as apresentações.');
@@ -343,6 +350,7 @@
     $('tg19-next-singer').textContent='VOCÊ É O PRÓXIMO: '+songSingerLabel(pre.song).toUpperCase();
     setDivaStageState('preflight');
     const singers=songSingers(pre.song);
+    tgBetaStageAvatars(singers,'preflight');
     $('stage-preflight-singers').innerHTML=singers.map(uid=>{
       const raw=pre.statuses.get(uid);const s=raw&&Date.now()-raw.at<25000?raw:null;const online=s?.mic?'🎙️ MIC LIBERADO':'🔇 MIC DESLIGADO';
       const label=s?.ready&&s.mic?'✅ PRONTO(A)':s?.mic?'🟡 AGUARDANDO CONFIRMAÇÃO':'🔴 NÃO PREPARADO(A)';
@@ -716,7 +724,7 @@
       ['Entrou no camarim!','Escolha o seu avatar e faça parte da festa. Na aba Músicas você procura e adiciona sua favorita à fila.'],
       ['A Diva vai chamar','Quando chegar sua vez, você recebe o aviso e autoriza o microfone em um toque. Antes disso, ele fica desligado.'],
       ['O celular é seu microfone','Segure o aparelho como preferir. Veja o indicador de voz e o estado da conexão; o vídeo com a letra fica na TV.'],
-      ['Notas, histórico e ajuda','Depois da música, a Diva mostra a nota divertida. No rodapé você encontra FAQ, suporte e pode refazer este tour.']
+      ['Salve seu histórico se quiser','Você pode cantar sem conta. Para guardar notas, criar sua identidade e participar da Galera e do ranking, faça cadastro quando desejar. FAQ e suporte ficam no rodapé.']
     ],
     'tg18-remote':[
       ['Seu controle está na mão!','O notebook/TV continua como palco. O celular controla a fila, a reprodução e o volume sem assumir o vídeo.'],
@@ -828,6 +836,7 @@
   }
   async function init() {
     initPWA();loadPreferences();renderAvatarOptions();
+    document.getElementById('tg-beta-external-go')?.addEventListener('click',()=>{document.getElementById('catalog-dialog')?.close();document.getElementById('youtube-search')?.focus({preventScroll:false});});
     $('video-frame').appendChild($('stage-preflight'));
     attachEvents();tg193AttachEvents();
     state.recoveryIntent=isRecoveryReturn();
@@ -1448,7 +1457,7 @@
         const sentAt=Number(data.sentAt)||0;
         if(!Number.isFinite(sentAt)||Math.abs(Date.now()-sentAt)>180000)return;
         if(pendingGuestRecados.length>=12)pendingGuestRecados.shift();
-        pendingGuestRecados.push({name:verifiedMember.display_name||'Convidado',text});
+        pendingGuestRecados.push({name:verifiedMember.display_name||'Convidado',text,messageId:typeof data.messageId==='string'?data.messageId:null});
         toast('💌 Novo recado da plateia, reservado para o intervalo.');
         if(!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden&&!recadoShowing)showNextGuestRecado();
         return;
@@ -1874,6 +1883,14 @@
     try {const player=await ensurePlayer(song.video_id);player.cueVideoById(song.video_id);toast('Música recuperada. Clique em Reproduzir para continuar.');}
     catch(err){toast(humanError(err),true);}
   }
+  function tgBetaStageAvatars(singers,mode){
+    const el=$(mode==='preflight'?'tg-beta-stage-avatars':'tg-beta-result-avatars');if(!el)return;
+    el.replaceChildren();for(const uid of singers.slice(0,4)){
+      const card=document.createElement('div');card.className='tg-beta-stage-artist';
+      const img=document.createElement('img');img.src=avatarSrc(state.avatars.get(uid));img.alt='Avatar original do cantor';
+      const name=document.createElement('strong');name.textContent=memberName(uid);card.append(img,name);el.append(card);
+    }
+  }
   function getScoreResults(){
     return songSingers(state.currentSong).map(uid=>{
       const result=scoreForSinger(uid);
@@ -1890,12 +1907,14 @@
       $('final-number').innerHTML='—<span>/100</span>';
       $('final-stars').textContent='☆☆☆☆☆';
       $('final-caption').textContent='A voz pode ter sido captada no celular, mas não chegou ao placar. Confira a conexão e a sincronização antes de tentar novamente.';
+      tgBetaStageAvatars(singers,'result');
       $('final-duet-details').hidden=true;
       return;
     }
     const mean=Math.round(results.reduce((total,r)=>total+r.score,0)/results.length);
     showFinal({score:mean,user_id:results[0].user_id});
     $('final-person').textContent=singers.map(memberName).join(' + ');
+    tgBetaStageAvatars(singers,'result');
     const detail=$('final-duet-details');
     if(singers.length>1){
       detail.hidden=false;
@@ -2834,5 +2853,10 @@ function renderFullCatalog(){
     if(push&&state.role==='guest'&&state.room&&before&&before!==tab)history.pushState({temGogo:true,view:'guest',tab},'',currentURL(state.room.code));
   }
 
+  // Beta 1.0: apenas a interface social usa este contexto; não expõe chaves administrativas.
+  window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
+    members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,
+    setAvatar(key){if(!AVATARS[key])return;state.avatar=key;localStorage.setItem('tem-gogo-avatar',key);
+      void sendProfileToHost().catch(()=>{});renderAvatarOptions();}});
   init().catch(err=>{console.error(err);toast(humanError(err),true);});
 })();
