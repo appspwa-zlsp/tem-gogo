@@ -495,7 +495,7 @@
     return msg;
   }
   function escapeHTML(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function show(id) { document.body.dataset.currentView=id; document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== id); window.scrollTo({top:0}); tg193ScheduleTour(id); }
+  function show(id) { document.body.dataset.currentView=id; document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== id); window.scrollTo({top:0}); tg193ScheduleTour(id); window.dispatchEvent(new CustomEvent('temgogo:view',{detail:{view:id}})); }
   function configured() { return !!(cfg.SUPABASE_URL?.startsWith('https://') && cfg.SUPABASE_ANON_KEY?.length > 25); }
   function formatTime(sec) { sec = Math.max(0, Math.floor(Number(sec) || 0)); return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`; }
   function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -654,6 +654,7 @@
     $('access-tabs').hidden=false;
     openGuestEntry(clean);
     show('landing');
+    window.dispatchEvent(new CustomEvent('temgogo:guest-entry',{detail:{room:clean}}));
     $(clean?'guest-name':'guest-code').focus({preventScroll:true});
   }
   async function installFromInvite(){

@@ -1,0 +1,131 @@
+/* Tem Gogó — Beta 1.2 / UX exclusivamente: IDs, ações, QR, player e áudio intocados */
+:root{--tg12-bg:#110a1d;--tg12-panel:#251432;--tg12-lime:#dafa94;--tg12-border:#b88bce55}
+.tg12-ready #landing{background:radial-gradient(ellipse at 46% 5%,#39204d 0%,#170c24 54%,#10091b 95%)}
+.tg12-ready .landing-main{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100dvh - 172px);width:min(96%,580px);padding:18px 0 30px;gap:0}
+.tg12-ready .landing-main>.hero-copy{display:none!important}
+.tg12-ready .landing-top{min-height:60px;height:auto;padding-top:15px;padding-bottom:8px}
+.tg12-ready .landing-top .tiny-tag{display:none!important}
+.tg12-ready .landing-footer{padding:9px 20px 18px;opacity:.58;font-size:10px}
+.tg12-ready #access-card{max-width:490px;width:100%;padding:clamp(18px,4vw,31px);box-sizing:border-box;border:1px solid #af75cc70;border-radius:24px;box-shadow:0 20px 65px #0007;background:linear-gradient(145deg,#2b173b 0%,#170d25 90%)}
+.tg12-ready #access-card>.card-eyebrow{display:none}
+.tg12-access-intro{text-align:center;margin:4px 0 20px}
+.tg12-kicker{color:#d9fa9f;font-size:10px;font-weight:900;letter-spacing:.12em}
+.tg12-access-intro h1{font-family:Outfit,Arial,sans-serif;font-size:clamp(25px,6vw,35px);letter-spacing:-.035em;line-height:1.1;margin:9px 0 6px}
+.tg12-access-intro p{font-size:13px;line-height:1.45;color:#cabbd6;margin:0}
+.tg12-ready #host-access h2{font-size:20px;margin-bottom:3px;text-align:left}
+.tg12-ready #host-access .subtle{font-size:12px;margin:3px 0 13px;line-height:1.4}
+.tg12-ready #auth-form{display:grid;gap:7px}
+.tg12-ready #auth-form>.field-label{margin-top:7px}
+.tg12-ready #auth-form input{min-height:45px}
+.tg12-ready #login-button{min-height:50px;font-size:15px;margin-top:8px}
+.tg12-ready #signup-button,.tg12-ready #auth-forgot-password{font-size:12px;min-height:40px}
+.tg12-ready .tg12-guest-entry-cta{min-height:50px;margin:14px 0 4px;font-size:14px;border-color:#c5a6d3}
+.tg12-ready #access-tabs,.tg12-ready #invite-welcome,.tg12-ready .invite-install-help,.tg12-ready .access-foot{display:none!important}
+.tg12-ready.tg12-login-mode #host-access{display:block!important}
+.tg12-ready.tg12-login-mode #guest-access{display:none!important}
+.tg12-ready.tg12-guest-mode #guest-access{display:block!important}
+.tg12-ready.tg12-guest-mode #host-access,.tg12-ready.tg12-guest-mode .tg12-guest-entry-cta{display:none!important}
+.tg12-ready #guest-access>.subtle,.tg12-ready #guest-access>h2,.tg12-ready #guest-access .qr-separator{display:none!important}
+.tg12-back-link{background:transparent;border:none;padding:9px 4px;color:#d8ccdf;font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:left;min-height:40px}
+.tg12-guest-progress{font-size:11px;color:#d9fa9f;font-weight:800;letter-spacing:.07em;margin:5px 0 14px}
+.tg12-guest-step{display:grid;gap:11px}
+.tg12-guest-step[hidden],.tg12-hub-panel[hidden],.tg12-hub-choices[hidden],.tg12-hub>.tg12-back-link[hidden]{display:none!important}
+.tg12-guest-step input{width:100%;min-height:46px;box-sizing:border-box}
+.tg12-guest-step>.qr-scan-cta{min-height:49px}
+.tg12-guest-step button.button{min-height:48px}
+.tg12-invite-summary{padding:9px 11px;border:1px solid #caf99560;border-radius:12px;background:#ccfa8a0b;display:flex;flex-wrap:wrap;justify-content:space-between;gap:7px;font-size:12px}
+.tg12-invite-summary strong{color:#dafea4;letter-spacing:.1em}
+.tg12-privacy-note{border-left:3px solid #a4ecce;font-size:12px;line-height:1.45;color:#dbd3e1;margin:6px 0;padding:7px 12px;background:#a9ecc614}
+.tg12-ready .avatar-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.tg12-ready .avatar-picker small{font-size:11px}
+.tg12-legal{display:flex;gap:12px 15px;justify-content:center;flex-wrap:wrap;padding-top:12px;margin-top:13px;border-top:1px solid #ffffff20}
+.tg12-legal a,.tg12-legal button{color:#c0b4cb;background:none;border:0;font:inherit;font-size:11px;text-decoration:none;padding:4px 0;cursor:pointer}
+.tg12-legal a:focus-visible,.tg12-legal button:focus-visible{outline:2px solid #dffa9f}
+/* Hub: three clearly defined decisions, advanced actions in focused subpanels. */
+#lobby .lobby-main{display:block;max-width:710px;padding:24px 16px 42px}
+#lobby .lobby-main>.tg12-hidden-hero{display:none!important}
+#lobby .tg12-hub{width:100%;max-width:690px;margin:auto;padding:clamp(18px,4vw,30px);border-radius:22px;box-sizing:border-box}
+#lobby .tg12-hub>.card-eyebrow,#lobby .tg12-hub>h2,#lobby .tg12-hub>.hub-intro,#lobby .tg12-hub>.hub-security,#lobby .tg12-old-hub-actions{display:none!important}
+#lobby .tg12-hub-heading{margin-bottom:16px}#lobby .tg12-hub-heading h2{font-size:clamp(26px,6vw,37px);margin:5px 0;line-height:1.1}
+#lobby .tg12-hub-heading p{font-size:13px;color:#c7b7d1;margin:5px 0}
+#lobby .tg12-hub-choices{display:grid;gap:11px}
+#lobby .tg12-hub-choices .button{font-family:inherit;font-size:clamp(15px,3.5vw,18px);text-align:left;padding:15px 20px;min-height:59px;border-radius:14px}
+#lobby .tg12-hub-choices .tg12-hub-primary{min-height:66px;color:#26102c}
+#lobby .tg12-hub-panel{margin-top:10px;padding:15px;border-radius:14px;background:#130b20b0;border:1px solid #ffffff26}
+#lobby .tg12-hub-panel h3{margin:0 0 13px;font-size:20px}
+#lobby .tg12-hub-panel .hub-create-area{padding:0;margin:0;background:none;border:none;box-shadow:none}
+#lobby .tg12-hub-panel #room-title{min-height:48px}
+#lobby .tg12-hub-panel .invite-helper{font-size:12px}
+#lobby .tg12-solo-choice{margin-top:14px;background:#2e1c42;padding:12px;border-radius:10px}
+#lobby .tg12-solo-choice summary{cursor:pointer;color:#daf3ae;font-weight:750;font-size:13px}
+#lobby .tg12-solo-choice #tg103-solo-entry{margin-top:10px;width:100%}
+#lobby .simple-header{gap:12px;padding-top:15px;flex-wrap:wrap}
+#lobby .simple-header .header-control-group{gap:8px;flex-wrap:wrap}
+#lobby .simple-header .header-control-group button{min-height:40px;font-size:11px;padding:8px 10px}
+#lobby .simple-header .header-control-group .open-settings{display:none!important}
+/* Participant: one communication channel, four fixed navigation items. */
+#guest.tg12-participant .guest-main{padding-top:5px}
+#guest.tg12-participant .guest-header{padding:9px 16px;min-height:51px}
+#guest.tg12-participant .guest-header .guest-live .open-settings{display:none!important}
+#guest.tg12-participant .guest-header .guest-live>.online-dot{display:none!important}
+#guest.tg12-participant .guest-welcome{padding:10px 12px 13px;margin-bottom:10px}
+#guest.tg12-participant .guest-welcome>.mini-label,#guest.tg12-participant .guest-welcome>h1,#guest.tg12-participant .guest-welcome>.guest-profile-row,#guest.tg12-participant .guest-welcome>.guest-room-info{display:none!important}
+#guest.tg12-participant .guest-welcome>.vox-guest-quip{display:none!important}
+#guest.tg12-participant .guest-welcome>.vox-guest-quip.tg12-visible{display:flex!important;position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 65px);transform:translateX(-50%);z-index:490;width:min(90vw,410px);padding:12px;border:1px solid #d1aaed;background:#211331ee;border-radius:14px;box-shadow:0 13px 30px #0009;pointer-events:none}
+#guest.tg12-participant .tg12-participant-top{display:flex;gap:12px;align-items:center;min-height:62px}
+#guest.tg12-participant .tg12-avatar-button{width:50px;height:50px;padding:3px;border-radius:50%;border:2px solid #b9f4a1;background:#332046;flex:0 0 50px;cursor:pointer}
+#guest.tg12-participant .tg12-avatar-button img{width:100%;height:100%;object-fit:contain;border-radius:50%}
+#guest.tg12-participant .tg12-participant-label{min-width:0;flex:1;display:grid;gap:2px}
+#guest.tg12-participant .tg12-participant-label span{font-size:10px;letter-spacing:.11em;color:#d1f7a8;font-weight:850}
+#guest.tg12-participant .tg12-participant-label strong{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#guest.tg12-participant .tg12-help-button{width:42px;height:42px;padding:0!important;display:grid;place-items:center;border-radius:50%;border:1px solid #b7a3cf;background:#352044;color:#fff;font-weight:900;font-size:19px}
+#guest.tg12-participant>.guest-main>.tg16-guest-actions{display:none!important}
+#guest.tg12-participant .guest-show-hub{padding:7px 11px;margin:0 0 12px}
+#guest.tg12-participant .guest-show-hub .guest-show-mic{display:none!important}
+#guest.tg12-participant .guest-latest-score,#guest.tg12-participant .tg19-push-shortcut{display:none!important}
+#guest.tg12-participant .guest-song-search-card>.card-eyebrow,#guest.tg12-participant .guest-song-search-card>p,#guest.tg12-participant .guest-hit-library>.card-eyebrow,#guest.tg12-participant .guest-hit-library>p{display:none!important}
+#guest.tg12-participant .guest-hit-library{padding:15px;margin-bottom:12px}
+#guest.tg12-participant .guest-hit-library h2{font-size:21px;margin:0 0 11px}
+#guest.tg12-participant .guest-song-search-card{padding:13px;margin-bottom:12px}
+#guest.tg12-participant #tg17-guest-message{padding:15px}
+#guest.tg12-participant #tg17-guest-message>h3{font-size:18px}
+#guest.tg12-participant #tg17-guest-message>p{display:none}
+#guest.tg12-participant .mobile-switch{width:min(100%,610px);margin:auto;gap:4px;max-width:100%;box-sizing:border-box}
+#guest.tg12-participant .mobile-switch .mobile-tab{min-width:0;flex:1;min-height:54px;padding:7px 3px!important;font-size:11px}
+#guest.tg12-participant .guest-bottom{font-size:11px;padding:12px}
+/* On stage, don't let desktop controls compete with video and QR; original nodes still execute. */
+#stage.tg12-stage .stage-main{padding-top:12px}
+#stage.tg12-stage .stage-meta{margin-bottom:8px}
+#stage.tg12-stage .stage-meta h1{font-size:clamp(18px,1.7vw,28px);margin:4px 0}
+#stage.tg12-stage .stage-meta .mini-label,#stage.tg12-stage #tg18-solo-status{display:none!important}
+#stage.tg12-stage #stage-command{padding:7px 11px;margin:8px 0;cursor:pointer}
+#stage.tg12-stage .tg104-cockpit{margin:12px 0 0;border-radius:16px}
+#stage.tg12-stage .tg104-cockpit-header{padding:11px 14px}
+#stage.tg12-stage .tg104-cockpit-header h2{font-size:20px}
+#stage.tg12-stage .tg104-cockpit-header p{font-size:11px;margin-top:2px}
+#stage.tg12-stage .tg104-cockpit-tabs{padding:0 12px 8px}
+#stage.tg12-stage .tg104-cockpit-tabs button{min-height:44px}
+#stage.tg12-stage .tg104-panel{padding:12px}
+#stage.tg12-stage #tg17-console .tg17-console-body{margin:0}
+#stage.tg12-stage .stage-header .stage-people{display:none}
+/* Remote always has two operating modes, but the social area remains reachable. */
+#tg18-remote.tg12-remote .tg192-remote-intro,#tg18-remote.tg12-remote .tg19-remote-queue-hint{display:none!important}
+#tg18-remote.tg12-remote .tg18-remote-shell{max-width:680px}
+#tg18-remote.tg12-remote .tg19-remote-tabs button{min-height:48px}
+#tg18-remote.tg12-remote .tg18-remote-grid .button{min-height:48px;font-size:13px}
+#tg18-remote.tg12-remote .tg18-remote-status{margin-bottom:12px}
+#tg18-remote.tg12-remote .tg19-remote-queue{margin-top:12px}
+@media(max-width:720px){#stage.tg12-stage .stage-main{padding:10px 9px 18px}#stage.tg12-stage .tg104-cockpit-header p{display:none}#stage.tg12-stage .tg104-cockpit{margin:9px 0}#stage.tg12-stage .stage-meta h1{font-size:19px}#lobby .simple-header .header-control-group{justify-content:flex-start}#guest.tg12-participant .guest-header .sync-state{font-size:10px}}
+@media(max-width:390px){.tg12-ready #access-card{padding:18px 15px;border-radius:18px}#lobby .tg12-hub{padding:18px 14px}#guest.tg12-participant .mobile-switch .mobile-tab{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.tg12-ready *,#guest.tg12-participant *{scroll-behavior:auto!important}}
+/* The legacy sidebar has been moved into the cockpit: reclaim its empty grid track. */
+#stage.tg12-stage .stage-layout{display:block;max-width:1600px;margin-inline:auto;min-height:calc(100dvh - 74px)}
+#stage.tg12-stage .stage-main{width:100%;box-sizing:border-box}
+#stage.tg12-stage .screen-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(155px,220px);gap:12px;align-items:start}
+#stage.tg12-stage .screen-row .video-frame{min-width:0;aspect-ratio:16/9}
+#stage.tg12-stage .screen-row .qr-rail{min-width:0;max-width:100%;align-self:start}
+#stage.tg12-stage .screen-row .qr-bubble{position:relative;inset:auto;transform:none;width:100%;box-sizing:border-box}
+#stage.tg12-stage .screen-row .qr-box{max-width:100%}
+@media(max-width:750px){#stage.tg12-stage .screen-row{grid-template-columns:minmax(0,1fr)}#stage.tg12-stage .screen-row .qr-rail{width:min(100%,215px);margin:4px auto 0}#stage.tg12-stage .screen-row .qr-bubble{width:100%;transform:none}}
+/* Installation is optional and stays explained in FAQ instead of cluttering guest onboarding. */
+.tg12-ready #guest-access #entry-install{display:none!important}
