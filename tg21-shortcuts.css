@@ -1,0 +1,95 @@
+/* Tem Gogó Beta 2.0 — ajuste pontual da mesa rápida do palco (20/11/2026).
+   Apenas apresentação; não redefine player, WebRTC ou algoritmo de notas. */
+#stage .tg123-host-bar.tg21-shortcuts{
+  box-sizing:border-box!important;
+  width:100%!important; max-width:100%!important; min-width:0!important;
+  display:grid!important; grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important; align-content:start;
+  padding:11px!important; margin:8px 0 0!important;
+  position:relative!important; inset:auto!important; transform:none!important;
+  border:1px solid rgba(185,121,221,.53)!important;
+  border-radius:19px!important;
+  background:linear-gradient(150deg,#291935 0%,#1b142c 100%)!important;
+  box-shadow:0 12px 28px rgba(6,4,15,.18),inset 0 1px rgba(255,255,255,.07)!important;
+  backdrop-filter:none!important; z-index:2!important;
+}
+#stage .tg123-host-bar.tg21-shortcuts::before{
+  content:'🎛  MESA RÁPIDA';grid-column:1/-1;
+  color:#d5f5b3;letter-spacing:.11em;font-size:10px;font-weight:850;
+  text-align:left;padding:1px 3px 3px;line-height:1.3;
+}
+#stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command]{
+  box-sizing:border-box!important; min-width:0!important;width:100%!important;
+  min-height:66px!important; padding:9px 4px!important; margin:0!important;
+  display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  white-space:normal!important; word-break:normal;overflow-wrap:normal!important;
+  background:linear-gradient(180deg,#4b315c,#392749)!important;
+  border:1px solid #87679b!important; border-radius:13px!important;
+  color:#fff!important;font-family:inherit;font-size:12px!important;line-height:1.13!important;
+  font-weight:780!important;text-align:center!important;
+  box-shadow:0 2px 7px rgba(5,3,12,.14)!important;
+  transition:border-color .15s,background .15s,transform .15s;
+}
+#stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command="toggle"]{
+  background:linear-gradient(145deg,#d9ff92,#b6f5b3)!important;
+  border-color:#d9ff92!important;color:#1e2930!important;
+}
+#stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command="volumes"][aria-expanded="true"]{
+  border-color:#b8fbd6!important;background:#35524f!important;
+}
+#stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command]:hover{border-color:#d8fab1!important}
+#stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command]:active{transform:scale(.98)}
+#stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command]:focus-visible,
+#stage .tg123-host-bar.tg21-shortcuts input:focus-visible{outline:3px solid #d9ff92!important;outline-offset:2px}
+#stage .tg21-shortcuts .tg21-command-icon{display:block;font-size:20px;line-height:1.15;font-weight:500}
+#stage .tg21-shortcuts .tg21-command-label{display:block;max-width:100%;font-size:clamp(10px,.85vw,12px);line-height:1.19;overflow-wrap:normal;white-space:normal}
+#stage .tg21-shortcuts #stage-exit{
+  grid-column:1/-1;display:flex!important;align-items:center;justify-content:center;
+  gap:7px;margin:3px 0 0!important;padding:9px 7px!important;
+  min-height:39px!important;width:100%!important;border-radius:12px!important;
+  background:rgba(254,123,157,.08)!important;color:#ffd7e0!important;
+  border:1px solid rgba(255,162,193,.57)!important;
+  box-shadow:none!important;font-size:12px!important;font-weight:780!important;
+}
+#stage .tg21-shortcuts #stage-exit .tg19-stage-action-icon{font-size:14px;line-height:1}
+#stage .tg21-shortcuts #stage-exit:hover{background:rgba(254,123,157,.18)!important}
+#stage .tg21-shortcuts .tg21-volume-panel{
+  grid-column:1/-1;min-width:0!important;max-width:100%;
+  padding:12px 10px 11px;margin:0;
+  background:linear-gradient(155deg,#38274b,#2c203a);
+  border:1px solid #8c6d9e;border-radius:13px;box-shadow:inset 0 1px rgba(255,255,255,.05);
+}
+#stage .tg21-shortcuts .tg21-volume-panel[hidden]{display:none!important}
+#stage .tg21-volume-heading{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 11px}
+#stage .tg21-volume-heading strong{font-size:12px;color:#f2e4fa;line-height:1.2}
+#stage .tg21-volume-panel .tg21-volume-row{display:block;margin:10px 0 6px;min-width:0}
+#stage .tg21-volume-row .tg21-volume-meta{display:flex;justify-content:space-between;align-items:center;gap:5px;font-size:11px;color:#ede1f5;font-weight:700}
+#stage .tg21-volume-row output{color:#d9ff92;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+#stage .tg21-volume-row input[type="range"]{display:block;width:100%;height:24px;margin:5px 0 2px;padding:0;accent-color:#c9ff9d;cursor:pointer;background:transparent;touch-action:pan-y}
+#stage .tg21-volume-note{margin:5px 0 0;color:#c9b6d4;font-size:10px;line-height:1.35}
+#stage .tg21-volume-close{background:transparent!important;border:1px solid #725784!important;
+  border-radius:8px!important;padding:3px 7px!important;min-height:26px!important;color:#fff!important;
+  font-size:12px!important;line-height:1!important;box-shadow:none!important;width:auto!important;
+}
+/* Desktop/TV: QR and controls stay in the same lateral rail, with enough room for labels. */
+@media (min-width:960px){
+ #stage .screen-row{grid-template-columns:minmax(0,1fr) clamp(196px,17.2vw,250px)!important}
+ #stage .qr-rail{min-width:0!important;align-self:start}
+}
+/* Mobile/tablet: the existing script moves this SAME bar below the player. */
+@media (max-width:959px){
+ #stage .stage-main>.tg123-host-bar.tg21-shortcuts{order:2!important;margin:10px 0 14px!important}
+ #stage .tg123-host-bar.tg21-shortcuts{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+ #stage .tg123-host-bar.tg21-shortcuts::before,
+ #stage .tg123-host-bar.tg21-shortcuts .tg21-volume-panel,
+ #stage .tg123-host-bar.tg21-shortcuts #stage-exit{grid-column:1/-1}
+ #stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command]{min-height:60px!important}
+}
+@media (max-width:550px){
+ #stage .tg123-host-bar.tg21-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ #stage .tg123-host-bar.tg21-shortcuts button[data-tg123-host-command]{min-height:58px!important}
+}
+/* Solo on one phone retains its previously approved contextual controls, no added mic/volume UI. */
+body.tg104-single-device #stage .tg123-host-bar.tg21-shortcuts [data-tg123-host-command="call"],
+body.tg104-single-device #stage .tg123-host-bar.tg21-shortcuts [data-tg123-host-command="volumes"]{display:none!important}
+@media(prefers-reduced-motion:reduce){#stage .tg21-shortcuts button{transition:none!important}}
