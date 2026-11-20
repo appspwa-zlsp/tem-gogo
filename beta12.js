@@ -13,10 +13,17 @@ function setStep(step){guestStep=step;document.body.dataset.tg12GuestStep=step;
  const room=$('tg12-guest-room'),identity=$('tg12-guest-identity');if(room)room.hidden=step!=='room';if(identity)identity.hidden=step!=='identity';
  $('tg12-guest-progress')?.replaceChildren(document.createTextNode(step==='room'?'1 de 2 · Localize sua festa':'2 de 2 · Escolha sua identidade'));
  if(step==='identity'){const preview=$('tg12-code-preview');if(preview)preview.textContent=$('guest-code')?.value||'Identificada';$('guest-name')?.focus({preventScroll:true});}}
-function openGuest(code){
- const known=String(code||$('guest-code')?.value||'').trim().toUpperCase();
- if(known&&!validCode(known))return setStep('room');
- setStep(known?'identity':'room');document.body.classList.add('tg12-guest-mode');document.body.classList.remove('tg12-login-mode');
+function openGuest(code,{fresh=false}={}){
+ const field=$('guest-code');
+ if(fresh){
+   // Somente o QR explícito pode preencher o convite. Não herdar salas anteriores.
+   if(field){field.value='';field.setCustomValidity('');}
+   localStorage.removeItem('tem-gogo-pending-room');
+   const url=new URL(location.href);if(url.searchParams.has('room')&&!url.searchParams.has('remote')){url.searchParams.delete('room');history.replaceState(history.state,'',url.href);}
+ }else if(code!=null&&field){field.value=String(code).trim().toUpperCase();}
+ const known=String(fresh?'':(code??field?.value??'')).trim().toUpperCase();
+ document.body.classList.add('tg12-guest-mode');document.body.classList.remove('tg12-login-mode');
+ setStep(validCode(known)?'identity':'room');
 }
 function backToLogin(){document.body.classList.remove('tg12-guest-mode');document.body.classList.add('tg12-login-mode');$('tab-host')?.click();}
 function initAccess(){
@@ -30,7 +37,7 @@ function initAccess(){
  $('login-button')?.replaceChildren(document.createTextNode('Entrar'));
  $('signup-button')?.replaceChildren(document.createTextNode('Criar conta'));
  const guestAction=button('🎟️ Entrar sem login (Convidado)','button button-outline full tg12-guest-entry-cta');guestAction.id='tg12-guest-entry-cta';
- guestAction.addEventListener('click',()=>{$('tab-guest')?.click();openGuest('');});
+ guestAction.addEventListener('click',()=>{$('tab-guest')?.click();openGuest('',{fresh:true});});
  host.after(guestAction);
  const back=button('← Voltar para minha conta','tg12-back-link');back.id='tg12-back-login';back.addEventListener('click',backToLogin);guest.insertBefore(back,guest.firstChild);
  const subhead=mk('div',{class:'tg12-guest-progress',id:'tg12-guest-progress'},'1 de 2 · Localize sua festa');back.after(subhead);
@@ -44,13 +51,13 @@ function initAccess(){
  const next=button('Continuar →','button button-primary full');next.id='tg12-next-guest';next.addEventListener('click',()=>{code.value=code.value.trim().toUpperCase();if(!validCode(code.value)){code.setCustomValidity('Digite o código de 8 ou 12 caracteres exibido na TV.');code.reportValidity();return;}code.setCustomValidity('');setStep('identity');});
  code.addEventListener('input',()=>code.setCustomValidity(''));
  roomPanel.append(next);
- const summary=mk('div',{class:'tg12-invite-summary'});summary.innerHTML='<span>Festa identificada</span><strong id="tg12-code-preview"></strong>';
+ const summary=mk('div',{class:'tg12-invite-summary'});summary.innerHTML='<span>Código informado · confirmar ao entrar</span><strong id="tg12-code-preview"></strong>';
  identityPanel.append(summary);
  if(nameLabel)identityPanel.append(nameLabel);identityPanel.append(name);
  const avatar=guest.querySelector('.avatar-picker');if(avatar)identityPanel.append(avatar);
  const notice=mk('p',{class:'tg12-privacy-note'},'Sem login, suas notas e seu histórico não ficarão salvos no seu perfil.');identityPanel.append(notice);
  const submit=form.querySelector('button[type="submit"]');if(submit){submit.textContent='Entrar mesmo assim';identityPanel.append(submit);}
- const edit=button('← Alterar código da sala','tg12-back-link');edit.addEventListener('click',()=>setStep('room'));identityPanel.append(edit);
+ const edit=button('← Trocar sala ou ler outro QR','tg12-back-link');edit.addEventListener('click',()=>{setStep('room');$('guest-code')?.focus({preventScroll:true});});identityPanel.append(edit);
  name.addEventListener('focus',()=>{const preview=$('tg12-code-preview');if(preview)preview.textContent=code.value;});
  form.addEventListener('submit',e=>{if(guestStep!=='identity'){e.preventDefault();e.stopImmediatePropagation();if(validCode(code.value)){setStep('identity');}else{code.reportValidity();}}},true); // The original handler runs only on the confirmed step.
  const help=mk('nav',{class:'tg12-legal', 'aria-label':'Ajuda e informações'});
@@ -61,8 +68,9 @@ function initAccess(){
  card.append(help);
  setStep('room');
  window.addEventListener('temgogo:guest-entry',e=>openGuest(e.detail?.room));
+ window.addEventListener('temgogo:guest-invalid-room',()=>{const url=new URL(location.href);if(url.searchParams.has('room')&&!url.searchParams.has('remote')){url.searchParams.delete('room');history.replaceState(history.state,'',url.href);}setStep('room');$('guest-code')?.focus({preventScroll:true});});
  $('tab-host').addEventListener('click',()=>{document.body.classList.remove('tg12-guest-mode');document.body.classList.add('tg12-login-mode');});
- $('tab-guest').addEventListener('click',()=>{setTimeout(()=>openGuest($('guest-code')?.value),0);});
+ $('tab-guest').addEventListener('click',()=>{setTimeout(()=>{if(document.body.classList.contains('tg12-guest-mode'))return;openGuest($('guest-code')?.value);},0);});
  if(new URL(location.href).searchParams.get('remote')==='1')guestAction.hidden=true;
  const room=new URL(location.href).searchParams.get('room');
  if(room&&validCode(room))openGuest(room);

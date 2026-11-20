@@ -129,3 +129,57 @@
 @media(max-width:750px){#stage.tg12-stage .screen-row{grid-template-columns:minmax(0,1fr)}#stage.tg12-stage .screen-row .qr-rail{width:min(100%,215px);margin:4px auto 0}#stage.tg12-stage .screen-row .qr-bubble{width:100%;transform:none}}
 /* Installation is optional and stays explained in FAQ instead of cluttering guest onboarding. */
 .tg12-ready #guest-access #entry-install{display:none!important}
+
+
+/* Beta 1.2.2 — cada música é um cartão independente com SEU botão de fila.
+   Corrige colisões entre estilos antigos em listas, resultados e catálogo completo. */
+#catalog-list .history-song-card,
+#guest-library .history-song-card,
+#stage-library .history-song-card,
+#search-results .history-song-card,
+#host-results .history-song-card{
+  display:grid;grid-template-columns:minmax(0,76px) minmax(0,1fr);
+  grid-template-areas:"cover info" "add add";
+  grid-auto-rows:auto;align-items:center;align-content:start;
+  gap:9px;min-width:0;min-height:0;height:auto;overflow:visible;
+  box-sizing:border-box;padding:10px;border:1px solid #d793e95a;
+  border-radius:14px;background:linear-gradient(145deg,#30183d,#1c1029);
+}
+#catalog-list .history-song-card>img,
+#guest-library .history-song-card>img,
+#stage-library .history-song-card>img,
+#search-results .history-song-card>img,
+#host-results .history-song-card>img{
+  grid-area:cover;width:76px;height:60px;max-width:100%;object-fit:cover;
+}
+#catalog-list .history-song-card>.history-song-info,
+#guest-library .history-song-card>.history-song-info,
+#stage-library .history-song-card>.history-song-info,
+#search-results .history-song-card>.history-song-info,
+#host-results .history-song-card>.history-song-info{
+  grid-area:info;min-width:0;overflow-wrap:anywhere;
+}
+#catalog-list .history-song-card>.history-add,
+#guest-library .history-song-card>.history-add,
+#stage-library .history-song-card>.history-add,
+#search-results .history-song-card>.history-add,
+#host-results .history-song-card>.history-add{
+  grid-area:add;display:flex!important;position:static!important;
+  visibility:visible!important;opacity:1!important;
+  align-items:center;justify-content:center;
+  width:100%;min-width:0;min-height:44px;line-height:1.2;
+  margin:0;white-space:normal;cursor:pointer;
+}
+#catalog-list{grid-auto-rows:max-content;align-content:start;}
+@media(max-width:480px){
+  #catalog-list .history-song-card,
+  #guest-library .history-song-card,
+  #stage-library .history-song-card,
+  #search-results .history-song-card,
+  #host-results .history-song-card{gap:8px;padding:9px;grid-template-columns:66px minmax(0,1fr);}
+  #catalog-list .history-song-card>img,
+  #guest-library .history-song-card>img,
+  #stage-library .history-song-card>img,
+  #search-results .history-song-card>img,
+  #host-results .history-song-card>img{width:66px;height:52px;}
+}

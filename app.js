@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"urbano", lastProfileSent: 0, divaVoiceEnabled: false, divaSpeakingTimer: null, divaLastSpokenAt: 0, lastGuestResultKey: null, micPermissions: new Map(), remoteLastSent:0, soloMic:null, pushAsked:false, guestMicLock:false, remoteTab:"control", remotePending:new Map(), recoveryVerified:false, recoveryIntent:false, deviceChannelReady:false, lastDevicePoll:0, deviceId:(typeof crypto.randomUUID==="function"?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2))
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"urbano", lastProfileSent: 0, divaVoiceEnabled: false, divaSpeakingTimer: null, divaLastSpokenAt: 0, lastGuestResultKey: null, micPermissions: new Map(), remoteLastSent:0, soloMic:null, pushAsked:false, guestMicLock:false, remoteTab:"control", remoteAutoSinger:false, remotePending:new Map(), remoteLatestCommandId:null, recoveryVerified:false, recoveryIntent:false, deviceChannelReady:false, lastDevicePoll:0, deviceId:(typeof crypto.randomUUID==="function"?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2))
   };
 
 
@@ -43,7 +43,7 @@
   // V18: controle remoto por sinais autenticados e dirigidos ao palco (sem segundo player).
   async function enterRoomAsRemote(room){
     if(!state.user || room.owner_id!==state.user.id || isAnonymous(state.user)){toast('Somente a conta anfitriã pode usar o controle remoto.',true);return;}
-    await stopSession();state.room=room;state.role='remote';state.remoteTab='control';show('tg18-remote');switchRemoteTab('control');
+    await stopSession();state.room=room;state.role='remote';state.remoteTab='control';state.remoteAutoSinger=false;show('tg18-remote');switchRemoteTab('control');
     $('tg18-remote-room').textContent=room.title;document.body.classList.add('tg18-remote-active');
     try{await hydrateRoom();await subscribeRoom();startTicker();renderRemote();void loadCatalog();await sendProfileToHost();toast('Controle remoto conectado. Você também pode cantar pelo celular!');}
     catch(err){toast('Não foi possível conectar o controle: '+humanError(err),true);}
@@ -53,6 +53,7 @@
     const next=tab==='singing'?'singing':'control';
     if((state.guestPreflightSong||isMyTurn())&&next==='control')return;
     state.remoteTab=next;
+    if(next==='control')state.remoteAutoSinger=false;
     for(const [name,id] of [['control','tg19-remote-control'],['singing','tg19-remote-singing']]){
       const panel=$(id),button=$('tg19-tab-'+name),active=name===next;
       panel.hidden=!active;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));
@@ -93,8 +94,16 @@
     const active=Boolean(playing);
     document.body.classList.toggle('tg18-remote-singing',active);
     document.body.classList.toggle('tg103-remote-mic-focus',called||active);
-    if(called||active){if(state.remoteTab!=='singing')switchRemoteTab('singing');}
-    else if(state.remoteTab==='singing')switchRemoteTab('control');
+    if(called||active){
+      if(state.remoteTab!=='singing'){
+        state.remoteAutoSinger=true; // abertura automática pela Diva, não escolha manual
+        switchRemoteTab('singing');
+      }
+    }else if(state.remoteAutoSinger){
+      // Só retornar automaticamente se o aplicativo (e não a pessoa) abriu Participar.
+      state.remoteAutoSinger=false;
+      if(state.remoteTab==='singing')switchRemoteTab('control');
+    }
     panel.hidden=!called&&!active;
     $('tg19-remote-idle').hidden=called||active;
     $('tg18-remote-song').textContent=playing?.title||state.guestPreflightSong?.title||'Sua próxima música';
@@ -127,26 +136,58 @@
     if(!allowed.includes(cmd))return;
     if(cmd.endsWith('volume')&&Date.now()-state.remoteLastSent<280)return;
     state.remoteLastSent=Date.now();
-    try{const id=crypto.randomUUID();
-      $('tg18-remote-feedback').textContent='◌ Enviando ao palco…';
-      state.remotePending.set(id,Date.now());
+    let id=null;
+    try{
+      id=crypto.randomUUID();
+      state.remoteLatestCommandId=id;
+      $('tg18-remote-feedback').textContent='◌ Enviando comando ao palco…';
+      state.remotePending.set(id,{cmd,at:Date.now()});
       await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'?value:null,songId:typeof songId==='string'?songId:null,at:Date.now(),id});
-      $('tg18-remote-feedback').textContent='◌ Enviado; aguardando execução na TV…';
-      setTimeout(()=>{if(state.remotePending.has(id)){state.remotePending.delete(id);if(state.role==='remote')$('tg18-remote-feedback').textContent='⚠ Sem confirmação da TV. Verifique a conexão e o SQL 019.';}},8500);}
-    catch(err){state.remotePending.clear();$('tg18-remote-feedback').textContent='⚠ '+humanError(err);toast('Controle remoto indisponível: '+humanError(err),true);}
+      // O ACK pode chegar pelo Realtime antes de o INSERT terminar.
+      if(state.remotePending.has(id)&&state.remoteLatestCommandId===id){
+        $('tg18-remote-feedback').textContent='◌ Comando registrado; aguardando resposta da TV…';
+      }
+      setTimeout(async()=>{
+        if(!state.remotePending.has(id))return;
+        // Reconcilia uma última vez com o banco, inclusive se o Realtime falhou.
+        await fetchHostDeviceSignals();
+        await state.signalChain;
+        if(!state.remotePending.has(id))return;
+        state.remotePending.delete(id);
+        if(state.role==='remote'&&state.remoteLatestCommandId===id){
+          $('tg18-remote-feedback').textContent='⚠ A TV não confirmou este comando. Confira a tela antes de tocar novamente; não repetimos ações automaticamente.';
+        }
+      },12000);
+    }catch(err){
+      if(id)state.remotePending.delete(id); // Não apagar outros comandos pendentes.
+      if(state.role==='remote'&&(!id||state.remoteLatestCommandId===id)){
+        $('tg18-remote-feedback').textContent='⚠ Envio não concluído: '+humanError(err);
+      }
+      toast('Não foi possível enviar o comando: '+humanError(err),true);
+    }
   }
-  async function handleRemoteCommand(data){
-    if(state.role!=='host'||!state.room||Math.abs(Date.now()-Number(data.at))>20000)return;
-    const cmd=data.command;
+  async function handleRemoteCommand(data,recordCreatedAt){
+    if(state.role!=='host'||!state.room)return;
+    const cmd=data?.command;
     const ack=async(ok,message)=>{
-      if(!data.id)return;
-      await sendSignal(state.user.id,'host-remote-ack',{id:data.id,command:cmd,ok,message,at:Date.now()}).catch(console.warn);
+      if(!data?.id)return;
+      await sendSignal(state.user.id,'host-remote-ack',{id:data.id,command:cmd,ok,message,at:Date.now()}).catch(err=>console.warn('Confirmação do controle remoto:',err));
     };
+    // Usar o horário de gravação no Supabase evita descartar por relógio
+    // incorreto do segundo aparelho. Nenhum comando expira sem resposta.
+    const dbTime=Date.parse(recordCreatedAt||'');
+    const submittedAt=Number.isFinite(dbTime)?dbTime:Number(data?.at);
+    if(!Number.isFinite(submittedAt)||Math.abs(Date.now()-submittedAt)>20000){
+      await ack(false,'O comando chegou fora do prazo. Confira a TV e envie uma nova ação.');
+      return;
+    }
     try{
       if(cmd==='prepare-song'){
-        const song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');
-        if(!song)throw new Error('Música não está disponível na fila.');
-        await prepareSong(song);if(state.preflight?.song.id!==song.id)throw new Error('Não foi possível preparar a música.');
+        let song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');
+        if(!song){await fetchSongs();song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');}
+        if(!song)throw new Error('Esta música não está mais disponível na fila.');
+        await prepareSong(song);
+        if(state.preflight?.song.id!==song.id)throw new Error('Não foi possível preparar a música.');
       }else if(cmd==='toggle'){await togglePlayback();}
       else if(cmd==='play'){
         if(state.currentSong)state.player?.playVideo();
@@ -154,10 +195,10 @@
       }else if(cmd==='pause'){if(!state.currentSong)throw new Error('Nenhuma música tocando.');state.player?.pauseVideo();}
       else if(cmd==='next'||cmd==='prepare'){await advanceSong();}
       else if(cmd==='start'){
-        if(!state.preflight)throw new Error('Nenhuma apresentação preparada.');
+        if(!state.preflight)throw new Error('Prepare uma música da fila primeiro.');
         const preparedSong=state.preflight.song.id;await startPreparedSong();if(state.currentSong?.id!==preparedSong)throw new Error('Aguardando prontidão dos cantores.');
       }else if(cmd==='resend'){
-        if(!state.preflight)throw new Error('Nenhum cantor aguardando preparação.');
+        if(!state.preflight)throw new Error('Ainda não há cantor chamado. Toque em Preparar na fila antes de reenviar a chamada.');
         await sendPreflightInvites(true);
       }else if(['playback-volume','mic-volume'].includes(cmd)){
         const v=Number(data.value);
@@ -265,7 +306,7 @@
   }
   function openGuestCall(){
     if(!isPhoneSingerRole()||!state.guestPreflightSong)return;
-    if(state.role==='remote'){switchRemoteTab('singing');toast('🎤 Você é o próximo! Abra Eu cantando para liberar seu microfone.');if(navigator.vibrate)navigator.vibrate([120,80,120]);return;}
+    if(state.role==='remote'){if(state.remoteTab!=='singing'){state.remoteAutoSinger=true;switchRemoteTab('singing');}toast('🎤 Você é o próximo! Abra Participar para liberar seu microfone.');if(navigator.vibrate)navigator.vibrate([120,80,120]);return;}
     $('tg18-turn-track').textContent=state.guestPreflightSong.title||'Seu show';
     $('tg18-turn-overlay').hidden=false;
     $('tg18-turn-mic-state').textContent=availableMic()?'🟢 Microfone ligado • confirme quando estiver pronto(a)':'🔴 Microfone desligado • ative antes de confirmar';
@@ -867,8 +908,8 @@
     const linkRoom=normalizeRoom(url.searchParams.get('room'));
     const savedRoom=state.recoveryIntent?null:normalizeRoom(localStorage.getItem('tem-gogo-pending-room'));
     const targetRoom=linkRoom||savedRoom;
-    if(!state.recoveryIntent&&!remoteIntent&&targetRoom){
-      showGuestEntry(targetRoom);
+    if(!state.recoveryIntent&&!remoteIntent&&linkRoom){
+      showGuestEntry(linkRoom);
       $('invite-welcome').querySelector('p')?.replaceChildren(document.createTextNode('🎟️ Convite recebido! Informe seu apelido e escolha seu avatar para entrar.'));
     }
     if(!configured()){$('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';return;}
@@ -912,9 +953,16 @@
       }
       if(targetRoom){
         const resumed=await tryResumeMembership(targetRoom);
-        if(!resumed){showGuestEntry(targetRoom);toast('Digite seu apelido e escolha um avatar para entrar no show! 🎭');}
-      }else if(state.user)await openLobby();
-      else if(isStandalone())showGuestEntry('');
+        if(!resumed){
+          if(linkRoom){showGuestEntry(linkRoom);toast('Confira o convite da festa e escolha seu avatar para entrar. 🎭');}
+          else{
+            localStorage.removeItem('tem-gogo-pending-room');
+            if(state.user&&!isAnonymous(state.user))await openLobby();
+            else show('landing');
+          }
+        }
+      }else if(state.user&&!isAnonymous(state.user))await openLobby();
+      // Sem convite na URL, abrir o login limpo, inclusive no PWA instalado.
     }catch(err){toast(humanError(err),true);}
   }
   function isAnonymous(user) {return user?.is_anonymous===true || user?.app_metadata?.provider==='anonymous';}
@@ -1065,6 +1113,12 @@
     }catch(err){
       toast(humanError(err),true);
       if(auto)showGuestEntry(code);
+      // A identificação não confirma a existência da sala: devolva o usuário à busca
+      // quando o convite for recusado, sem perder apelido e avatar.
+      if(!auto && /Festa não encontrada|convite inválido|Não foi possível validar o convite/i.test(String(err?.message||''))){
+        if(localStorage.getItem('tem-gogo-pending-room')===code)localStorage.removeItem('tem-gogo-pending-room');
+        window.dispatchEvent(new CustomEvent('temgogo:guest-invalid-room',{detail:{room:code}}));
+      }
       return false;
     }
   }
@@ -1314,7 +1368,8 @@
     $('your-turn-banner').hidden=!mine;$('mic-turn-kicker').hidden=!mine;
     $('mic-card').classList.toggle('my-turn',mine);
     $('mobile-tab-mic').classList.toggle('turn-highlight',mine);
-    if(state.role==='remote'&&mine)switchRemoteTab('singing');
+    // O estado do mic remoto é controlado em renderRemoteMic(), que preserva
+    // a seleção manual da aba e memoriza apenas transições automáticas da Diva.
     if(mine){$('your-turn-track').textContent=playing.title;}renderGuestPreflight();renderRemoteMic();
     if(state.lastMySong!==playing?.id){
       const wasMine=Boolean(state.lastMySong);
@@ -1472,7 +1527,7 @@
     if(!state.room)return;
     const from=signal.sender_id,data=signal.payload||{};
     if(state.role==='host'){
-      if(signal.kind==='host-remote'){if(from===state.room.owner_id&&signal._ownerDevice===true)await handleRemoteCommand(data);return;}
+      if(signal.kind==='host-remote'){if(from===state.room.owner_id&&signal._ownerDevice===true)await handleRemoteCommand(data,signal.created_at);return;}
       if(signal.kind==='stage-recado'){
         const text=typeof data.text==='string'?data.text.replace(/\s+/g,' ').trim():'';
         const member=state.members.find(m=>m.user_id===from);
@@ -1516,9 +1571,11 @@
       } else if(signal.kind==='bye')closePeer(from);
     }else if(isPhoneSingerRole()&&from===state.room.owner_id){
       if(signal.kind==='host-remote-ack'&&state.role==='remote'){
-        if(data.id&&state.remotePending.has(data.id)){
+        if(data.id&&(state.remotePending.has(data.id)||state.remoteLatestCommandId===data.id)){
           state.remotePending.delete(data.id);
-          $('tg18-remote-feedback').textContent=data.ok===true?'✅ Comando processado pela TV: '+String(data.command||'comando'):'⚠ TV não executou: '+String(data.message||'Tente novamente');
+          if(state.remoteLatestCommandId===data.id){
+            $('tg18-remote-feedback').textContent=data.ok===true?'✅ TV confirmou: '+String(data.command||'comando'):'⚠ TV respondeu: '+String(data.message||'Não foi possível executar');
+          }
         }
         return;
       }
@@ -2539,7 +2596,7 @@ function renderFullCatalog(){
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
     hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;nextGuestRecadoAt=0;
     state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
-    state.remotePending.clear();state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
+    state.remotePending.clear();state.remoteLatestCommandId=null;state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
   async function leaveGuest(){
