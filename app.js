@@ -956,7 +956,7 @@
     const linkRoom=normalizeRoom(url.searchParams.get('room'));
     const savedRoom=state.recoveryIntent?null:normalizeRoom(localStorage.getItem('tem-gogo-pending-room'));
     const targetRoom=linkRoom||savedRoom;
-    if(!state.recoveryIntent&&!remoteIntent&&linkRoom){
+    if(!state.recoveryIntent&&!remoteIntent&&linkRoom && url.searchParams.get('auth')!=='login'){
       showGuestEntry(linkRoom);
       $('invite-welcome').querySelector('p')?.replaceChildren(document.createTextNode('🎟️ Convite recebido! Informe seu apelido e escolha seu avatar para entrar.'));
     }
@@ -988,6 +988,14 @@
             $('auth-state').textContent='O link não foi validado (pode ter expirado ou já ter sido usado). Informe seu e-mail e toque em “Esqueci minha senha” para solicitar outro.';
           },1800);
         }
+        return;
+      }
+      if(url.searchParams.get('auth')==='login'&&!state.recoveryIntent&&!remoteIntent){
+        if(validRoom(linkRoom))sessionStorage.setItem('tg20-auth-return-room',linkRoom);
+        show('landing');$('invite-welcome').hidden=true;$('access-tabs').hidden=false;
+        $('tab-host').click();
+        $('auth-state').textContent='Entre com sua conta ou crie uma nova. Seu convite ficará disponível após o acesso.';
+        if(url.searchParams.get('mode')==='signup')setTimeout(openSignup,0);
         return;
       }
       if(remoteIntent){
@@ -1098,7 +1106,17 @@
     const button=$('login-button');setLoading(button,true,'Entrando...');
     try {
       const {data,error}=await state.client.auth.signInWithPassword({email:$('auth-email').value.trim(),password:$('auth-password').value});
-      if(error)throw error; state.user=data.user; if(localStorage.getItem('tem-gogo-pending-remote')&&await resumeRemoteAfterLogin())return;await openLobby();
+      if(error)throw error; state.user=data.user;
+      if(localStorage.getItem('tem-gogo-pending-remote')&&await resumeRemoteAfterLogin())return;
+      const returnRoom=normalizeRoom(sessionStorage.getItem('tg20-auth-return-room'));
+      sessionStorage.removeItem('tg20-auth-return-room');
+      if(validRoom(returnRoom)){
+        const cleanUrl=new URL('./',location.href);cleanUrl.searchParams.set('room',returnRoom);
+        history.replaceState(null,'',cleanUrl.href);
+        holdInvitation(returnRoom);showGuestEntry(returnRoom);
+        toast('Conta conectada! Confira seu apelido e entre na festa. 🎤');return;
+      }
+      await openLobby();
     }catch(err){$('auth-state').textContent=humanError(err);toast(humanError(err),true);}finally{setLoading(button,false);}
   }
   function openSignup() {
@@ -1131,7 +1149,16 @@
       });
       if(error)throw error;
       $('auth-email').value=email;
-      if(data.session){state.user=data.user;closeSignup();await openLobby();toast('Conta criada! Agora o palco é seu. 🌟');}
+      if(data.session){
+        state.user=data.user;closeSignup();
+        const returnRoom=normalizeRoom(sessionStorage.getItem('tg20-auth-return-room'));
+        sessionStorage.removeItem('tg20-auth-return-room');
+        if(validRoom(returnRoom)){
+          const cleanUrl=new URL('./',location.href);cleanUrl.searchParams.set('room',returnRoom);
+          history.replaceState(null,'',cleanUrl.href);
+          holdInvitation(returnRoom);showGuestEntry(returnRoom);toast('Conta criada! Confirme seus dados para participar. 🌟');}
+        else {await openLobby();toast('Conta criada! Agora o palco é seu. 🌟');}
+      }
       else {
         // O Supabase pode não revelar quando um endereço já existe. Não prometer conta nova.
         feedback.textContent='📬 Se o cadastro puder ser concluído, você receberá um e-mail de confirmação. Confira também o spam; depois entre com sua senha.';
@@ -1419,8 +1446,11 @@
       dialog.showModal();
     });
   }
-  async function enqueueSelectedVideo(video,title,host,cardMode=null){
-    const partners=cardMode ? (cardMode==='solo'?[]:await chooseGuestSingers(title,cardMode)) : (host?chosenSingers(true):await chooseGuestSingers(title));
+  async function enqueueSelectedVideo(video,title,host,cardMode=null,cardPartners=null){
+    // When chosen from the catalogue, the SAME bottom sheet already contains mode
+    // and participants. No second modal can hide the Add button or selections.
+    const partners=Array.isArray(cardPartners)?cardPartners:
+      (cardMode ? (cardMode==='solo'?[]:await chooseGuestSingers(title,cardMode)) : (host?chosenSingers(true):await chooseGuestSingers(title)));
     if(partners===null)throw new Error('Seleção cancelada. A música não foi adicionada.');
     // Guest already confirmed track, format and singers in the same modal.
     if(host&&!cardMode&&!await confirmMusicSelection(title,partners))throw new Error('Escolha cancelada.');
@@ -2418,16 +2448,42 @@ function catalogCard(item,host){
   const hint=document.createElement('span');hint.textContent='Como vai ser o show?';hint.className='tg123-track-hint';
   const modes=document.createElement('div');modes.className='tg123-track-modes';modes.setAttribute('role','group');modes.setAttribute('aria-label','Formato da apresentação');
   let chosen='solo';
+  const partnerBox=document.createElement('div');partnerBox.className='tg20-partner-box';partnerBox.hidden=true;
+  const instructions=document.createElement('p');instructions.className='tg20-partner-help';
+  const people=document.createElement('div');people.className='tg20-partner-list';
+  partnerBox.append(instructions,people);
+  function renderPartners(){
+    const other=state.members.filter(m=>m.user_id!==state.user?.id);
+    partnerBox.hidden=chosen==='solo';people.replaceChildren();
+    if(chosen==='solo')return;
+    instructions.textContent=chosen==='duet'?'Escolha 1 pessoa da festa para cantar com você:':'Escolha 2 ou 3 pessoas da festa para montar o grupo:';
+    if(!other.length){const hint=document.createElement('p');hint.className='tg20-partner-help';hint.textContent='Ainda não há outros participantes nesta festa. Aguarde alguém entrar ou escolha Solo.';people.append(hint);return;}
+    for(const member of other){
+      const label=document.createElement('label');label.className='tg20-partner-option';
+      const input=document.createElement('input');input.type=chosen==='duet'?'radio':'checkbox';input.name='tg20-partners-'+videoId;input.value=member.user_id;
+      const photo=document.createElement('span');photo.textContent=member.display_name?.trim()?.charAt(0)?.toUpperCase()||'🎤';photo.setAttribute('aria-hidden','true');photo.className='tg20-partner-avatar';
+      const title=document.createElement('span');title.textContent=member.display_name||'Participante';label.append(input,photo,title);people.append(label);
+    }
+  }
   for(const [mode,label] of [['solo','🎤 Solo'],['duet','🎤🎤 Dueto'],['group','👥 Grupo']]){
     const option=document.createElement('button');option.type='button';option.className='tg123-mode';option.textContent=label;option.dataset.mode=mode;option.setAttribute('aria-pressed',String(mode==='solo'));
-    option.addEventListener('click',()=>{chosen=mode;for(const b of modes.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b===option));
-      add.textContent=mode==='solo'?'Adicionar solo à fila':mode==='duet'?'Escolher parceiro e adicionar':'Montar grupo e adicionar';});
+    option.addEventListener('click',()=>{chosen=mode;
+      for(const b of modes.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b===option));
+      add.textContent=mode==='solo'?'Confirmar solo na fila':mode==='duet'?'Confirmar dueto na fila':'Confirmar grupo na fila';
+      renderPartners();
+    });
     modes.append(option);
   }
-  const add=document.createElement('button');add.type='button';add.className='button button-primary tg123-track-add';add.textContent='Adicionar solo à fila';
+  const add=document.createElement('button');add.type='button';add.className='button button-primary tg123-track-add';add.textContent='Confirmar solo na fila';
   add.setAttribute('aria-label','Confirmar '+item.title+' na fila');
-  add.addEventListener('click',()=>void addSearchedVideo({id:videoId,title:item.title},host,add,card,chosen));
-  expanded.append(hint,modes,add);
+  add.addEventListener('click',()=>{
+    const selected=Array.from(people.querySelectorAll('input:checked')).map(i=>i.value);
+    if(chosen==='duet'&&selected.length!==1){toast('Selecione uma pessoa para o dueto.',true);return;}
+    if(chosen==='group'&&(selected.length<2||selected.length>3)){toast('Escolha 2 ou 3 pessoas além de você para o grupo.',true);return;}
+    if(chosen!=='solo'&&new Set(selected).size!==selected.length){toast('Confira os participantes escolhidos.',true);return;}
+    void addSearchedVideo({id:videoId,title:item.title},host,add,card,chosen,chosen==='solo'?[]:selected);
+  });
+  expanded.append(hint,modes,partnerBox,add);
   toggle.addEventListener('click',()=>{
     const opening=expanded.hidden;
     document.querySelectorAll('.tg123-track-choice:not([hidden])').forEach(el=>{if(el!==expanded){el.hidden=true;el.closest('.tg123-track')?.querySelector('.tg123-track-toggle')?.setAttribute('aria-expanded','false');}});
@@ -2437,7 +2493,7 @@ function catalogCard(item,host){
       if(sheet){
         const slot=$('tg124-choice-slot');slot.replaceChildren(expanded);expanded.hidden=false;
         sheet.addEventListener('close',()=>{if(slot.contains(expanded)){card.append(expanded);expanded.hidden=true;toggle.setAttribute('aria-expanded','false');}},{once:true});
-        $('tg124-choice-title').textContent=item.title;sheet.showModal();add.focus({preventScroll:true});
+        renderPartners();$('tg124-choice-title').textContent=item.title;sheet.showModal();modes.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
         return;
       }
       add.focus({preventScroll:true});
@@ -2515,12 +2571,12 @@ function renderFullCatalog(){
     $('tg123-success-another').onclick=()=>{hide();if($('catalog-dialog')?.open)$('catalog-search')?.focus({preventScroll:true});};
     tg123SuccessTimer=setTimeout(hide,4800);
   }
-  async function addSearchedVideo(item,host,button,results,cardMode=null) {
+  async function addSearchedVideo(item,host,button,results,cardMode=null,cardPartners=null) {
     if(!state.room || !state.client){toast('Entre numa festa antes de adicionar músicas.',true);return;}
     if(!youtubeId(item.id)){toast('Vídeo indisponível. Escolha outro.',true);return;}
     setLoading(button,true,'Entrando na fila...');
     try {
-      await enqueueSelectedVideo(item.id,item.title.slice(0,120),host,cardMode);
+      await enqueueSelectedVideo(item.id,item.title.slice(0,120),host,cardMode,cardPartners);
       // Confirmação de sucesso apenas depois do RPC; falha de refresh não desfaz a gravação.
       try{await fetchSongs();renderQueue();}catch(err){console.warn('Fila salva; atualização visual pendente:',err);}
       showEnqueueSuccess(item.title,cardMode);
@@ -2838,7 +2894,17 @@ function renderFullCatalog(){
   }
   async function logout(){
     if(state.client){const {error}=await state.client.auth.signOut();if(error){toast(humanError(error),true);return;}}
-    await stopSession();state.user=null;show('landing');toast('Saiu da sua conta.');
+    await stopSession();state.user=null;
+    sessionStorage.removeItem('tg20-auth-return-room');
+    localStorage.removeItem('tem-gogo-pending-remote');
+    localStorage.removeItem('tem-gogo-pending-room');
+    state.inviteRoom=null;
+    const cleanUrl=new URL('./',location.href);history.replaceState(null,'',cleanUrl.href);
+    document.body.classList.remove('invite-active','entry-active','tg12-guest-mode');
+    document.body.classList.add('tg12-login-mode');
+    $('invite-welcome').hidden=true;$('access-tabs').hidden=false;
+    $('tab-host').click();show('landing');
+    $('auth-password').value='';toast('Você saiu da conta. Entre com outra ou crie uma conta.');
   }
   // ----- BETA 16: scanner, senhas e permissões ----
   function canDirectDiva(){return !!state.room && !!state.user && state.room.owner_id===state.user.id && (state.role==='host'||state.role==='remote');}
@@ -2915,7 +2981,7 @@ function renderFullCatalog(){
     $('tg124-profile-close')?.addEventListener('click',()=>dlg.close());
     dlg.querySelectorAll('[data-tg124-action]').forEach(button=>button.addEventListener('click',async()=>{
       const action=button.dataset.tg124Action;dlg.close();
-      if(action==='edit'){if(state.role==='remote')$('tg18-remote-rename')?.click();else if(state.role==='guest')$('edit-guest-profile')?.click();else $('account-password-open')?.click();}
+      if(action==='edit'){if(state.role==='remote')$('tg18-remote-rename')?.click();else if(state.role==='guest')$('edit-guest-profile')?.click();else $('tg20-host-profile-dialog')?.showModal();}
       else if(action==='change')await goToMyRooms();
       else if(action==='leave'){
         if(state.role==='guest')$('leave-party')?.click();

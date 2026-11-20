@@ -30,7 +30,7 @@ function initAccess(){
  const card=$('access-card'),host=$('host-access'),guest=$('guest-access'),tabs=$('access-tabs');if(!card||!host||!guest||!tabs)return;
  document.body.classList.add('tg12-ready','tg12-login-mode');
  tabs.classList.add('tg12-legacy-tabs');
- const intro=mk('div',{class:'tg12-access-intro'});intro.innerHTML='<span class="tg12-kicker">TEM GOGÓ · BETA 1.2.3</span><h1>Seu show começa aqui.</h1><p>Entre na sua conta ou participe de uma festa pelo QR.</p>';
+ const intro=mk('div',{class:'tg12-access-intro'});intro.innerHTML='<span class="tg12-kicker">TEM GOGÓ · BETA 2.0</span><h1>Seu show começa aqui.</h1><p>Entre na sua conta ou participe de uma festa pelo QR.</p>';
  card.insertBefore(intro,card.firstChild);
  const title=host.querySelector('h2');if(title)title.textContent='Entre na sua conta';
  const subtle=host.querySelector('.subtle');if(subtle)subtle.textContent='Acesse suas festas, seu perfil e o controle.';

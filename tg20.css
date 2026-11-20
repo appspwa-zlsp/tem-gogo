@@ -1,0 +1,125 @@
+/* TEM GOGÓ BETA 2.0 — correction layer, appended after all legacy styles.
+   No microphone capture, WebRTC, or scoring code is modified. */
+:root { --tg20-outline:#b88ccb; --tg20-spot:#d7ff86; }
+[hidden]{display:none!important}
+#guest, #stage, #landing, #lobby{overflow-x:clip}
+button,input,select,textarea{font-family:inherit}
+button{touch-action:manipulation}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--tg20-spot)!important;outline-offset:2px}
+.tg20-auth-choices{margin:18px 0 4px;padding:14px;border:1px solid #ac80bd66;border-radius:16px;background:#ffffff0a;display:grid;gap:8px;max-width:100%}
+.tg20-auth-choices strong{font-size:14px;line-height:1.3;color:#e9fdbb}
+.tg20-auth-choices p{font-size:12px;line-height:1.45;color:#cfbedb;margin:0}
+.tg20-auth-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tg20-auth-buttons .button{min-width:0;min-height:47px!important;margin:0!important;padding:10px 5px!important;white-space:normal!important;font-size:13px!important;border-radius:13px!important}
+#signup-dialog .modal-inner{padding:clamp(18px,4vw,28px)}
+#signup-dialog input{width:100%;min-height:44px}
+#signup-dialog .signup-reveal input{width:auto;min-height:auto}
+#tg20-host-profile-dialog{max-width:560px;width:calc(100vw - 22px)}
+#tg20-host-profile-dialog .modal-inner{padding:22px;display:grid;gap:12px}
+#tg20-host-profile-dialog h2{font-size:clamp(22px,5vw,30px);margin:0}
+#tg20-host-profile-dialog p{margin:0}
+#tg20-profile-name{width:100%;min-height:48px}
+.tg20-avatar-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.tg20-avatar-choice{display:grid;gap:5px;justify-items:center;cursor:pointer;border:2px solid #86699a;border-radius:13px;padding:7px 3px;min-width:0}
+.tg20-avatar-choice:has(input:checked){border-color:var(--tg20-spot);background:#d7ff861a}
+.tg20-avatar-choice input{position:absolute;opacity:0;width:1px}
+.tg20-avatar-choice img{width:100%;height:76px;object-fit:contain}
+.tg20-avatar-choice span{font-weight:700}
+.tg20-avatar-choice:has(input:focus-visible){outline:3px solid var(--tg20-spot)}
+/* The 1.2 + 1.2.3 + 1.2.4 cascade previously assigned different grid rows/heights. */
+#guest-library,#stage-library,#catalog-list,#search-results,#host-results{min-width:0;max-width:100%;align-content:start!important;grid-auto-rows:max-content!important}
+#guest-library .history-song-card.tg123-track,
+#stage-library .history-song-card.tg123-track,
+#catalog-list .history-song-card.tg123-track,
+#search-results .history-song-card.tg123-track,
+#host-results .history-song-card.tg123-track{
+ display:grid!important;grid-template-columns:clamp(60px,20vw,76px) minmax(0,1fr) minmax(59px,auto)!important;
+ grid-template-rows:auto!important;grid-template-areas:'cover info toggle'!important;
+ height:auto!important;min-height:102px!important;max-height:none!important;
+ padding:12px!important;margin:0 0 12px!important;gap:8px!important;
+ align-items:center!important;align-content:center!important;
+ box-sizing:border-box!important;overflow:hidden!important;position:relative!important;isolation:isolate;
+ border:1px solid #a579be8c!important;border-radius:16px!important;
+ background:linear-gradient(125deg,#341d44,#22122f)!important;
+}
+#guest-library .tg123-track>img,#stage-library .tg123-track>img,#catalog-list .tg123-track>img,#search-results .tg123-track>img,#host-results .tg123-track>img{
+ grid-area:cover!important;position:static!important;width:100%!important;max-width:76px!important;height:70px!important;object-fit:cover!important;border-radius:10px!important;min-width:0!important;}
+#guest-library .tg123-track>.history-song-info,#stage-library .tg123-track>.history-song-info,#catalog-list .tg123-track>.history-song-info,#search-results .tg123-track>.history-song-info,#host-results .tg123-track>.history-song-info{
+ grid-area:info!important;position:static!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:4px!important;}
+.tg123-track .history-song-info strong{display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;line-clamp:2!important;overflow:hidden!important;max-height:none!important;line-height:1.3!important;font-size:clamp(12px,3.5vw,15px)!important;word-break:break-word!important}
+.tg123-track .history-song-info small{line-height:1.3!important;font-size:11px!important;margin:0!important;white-space:normal!important}
+.tg123-track .tg124-suggest{background:none!important;position:static!important;margin:0!important;border:0!important;padding:2px 0!important;line-height:1.25!important;display:inline-block!important;width:max-content!important;max-width:100%!important;text-align:left!important;color:#a9f2d6!important;font-size:11px!important;cursor:pointer}
+#guest-library .tg123-track>.tg123-track-toggle,#stage-library .tg123-track>.tg123-track-toggle,#catalog-list .tg123-track>.tg123-track-toggle,#search-results .tg123-track>.tg123-track-toggle,#host-results .tg123-track>.tg123-track-toggle{
+ grid-area:toggle!important;position:static!important;display:grid!important;place-items:center!important;
+ width:auto!important;max-width:none!important;min-width:59px!important;min-height:45px!important;
+ margin:0!important;padding:8px 6px!important;border-radius:13px!important;white-space:nowrap!important;
+ opacity:1!important;visibility:visible!important;z-index:1!important;}
+/* The selection lives ONLY in the bottom sheet, never expands inside catalogue cards. */
+.tg123-track>.tg123-track-choice[hidden]{display:none!important}
+#guest-library .tg123-track>.tg123-track-choice,#catalog-list .tg123-track>.tg123-track-choice,#stage-library .tg123-track>.tg123-track-choice{display:none!important}
+/* A small horizontal, swipeable shelf for the highlighted guest songs; full library remains a vertically readable list. */
+#guest-library.hit-library-list{display:flex!important;gap:12px!important;overflow-x:auto!important;overflow-y:hidden!important;scroll-snap-type:x proximity;scroll-padding-inline:8px;padding:4px 6px 14px!important;overscroll-behavior-x:contain;align-items:stretch;min-height:160px}
+#guest-library.hit-library-list>.tg123-track{flex:0 0 min(82vw,315px)!important;width:min(82vw,315px)!important;min-width:0!important;scroll-snap-align:start;margin:0!important}
+#guest-library.hit-library-list>.tg123-track{grid-template-columns:65px minmax(0,1fr)!important;grid-template-rows:auto auto!important;grid-template-areas:'cover info' 'toggle toggle'!important;align-content:center!important;min-height:160px!important}
+#guest-library.hit-library-list>.tg123-track>.tg123-track-toggle{grid-column:1/-1!important;width:100%!important}
+/* Bottom sheet stays scrollable; selection and submit have distinct rows. */
+#tg124-choice-dialog.tg124-bottom-sheet{width:min(100%,640px)!important;max-height:calc(100dvh - 12px)!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain}
+#tg124-choice-dialog .tg124-sheet-content{display:flex;flex-direction:column;gap:12px;padding:24px 17px max(24px,env(safe-area-inset-bottom))!important;min-width:0}
+#tg124-choice-slot{width:100%;min-width:0;max-width:100%;display:block}
+#tg124-choice-slot .tg123-track-choice{display:flex!important;flex-direction:column!important;position:static!important;gap:16px!important;width:100%!important;max-height:none!important;min-width:0!important;overflow:visible!important;padding:0!important;margin:0!important}
+#tg124-choice-slot .tg123-track-modes{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#tg124-choice-slot .tg123-track-modes button{min-height:50px;white-space:normal;min-width:0}
+#tg124-choice-slot .tg123-track-add{position:static!important;display:block!important;width:100%!important;min-height:54px!important;flex-shrink:0!important;margin:8px 0 0!important}
+#tg17-singer-dialog .modal-inner{max-height:calc(100dvh - 22px);overflow-y:auto;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+#tg17-singer-dialog .tg17-singer-actions{position:sticky;bottom:0;background:#24132fe8;padding:10px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#tg17-singer-dialog .tg17-singer-actions button{min-width:0;min-height:47px;white-space:normal}
+/* Toasts must clear the 70–90px bottom fixed menu + system navigation. */
+#toast.toast{bottom:calc(96px + env(safe-area-inset-bottom,0px))!important;max-width:calc(100vw - 24px)!important;z-index:3000!important}
+#guest .guest-main,#guest .guest-queue-panel{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
+/* Profile: clean, one-sized actions and an accessible close icon. */
+#tg124-profile-menu .tg124-profile-inner{padding:20px;display:grid;gap:6px}
+#tg124-profile-menu .tg124-profile-inner button[data-tg124-action]{margin:0!important;border-radius:14px!important;min-height:53px!important;letter-spacing:normal;line-height:1.25}
+#tg124-profile-close{display:grid;place-items:center;background:#51365e;color:white;border:1px solid #9270a2;border-radius:12px;min-width:42px;min-height:42px}
+/* The host's actual commands are repositioned beneath the QR on desktop and below the player on smaller screens. */
+#stage .stage-actions .tg124-profile-shortcut{min-height:40px}
+#stage .qr-rail{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:12px;min-width:0}
+#stage .qr-rail .tg123-host-bar{position:static!important;margin:4px 0!important;width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;padding:8px!important;box-shadow:none!important;min-width:0!important}
+#stage .qr-rail .tg123-host-bar button{min-width:0!important;min-height:48px!important;font-size:clamp(10px,.95vw,14px)!important;padding:8px 2px!important;white-space:normal!important;overflow-wrap:break-word}
+#stage .qr-rail .tg123-post-score{position:static!important;inset:auto!important;left:auto!important;right:auto!important;bottom:auto!important;transform:none!important;z-index:1!important;width:100%!important;margin:0!important;box-shadow:none!important;padding:12px!important}
+#stage .qr-rail .tg123-post-score>div{grid-template-columns:1fr!important;margin:8px 0!important;gap:6px}
+#stage .qr-rail .tg123-post-score button{font-size:12px!important;min-height:43px}
+#stage .qr-rail .qr-bubble{max-width:100%;min-width:0}
+#stage .stage-main>.tg123-host-bar{position:static!important;margin:10px 0!important;width:100%;max-width:100%;z-index:1!important}
+#stage .stage-main>.tg123-post-score{position:static!important;inset:auto!important;transform:none!important;margin:8px 0 12px!important;width:100%;max-width:100%;max-height:180px;overflow-y:auto!important}
+#stage .stage-main>.tg123-post-score>div{margin:8px 0!important}
+/* Clean up host categories / secondary actions: uniform cards, no global header docks over the video. */
+#stage .tg104-cockpit-tabs button,#lobby .tg12-hub-choices button{border-radius:16px!important;min-height:54px!important;box-sizing:border-box}
+#stage .stage-command{min-width:0;max-width:100%}
+@media(max-width:480px){
+ .tg20-auth-buttons{grid-template-columns:1fr 1fr}
+ #stage .stage-actions{flex-wrap:wrap;gap:8px}
+ #stage .tg104-cockpit-tabs button{font-size:12px}
+ #guest-library.hit-library-list>.tg123-track{flex-basis:min(83vw,300px)!important;width:min(83vw,300px)!important}
+ #tg17-singer-dialog .tg17-singer-actions{grid-template-columns:1fr}
+ #stage .stage-main>.tg123-host-bar{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(prefers-reduced-motion:reduce){#toast.toast{transition:none!important}}
+
+.tg20-account-choice{display:grid;gap:12px;padding:24px!important}.tg20-account-choice h2{font-size:clamp(22px,5vw,31px);line-height:1.12;margin:0 30px 0 0}.tg20-account-choice p,.tg20-account-choice small{line-height:1.5;color:#d9c7df}.tg20-account-choice .button{min-height:52px;margin:0;border-radius:15px}.tg20-account-choice small{font-size:12px}
+
+.tg20-profile-group{margin:12px 0;border:1px solid #86669c;border-radius:16px;background:#271936;padding:12px 14px}
+.tg20-profile-group summary{cursor:pointer;color:#d6ff9c;font-size:15px;font-weight:750;padding:6px 2px}
+.tg20-profile-group>label{display:flex!important;gap:10px;align-items:flex-start;padding:12px 4px;border-bottom:1px solid #ffffff19;line-height:1.45;margin:0}
+.tg20-profile-group>label:last-child{border-bottom:0}
+.tg20-profile-group>label input[type="checkbox"]{width:20px!important;height:20px;flex:0 0 20px;margin:3px 0}
+.tg20-profile-group>label select{min-width:0;max-width:100%;margin-top:6px}
+@media(max-width:570px){.tg20-profile-group>label{flex-wrap:wrap}.tg20-profile-group>label select{width:100%}}
+/* Participant selection stays in the same bottom sheet, never under another modal. */
+#tg124-choice-slot .tg20-partner-box{width:100%;min-width:0;max-height:min(40dvh,300px);overflow-y:auto;background:#2d1b3b;border:1px solid #88699d;border-radius:14px;padding:12px}
+#tg124-choice-slot .tg20-partner-help{font-size:13px;line-height:1.45;margin:0 0 10px;color:#e1d3eb}
+#tg124-choice-slot .tg20-partner-list{display:grid;gap:8px}
+#tg124-choice-slot .tg20-partner-option{display:flex;gap:11px;align-items:center;min-height:46px;padding:8px 10px;background:#4a315a;border:1px solid #7a598c;border-radius:12px;cursor:pointer}
+#tg124-choice-slot .tg20-partner-option:has(input:checked){border-color:#d7ff8b;background:#4d4557}
+#tg124-choice-slot .tg20-partner-option input{width:19px;height:19px;flex:0 0 19px;accent-color:#d7ff8b}
+#tg124-choice-slot .tg20-partner-avatar{width:30px;height:30px;flex:0 0 30px;border-radius:50%;display:grid;place-items:center;background:#744f89;font-weight:800}
+#tg124-choice-slot .tg20-partner-option span:last-child{min-width:0;overflow-wrap:anywhere;font-weight:650;font-size:14px}
