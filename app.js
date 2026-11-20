@@ -64,7 +64,7 @@
     if(state.role!=='remote')return;
     const next=tab==='singing'?'singing':'control';
     if((state.guestPreflightSong||isMyTurn())&&next==='control')return;
-    state.remoteTab=next;
+    state.remoteTab=next;document.body.classList.toggle('tg124-remote-focus',callActive());
     if(next==='control')state.remoteAutoSinger=false;
     for(const [name,id] of [['control','tg19-remote-control'],['singing','tg19-remote-singing']]){
       const panel=$(id),button=$('tg19-tab-'+name),active=name===next;
@@ -106,7 +106,7 @@
     const called=Boolean(state.guestPreflightSong);
     const active=Boolean(playing);
     document.body.classList.toggle('tg18-remote-singing',active);
-    document.body.classList.toggle('tg103-remote-mic-focus',called||active);
+    document.body.classList.toggle('tg103-remote-mic-focus',called||active);document.body.classList.toggle('tg124-remote-focus',called||active);
     if(called||active){
       if(state.remoteTab!=='singing'){
         state.remoteAutoSinger=true; // abertura automática pela Diva, não escolha manual
@@ -147,6 +147,7 @@
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
     const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song'];
     if(!allowed.includes(cmd))return;
+    if(callActive() && !['start','resend'].includes(cmd)){toast('Durante sua vez o controle fica protegido; use o painel do microfone.',true);return;}
     if(cmd.endsWith('volume')&&Date.now()-state.remoteLastSent<280)return;
     state.remoteLastSent=Date.now();
     let id=null;
@@ -219,7 +220,16 @@
         const id=cmd==='playback-volume'?'playback-volume-range':'volume-range';
         $(id).value=String(v);$(id).dispatchEvent(new Event('input',{bubbles:true}));
       }else throw new Error('Comando não reconhecido.');
-      await ack(true,'Comando processado na TV');
+      const playbackCmd=['toggle','play','pause'].includes(cmd);
+      if(playbackCmd && !state.currentSong && !state.preflight)throw new Error('Não há apresentação para controlar.');
+      if(playbackCmd && state.currentSong && !state.playerReady)throw new Error('O player ainda não está pronto para confirmar este comando.');
+      if(playbackCmd && state.currentSong && state.playerReady){
+        await new Promise(resolve=>setTimeout(resolve,240));
+        const status=state.player?.getPlayerState?.();
+        if(cmd==='pause' && status!==2)throw new Error('O player ainda não confirmou a pausa.');
+        if(cmd==='play' && status!==1)throw new Error('O player ainda não confirmou a reprodução.');
+      }
+      await ack(true,playbackCmd?'Ação recebida pelo player; confira a reprodução.':'Comando executado no palco');
     }catch(err){console.warn('Comando remoto:',err);await ack(false,String(err.message||'Falha ao executar').slice(0,130));}
   }
   // V18: microfone solo utiliza a captura local SEM enviar áudio para a própria saída,
@@ -245,7 +255,7 @@
   function stopSoloMic(){
     const m=state.soloMic;if(!m)return;state.soloMic=null;$('tg192-solo-dock').hidden=true;
     m.stream.getTracks().forEach(t=>t.stop());m.ctx.close().catch(()=>{});
-    if(document.body.classList.contains('tg104-single-device')){$('tg192-solo-dock').hidden=false;$('tg192-solo-label').textContent='MIC SOLO DESLIGADO';}
+    if(document.body.classList.contains('tg104-single-device')){$('tg192-solo-dock').hidden=false;document.querySelector('#tg192-solo-dock .tg192-solo-label')?.replaceChildren(document.createTextNode('MIC SOLO DESLIGADO'));}
     $('tg18-solo-button').textContent='🎙️ Ativar microfone solo';
     $('tg18-solo-status').textContent='Microfone solo desligado';
   }
@@ -329,7 +339,7 @@
   function closeGuestCall(){if($('tg18-turn-overlay'))$('tg18-turn-overlay').hidden=true;}
 
   function micStatusLabel(uid){
-    if(state.peers.get(uid)?.connection==='connected')return '🟢 Áudio ligado à TV';
+    if(state.peers.get(uid)?.connection==='connected')return '🟢 Captação em comunicação';
     const s=state.preflight?.statuses.get(uid);
     if(s?.mic) return '🟡 Mic liberado no celular';
     return '🔴 Mic ainda desligado';
@@ -337,6 +347,7 @@
   // V17: Only TEXT signals reach the TV. No recording, no synthesized narration.
   // A local queue preserves guest recados until the interval; host reload clears this ephemeral buffer.
   const pendingGuestRecados=[];
+  const recadoFrequency=new Map();
   let nextGuestRecadoAt=0, recadoTimer=null, recadoShowing=false, recadoAfter=null;
   function hideGuestRecado(){
     clearTimeout(recadoTimer);recadoTimer=null;recadoShowing=false;
@@ -347,7 +358,12 @@
     const msg=pendingGuestRecados.shift();const el=$('tg17-message-screen');
     if(msg.messageId && state.client){void state.client.from('tg_party_messages').update({status:'displayed',displayed_at:new Date().toISOString()}).eq('id',msg.messageId).eq('room_id',state.room.id).then(({error})=>{if(error)console.warn('Auditoria de recados:',error.message);});}
     if(!el)return false;
-    $('tg17-message-from').textContent='Recado de '+msg.name;
+    const key=String(state.room?.id||'')+':'+String(msg.uid||msg.name);
+    const repeat=(recadoFrequency.get(key)||0)+1;recadoFrequency.set(key,repeat);
+    const lines=repeat===1?[`Atenção, temos recado de ${msg.name}!`,`Produção, abre o correio! ${msg.name} mandou um recado!`]:[`Olha quem voltou: ${msg.name} tem mais um recado!`,`E lá vem outro babado de ${msg.name}!`];
+    const title=chooseDifferent(lines);
+    $('tg17-message-from').textContent=title;
+    if(state.role==='host')showDivaBubble(title,'💌');
     $('tg17-message-text').textContent=msg.text; // Never render user text as HTML.
     el.hidden=false;recadoShowing=true;recadoAfter=after;
     recadoTimer=setTimeout(()=>{
@@ -625,9 +641,27 @@
   // V17: Browser TTS was removed because timbre and quality are unpredictable.
   // The presenter speaks through animated on-screen text, never through robotic audio.
   function speakDiva(){ /* intentionally silent */ }
+  const tg124HumorLines={
+    familia:{opening:['Chegou a hora de cantar, minha gente! Todo mundo é estrela aqui!'],preflight:['Vamos preparar o microfone com calma. O palco espera por vocês!'],reminder:['Consegue conferir o microfone, estrela? Estamos esperando você!'],ready:['Todo mundo pronto! Anfitrião, pode começar o show!'],ending:['Muito bem, estrelas! Hora de conferir nosso placar divertido!'],queue:['Tem mais um hit na fila!'],singing:['Aproveite o show!']},
+    debochado:{opening:['A produção já chegou com a peruca e o julgamento recreativo, Brasil!'],preflight:['Alô, camarim! O close não espera, liga esse microfone!'],reminder:['Segunda chamada, minha filha! Esse camarim tá cobrando aluguel!'],ready:['Prontíssimos! A produção liberou o close — começa esse hino!'],ending:['Segura esse glitter, vou conferir esse babado de nota!'],queue:['Outra música! O palco já pediu aposentadoria e nem começou!'],singing:['Solta a voz, que o refrão é seu!']},
+    caos:{opening:['PAREM TUDO! O MAIOR ACONTECIMENTO MUSICAL DA SALA COMEÇOU!'],preflight:['PRODUÇÃO! O ELENCO PRECISA ESTAR PRONTO AGORA!'],reminder:['ALERTA DE CAMARIM! SEGUNDA CHAMADA! CADÊ O MICROFONE?'],ready:['ELENCO CONFIRMADO! ABRAM AS CORTINAS!'],ending:['O SHOW ACABOU! O VEREDITO VEM AÍ!'],queue:['MAIS UM HIT! SEGUREM ESSAS LUZES!'],singing:['É A SUA ERA MUSICAL!']},
+    lgbt:{opening:['O palco tá liberado, o carão tá pronto e o babado vai acontecer!'],preflight:['Arruma a peruca imaginária e confirma o microfone, mona!'],reminder:['O close tá atrasando, estrela! Confere o microfone!'],ready:['Tudo pronto, meu cristal! Agora entrega esse hino!'],ending:['Foi close atrás de close! Agora vem o placar, meu bem!'],queue:['Tem outro hit na fila, e a playlist não aceita flop!'],singing:['Entrega seu refrão com orgulho!']},
+    reality:{opening:['A produção anuncia: está aberta a temporada do Gogó!'],preflight:['Participantes, dirijam-se ao palco. O programa vai começar!'],reminder:['A produção convoca novamente o participante para confirmar prontidão!'],ready:['Participantes confirmados! Anfitrião, a decisão é sua: libere a apresentação!'],ending:['A votação recreativa terminou. O placar será revelado!'],queue:['Nova prova musical no palco. Participantes, preparem-se!'],singing:['Valendo a apresentação!']},
+    bafao:{opening:['Cheguei no camarim e já fiquei sabendo que hoje vai ter babado!'],preflight:['Ajeita esse carão, estrela: o camarim inteiro tá de olho!'],reminder:['Ih, lá vem nova chamada! Será que essa estrela tá passando gloss?'],ready:['Todo mundo prontinho! Vamos dar esse close na plateia!'],ending:['Acho que a produção precisa me contar uma coisa... vamos ver a nota!'],queue:['Novo babado musical na fila, minha gente!'],singing:['Faz esse palco virar notícia boa!']}
+  };
+  function showDivaBubble(line,emoji='🎤'){
+    if(state.role!=='host')return;
+    const panel=$('tg124-diva-announcement');if(!panel)return;
+    const text=$('tg124-diva-text');if(text)text.textContent='“'+line+'”';
+    const icon=$('tg124-diva-emoji');if(icon)icon.textContent=emoji;
+    panel.hidden=false;
+    clearTimeout(showDivaBubble.timer);
+    // Não encobrir o vídeo durante o canto. O balão usa o contorno do palco.
+    showDivaBubble.timer=setTimeout(()=>{panel.hidden=true;},6500);
+  }
   function updateVoxLine(moment='opening'){
-    const modes={lgbt:['O close tá servido! Só falta você soltar o gogó, Brasil! 🏳️‍🌈','Desfila esse refrão! Aqui todo mundo tem palco e peruca imaginária!'],reality:['Atenção, Brasil: vamos ver quem entrega o próximo hit!','A produção confirma: microfones liberados, participantes prontos e show na TV!'],bafao:['Minha gente, esse camarim tá um babado!','O palco é de vocês, o carão é comigo!']};
-    const text=chooseDifferent(modes[state.humorMode]&&moment!=='preflight'&&moment!=='reminder'?modes[state.humorMode]:voxMoments[moment]||voxMoments.opening);
+    const pool=tg124HumorLines[state.humorMode]?.[moment]||voxMoments[moment]||voxMoments.opening;
+    const text=chooseDifferent(pool);
     if($('vox-line'))$('vox-line').textContent=`“${text}”`;
     if($('vox-idle-line'))$('vox-idle-line').textContent=`“${text}”`;
     if($('vox-guest-line'))$('vox-guest-line').textContent=`“${text}” — Diva Gogó`;
@@ -638,7 +672,7 @@
       state.divaSpeakingTimer=setTimeout(()=>document.body.classList.remove('diva-talking'),4500);
       const emojis={opening:'👑',preflight:'⏳',ready:'🎉',reminder:'👀',singing:'🎤',queue:'✨',ending:'🏆'};
       for(const id of ['diva-idle-expression','diva-preflight-expression','diva-result-expression'])if($(id))$(id).textContent=emojis[moment]||'💅';
-      if(moment!=='singing')speakDiva(text,['ready','ending'].includes(moment));
+      if(moment!=='singing')showDivaBubble(text,emojis[moment]||'💅');
     }
   }
   function applyTheme(theme,announce=false){
@@ -1218,7 +1252,7 @@
       const el=$(id); if(!el)continue;el.textContent=label;el.dataset.status=mode;
     }
   }
-  async function hydrateRoom() {await fetchRoom();if(!state.room)return;await fetchSongs();await fetchMembers();await fetchScores();renderAll();}
+  async function hydrateRoom() {await fetchRoom();if(!state.room)return;await fetchSongs();await fetchMembers();await fetchScores();renderAll();void fetchRoomHumor();}
   async function refreshRoomSnapshot(){
     if(Date.now()-state.catalogFetchedAt>45000)void loadCatalog();
     if(!state.room||state.syncRunning){state.syncQueued=true;return;}
@@ -1228,7 +1262,7 @@
       await fetchSongs();if(state.room?.id!==roomId)return;
       await fetchMembers();if(state.room?.id!==roomId)return;
       await fetchScores();if(state.room?.id!==roomId)return;
-      renderAll();setSyncStatus(navigator.onLine?(state.realtimeOk?'live':'fallback'):'offline');
+      renderAll();if(state.role==='host'||state.role==='remote')void fetchRoomHumor();setSyncStatus(navigator.onLine?(state.realtimeOk?'live':'fallback'):'offline');
     }catch(err){console.warn('Falha ao sincronizar sala:',err);setSyncStatus('offline');}
     finally{state.syncRunning=false;if(state.syncQueued){state.syncQueued=false;if(state.room?.id===roomId)queueChanged();}}
   }
@@ -1277,7 +1311,27 @@
     if(state.room?.id!==requestedRoom)return;if(error)throw error;
     state.members=data||[];refreshDuetOptions();
   }
-  async function fetchScores(){if(!state.room)return;const requestedRoom=state.room.id;const {data,error}=await state.client.from('karaoke_scores').select('*').eq('room_id',requestedRoom).order('created_at',{ascending:false}).limit(250);if(state.room?.id!==requestedRoom)return;if(error)throw error;state.scores=data||[];if(state.role==='host')renderStageRanking();if(state.role==='guest')renderGuestScore();if(state.role==='remote')renderRemote();}
+  async function fetchScores(){
+    if(!state.room)return;
+    const roomId=state.room.id,all=[];
+    for(let offset=0;offset<30000;offset+=500){
+      const {data,error}=await state.client.from('karaoke_scores').select('*').eq('room_id',roomId).order('created_at',{ascending:false}).range(offset,offset+499);
+      if(state.room?.id!==roomId)return;
+      if(error)throw error;
+      all.push(...(data||[]));if((data||[]).length<500)break;
+    }
+    state.scores=all;
+    // D014: metadados de músicas concluídas; a pontuação continua intocada.
+    state.songTitleCache=state.songTitleCache||new Map();
+    const ids=[...new Set(all.map(row=>row.song_id).filter(Boolean))].filter(id=>!state.songTitleCache.has(String(id)));
+    for(let start=0;start<ids.length;start+=80){
+      const {data,error}=await state.client.from('karaoke_songs').select('id,title').eq('room_id',roomId).in('id',ids.slice(start,start+80));
+      if(!error)(data||[]).forEach(song=>state.songTitleCache.set(String(song.id),String(song.title||'Música')));
+    }
+    if(state.role==='host')renderStageRanking();
+    if(state.role==='guest')renderGuestScore();
+    if(state.role==='remote')renderRemote();
+  }
   function renderGuestScore(){
     const el=$('guest-latest-score');if(!el||!state.user)return;
     const last=state.scores.find(row=>row.user_id===state.user.id&&Number.isFinite(Number(row.score)));
@@ -1579,7 +1633,7 @@
         const sentAt=Number(data.sentAt)||0;
         if(!Number.isFinite(sentAt)||Math.abs(Date.now()-sentAt)>180000)return;
         if(pendingGuestRecados.length>=12)pendingGuestRecados.shift();
-        pendingGuestRecados.push({name:verifiedMember.display_name||'Convidado',text,messageId:typeof data.messageId==='string'?data.messageId:null});
+        pendingGuestRecados.push({name:verifiedMember.display_name||'Convidado',uid:verifiedMember.user_id,text,messageId:typeof data.messageId==='string'?data.messageId:null});
         toast('💌 Novo recado da plateia, reservado para o intervalo.');
         if(!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden&&!recadoShowing)showNextGuestRecado();
         return;
@@ -2161,7 +2215,7 @@
     if(!state.currentSong||state.finishing)return;
     state.finishing=true;
     try {
-      if(!skipped){toast('🏁 Diva Gogó está conferindo as notas dos celulares...');await fetchMembers();await awaitSingersLastMicReport(state.currentSong);}
+      if(!skipped){showDivaBubble('Segura o glitter, que eu estou conferindo o placar desta cantoria!','🏆');await fetchMembers();await awaitSingersLastMicReport(state.currentSong);}
       const singers=songSingers(state.currentSong);
       const results=skipped?[]:getScoreResults();
       await callRPC('karaoke_finish_song',{p_room:state.room.id,p_skipped:skipped,p_results:results});
@@ -2169,6 +2223,8 @@
       if(!skipped){try{await fetchScores();}catch(e){console.warn('Atualização do ranking:',e);}}
       if(skipped){try{state.player?.stopVideo();}catch{}}
       state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;
+      // D001: pontuação registrada ANTES de liberar o microfone solo.
+      if(state.soloMic)stopSoloMic();
       // Privacidade: feche os microfones ao fim do show.
       for(const uid of [...state.peers.keys()]){void sendSignal(uid,'bye').catch(console.warn);closePeer(uid);}
       if(!skipped&&showResults){
@@ -2186,6 +2242,7 @@
     finally{state.finishing=false;}
   }
   async function advanceSong(){
+    if(document.body.classList.contains('tg104-single-device') && state.currentSong && !await window.TG_UI.confirm('Pular esta apresentação? O microfone será desligado após finalizar o registro da música.',{title:'Pular música',confirmText:'Pular apresentação',danger:true}))return;
     if($('tg123-post-score'))$('tg123-post-score').hidden=true;
     hideFinal();
     if(state.currentSong)await finishSong(true,false);
@@ -2214,7 +2271,7 @@
       });
       metrics.sent=true;
       void loadCatalog(true);
-      toast('⭐ Um hit entrou no acervo do Tem Gogó!');
+      toast('⭐ Este vídeo entrou nos candidatos da Biblioteca para análise da Central!');
     }catch(error){
       // Pode falhar por atraso no servidor ou RPC ainda não instalada; não insistir a cada segundo.
       console.warn('Histórico de reprodução:',error?.message||error);
@@ -2312,13 +2369,13 @@ async function loadCatalog(force=false){
   const task=(async()=>{
     const loaded=[],batch=200,maxRecords=5000;
     for(let offset=0;offset<maxRecords;offset+=batch){
-      const {data,error}=await state.client.from('karaoke_video_catalog')
+      const {data,error}=await state.client.from('tg_official_catalog')
         .select('video_id,title,plays,last_qualified_play')
         .order('plays',{ascending:false}).order('last_qualified_play',{ascending:false})
         .range(offset,offset+batch-1);
       if(error)throw error;
       const rows=(data||[]).filter(x=>youtubeId(x.video_id));
-      loaded.push(...rows);
+      loaded.push(...rows.filter(x=>x.approved!==false));
       if((data||[]).length<batch)break;
     }
     if(!state.room||state.room.id!==roomId)return [];
@@ -2335,7 +2392,7 @@ async function loadCatalog(force=false){
     state.catalogError=err;
     console.warn('Falha ao ler o catálogo do Supabase:',err.message);
     if(!state.catalog.length)document.querySelectorAll('.hit-library-list').forEach(el=>{
-      el.textContent='Não consegui carregar o catálogo. Confira a conexão ou tente novamente.';
+      el.textContent='Biblioteca oficial indisponível. Verifique a migration 023 e a conexão.';
     });
     return state.catalog;
   }finally{if(state.catalogLoading===task)state.catalogLoading=null;}
@@ -2343,10 +2400,7 @@ async function loadCatalog(force=false){
 async function queryLocalCatalog(query){
   await loadCatalog();
   if(state.catalog.length||!state.catalogError)return catalogResults(query).slice(0,40);
-  // Recurso de compatibilidade caso a tabela não esteja acessível diretamente.
-  const {data,error}=await state.client.rpc('karaoke_catalog_search',{p_query:query,p_limit:20});
-  if(error)throw error;
-  return (data||[]).filter(x=>youtubeId(x.video_id));
+  throw new Error('A Biblioteca oficial não está disponível. Confira a migration 023.');
 }
 function catalogCard(item,host){
   const videoId=youtubeId(item.video_id);
@@ -2357,6 +2411,7 @@ function catalogCard(item,host){
   const title=document.createElement('strong');title.textContent=item.title;
   const tiny=document.createElement('small');tiny.textContent=item.source_kind==='external'?'🔎 Sugestão externa · reprodução sujeita ao YouTube':Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões)`:'📚 Música do catálogo';
   info.append(title,tiny);
+  if(item.source_kind!=='external'){const suggest=document.createElement('button');suggest.type='button';suggest.className='tg124-suggest';suggest.textContent='✎ Sugerir título';suggest.dataset.tg124Suggest=videoId;suggest.dataset.originalTitle=item.title;info.append(suggest);}
   const toggle=document.createElement('button');toggle.type='button';toggle.className='tg123-track-toggle';
   toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent='+ FILA';
   const expanded=document.createElement('div');expanded.className='tg123-track-choice';expanded.hidden=true;
@@ -2377,7 +2432,16 @@ function catalogCard(item,host){
     const opening=expanded.hidden;
     document.querySelectorAll('.tg123-track-choice:not([hidden])').forEach(el=>{if(el!==expanded){el.hidden=true;el.closest('.tg123-track')?.querySelector('.tg123-track-toggle')?.setAttribute('aria-expanded','false');}});
     expanded.hidden=!opening;toggle.setAttribute('aria-expanded',String(opening));
-    if(opening)add.focus({preventScroll:true});
+    if(opening){
+      const sheet=$('tg124-choice-dialog');
+      if(sheet){
+        const slot=$('tg124-choice-slot');slot.replaceChildren(expanded);expanded.hidden=false;
+        sheet.addEventListener('close',()=>{if(slot.contains(expanded)){card.append(expanded);expanded.hidden=true;toggle.setAttribute('aria-expanded','false');}},{once:true});
+        $('tg124-choice-title').textContent=item.title;sheet.showModal();add.focus({preventScroll:true});
+        return;
+      }
+      add.focus({preventScroll:true});
+    }
   });
   card.append(cover,info,toggle,expanded);return card;
 }
@@ -2460,6 +2524,7 @@ function renderFullCatalog(){
       // Confirmação de sucesso apenas depois do RPC; falha de refresh não desfaz a gravação.
       try{await fetchSongs();renderQueue();}catch(err){console.warn('Fila salva; atualização visual pendente:',err);}
       showEnqueueSuccess(item.title,cardMode);
+      if($('tg124-choice-dialog')?.open)$('tg124-choice-dialog').close();
       if($('catalog-dialog')?.open)$('catalog-dialog').close();
       if(host && $('song-dialog').open)$('song-dialog').close();
       else {const feedback=results.closest('.search-results')||results;if(feedback.id==='search-results')makeSearchMessage(feedback,'💚 Entrou na fila! Pode escolher outro hit se quiser.');}
@@ -2595,23 +2660,24 @@ function renderFullCatalog(){
     }finally{setLoading(button,false);}
   }
   function getRankingRows(){
-    const rankings=new Map();
+    const rows=new Map();
+    const titles=new Map(state.songTitleCache||[]);(state.songs||[]).forEach(song=>titles.set(String(song.id),String(song.title||'Música')));
     for(const row of state.scores){
-      if(!Number.isFinite(Number(row.score)))continue;
-      const record=rankings.get(row.user_id)||{total:0,best:0,count:0};
-      const value=Math.max(0,Math.min(100,Number(row.score)));
-      record.total+=value;record.best=Math.max(record.best,value);record.count++;
-      rankings.set(row.user_id,record);
+      const value=Number(row.score);if(!Number.isFinite(value))continue;
+      const songId=String(row.song_id||'');
+      const key=String(row.user_id)+'|'+songId;
+      const record=rows.get(key)||{uid:row.user_id,songId,title:titles.get(songId)||row.song_title||'Música da apresentação',best:0,count:0,attempts:[]};
+      record.best=Math.max(record.best,Math.max(0,Math.min(100,value)));
+      record.count++;record.attempts.push({score:value,created_at:row.created_at});rows.set(key,record);
     }
-    return [...rankings.entries()].filter(([,d])=>d.count>0)
-      .sort((a,b)=>b[1].best-a[1].best||(b[1].total/b[1].count)-(a[1].total/a[1].count)||b[1].count-a[1].count);
+    return [...rows.values()].sort((a,b)=>b.best-a.best||b.count-a.count||String(a.title).localeCompare(String(b.title),'pt-BR'));
   }
   function renderStageRanking(){
     const list=$('stage-rank-list');if(!list)return;
-    const rows=getRankingRows().slice(0,5);
-    if(!rows.length){list.innerHTML='<p class="rank-empty">Ainda não saiu a primeira nota. A Diva Gogó já tá preparando a coroa! 👑</p>';return;}
-    list.innerHTML=rows.map(([uid,data],i)=>`<div class="mini-rank-item"><span class="rank-medal">${['🥇','🥈','🥉'][i]||i+1+'º'}</span><span class="mini-rank-name">${escapeHTML(memberName(uid))}<small>${data.count} música(s) • média ${Math.round(data.total/data.count)}</small></span><strong>${data.best}<small>/100</small></strong></div>`).join('');
-    $('rank-updated').textContent=rows.length+' no placar';
+    const rows=getRankingRows();
+    if(!rows.length){list.innerHTML='<p class="rank-empty">Ainda não saiu a primeira nota. A Diva já está preparando a coroa! 👑</p>';return;}
+    list.innerHTML=rows.slice(0,5).map((d,i)=>`<div class="mini-rank-item"><span class="rank-medal">${['🥇','🥈','🥉'][i]||i+1+'º'}</span><span class="mini-rank-name">${escapeHTML(memberName(d.uid))}<small>${escapeHTML(d.title)} · ${d.count} tentativa(s)</small></span><strong>${d.best}<small>/100</small></strong></div>`).join('');
+    $('rank-updated').textContent=rows.length+' recordes no placar';
   }
   function renderLiveScore(){
     const holder=$('live-score-list');if(!holder||state.role!=='host')return;
@@ -2627,7 +2693,7 @@ function renderFullCatalog(){
   }
   function openScoreboard(){
     const sorted=getRankingRows();
-    $('score-list').innerHTML=sorted.length?sorted.map(([uid,data],i)=>`<div class="score-row"><span class="score-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span><div class="score-detail"><strong>${escapeHTML(memberName(uid))}</strong><small>${data.count} música(s) • melhor nota: ${data.best} • média ${Math.round(data.total/data.count)} • ${'★'.repeat(Math.ceil(data.best/20))}</small></div><strong class="score-value">${data.best}</strong></div>`).join(''):'<p class="subtle">O ranking começa depois da primeira música completa. 🎤</p>';
+    $('score-list').innerHTML=sorted.length?sorted.map((d,i)=>`<details class="tg124-rank-entry"><summary class="score-row"><span class="score-rank">${['🥇','🥈','🥉'][i]||i+1+'º'}</span><div class="score-detail"><strong>${escapeHTML(memberName(d.uid))}</strong><small>${escapeHTML(d.title)} · ${d.count} tentativa(s) · melhor nota ${d.best}</small></div><strong class="score-value">${d.best}/100</strong></summary><div class="tg124-attempts">${d.attempts.map((a,n)=>`<p>${n+1}ª tentativa · ${Math.round(a.score)}/100 ${Math.round(a.score)===d.best?'🏆':''}</p>`).join('')}</div></details>`).join(''):'<p class="subtle">O ranking começa depois da primeira apresentação avaliada. 🎤</p>';
     $('score-dialog').showModal();
   }
   async function unlockWakeLock(){
@@ -2669,7 +2735,7 @@ function renderFullCatalog(){
       const el=document.createElement('div');el.id='youtube-player';el.className='youtube-player';frame.prepend(el);
     }
     state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
-    hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;nextGuestRecadoAt=0;
+    hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;recadoFrequency.clear();nextGuestRecadoAt=0;
     state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
     state.remotePending.clear();state.remoteLatestCommandId=null;state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
     hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
@@ -2700,10 +2766,14 @@ function renderFullCatalog(){
     $('recap-scored').textContent=String(Number(data?.songs_scored)||0);
     $('recap-duets').textContent=String(Number(data?.duets_completed)||0);
     const ranked=Array.isArray(data?.podium)?data.podium:[];
-    $('recap-podium').innerHTML=ranked.length?ranked.map((row,i)=>`<div class="recap-winner"><span class="recap-medal">${['🥇','🥈','🥉'][i]}</span><div><b>${escapeHTML(row.name||'Artista')}</b><small>Melhor nota • ${Number(row.songs_scored)||1} apresentação(ões)</small></div><strong>${Number(row.best_score)||0}/100</strong></div>`).join(''):'<p class="recap-muted">Sem notas válidas nesta festa. Ninguém vai levar zero por falha de sinal!</p>';
+    $('recap-podium').innerHTML=ranked.length?ranked.map((row,i)=>{
+      const known=state.recapAvatars?.get(row.user_id)||state.avatars.get(row.user_id)||row.avatar;
+      const picture=AVATARS[known]?`<img class="tg124-podium-avatar" src="${avatarSrc(known)}" alt="Avatar de ${escapeHTML(row.name||'Artista')}">`:'<span class="tg124-podium-avatar tg124-unknown-avatar" aria-label="Avatar não disponível">🎤</span>';
+      return `<div class="recap-winner tg124-podium-place tg124-place-${i+1}"><span class="recap-medal">${['🥇','🥈','🥉'][i]}</span>${picture}<div><b>${escapeHTML(row.name||'Artista')}</b><small>Melhor nota • ${Number(row.songs_scored)||1} apresentação(ões)</small></div><strong>${Number(row.best_score)||0}/100</strong></div>`;
+    }).join(''):'<p class="recap-muted">Sem notas válidas nesta festa. Ninguém vai levar zero por falha de sinal!</p>';
     const flop=data?.perrengue;
     $('recap-flop').hidden=!flop;
-    if(flop){$('recap-flop-name').textContent=flop.name||'Estrela';$('recap-flop-score').textContent=(Number(flop.score)||0)+'/100';}
+    if(flop){$('recap-flop-name').textContent=flop.name||'Estrela';$('recap-flop-score').textContent=(Number(flop.score)||0)+'/100';const known=state.recapAvatars?.get(flop.user_id)||state.avatars.get(flop.user_id)||flop.avatar;const img=$('tg124-flop-avatar');if(img){img.hidden=!AVATARS[known];if(AVATARS[known])img.src=avatarSrc(known);}}
     const dlg=$('party-recap-dialog');if(!dlg.open)dlg.showModal();
     if(ranked.length)confetti();
   }
@@ -2757,6 +2827,7 @@ function renderFullCatalog(){
       // Depois do sucesso no banco, nenhuma falha de limpeza pode esconder o placar.
       try{localStorage.setItem('tem-gogo-last-recap-room',id);}catch(error){console.warn('Não foi possível guardar o atalho local do placar',error);}
       try{state.player?.stopVideo();}catch(error){console.warn('Falha ao parar vídeo já encerrado',error);}
+      state.recapAvatars=new Map(state.avatars);
       try{await stopSession();}catch(error){console.error('Festa encerrada no banco; falha ao limpar recursos locais',error);}
       try{await openLobby();}catch(error){console.error('Festa encerrada no banco; falha ao atualizar Minhas festas',error);show('lobby');}
       try{showPartyRecap(recap);}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
@@ -2770,7 +2841,25 @@ function renderFullCatalog(){
     await stopSession();state.user=null;show('landing');toast('Saiu da sua conta.');
   }
   // ----- BETA 16: scanner, senhas e permissões ----
-  function canDirectDiva(){return state.role==='host'||(!state.role&&!!state.user&&!isAnonymous(state.user));}
+  function canDirectDiva(){return !!state.room && !!state.user && state.room.owner_id===state.user.id && (state.role==='host'||state.role==='remote');}
+  async function persistRoomHumor(mode){
+    if(!canDirectDiva())return;
+    const {error}=await state.client.from('tg_room_settings').upsert({room_id:state.room.id,humor_mode:mode,updated_by:state.user.id},{onConflict:'room_id'});
+    if(error){toast('Humor não sincronizado: instale a migration 023 e confirme as permissões da festa.',true);return;}
+    toast('Humor da Diva sincronizado com o palco. 💅');
+    // O host lê a configuração em tempo real e também durante o refresh periódico.
+    if(state.role==='remote')await sendSignal(state.user.id,'host-room-humor',{mode}).catch(()=>{});
+  }
+  async function fetchRoomHumor(){
+    if(!state.room || !state.client)return;
+    const {data,error}=await state.client.from('tg_room_settings').select('humor_mode').eq('room_id',state.room.id).maybeSingle();
+    if(error||!data)return;
+    if(['familia','debochado','caos','lgbt','reality','bafao'].includes(data.humor_mode) && data.humor_mode!==state.humorMode){
+      state.humorMode=data.humor_mode;
+      const select=$('humor-mode');if(select)select.value=state.humorMode;
+      syncPrivateControls();updateVoxLine('opening');
+    }
+  }
   function syncPrivateControls(){document.querySelectorAll('[data-host-only]').forEach(el=>el.hidden=!canDirectDiva());document.querySelectorAll('[data-diva-mode]').forEach(btn=>btn.classList.toggle('chosen',btn.dataset.divaMode===state.humorMode));}
   function updateGroupChoice(host){
     const p=host?'host':'guest',chosen=document.querySelector('input[name="'+p+'-mode"]:checked')?.value||'solo';
@@ -2820,7 +2909,40 @@ function renderFullCatalog(){
     try{const {error}=await state.client.auth.resetPasswordForEmail(email,{redirectTo:new URL('./index.html?auth=recovery',location.href).href});if(error)throw error;toast('Se o endereço tiver conta, você receberá instruções para redefinir a senha.');}
     catch(e){toast(humanError(e),true);}
   }
+  function setupProfileQuickMenu(){
+    const dlg=$('tg124-profile-menu');if(!dlg)return;
+    document.querySelectorAll('[data-tg124-profile]').forEach(button=>button.addEventListener('click',()=>dlg.showModal()));
+    $('tg124-profile-close')?.addEventListener('click',()=>dlg.close());
+    dlg.querySelectorAll('[data-tg124-action]').forEach(button=>button.addEventListener('click',async()=>{
+      const action=button.dataset.tg124Action;dlg.close();
+      if(action==='edit'){if(state.role==='remote')$('tg18-remote-rename')?.click();else if(state.role==='guest')$('edit-guest-profile')?.click();else $('account-password-open')?.click();}
+      else if(action==='change')await goToMyRooms();
+      else if(action==='leave'){
+        if(state.role==='guest')$('leave-party')?.click();
+        else if(state.role==='host'||state.role==='remote')await goToMyRooms();
+        else show('landing');
+      }else if(action==='logout'){
+        if(await window.TG_UI.confirm('Sair da conta neste aparelho?',{title:'Sair da conta',confirmText:'Sair'}))await logout();
+      }else if(action==='help'){document.querySelector('[data-tg193-faq]')?.click();}
+    }));
+  }
+  async function sendTitleSuggestion(videoId,currentTitle){
+    if(!state.user||!state.room){toast('Entre na festa para sugerir uma correção.',true);return;}
+    const suggestion=await window.TG_UI.prompt('Sugira o nome completo desta música. Sua sugestão será analisada pela Central; nada será alterado agora.',currentTitle,'Sugerir correção de título');
+    if(!suggestion||suggestion.trim()===currentTitle)return;
+    const title=suggestion.trim();if(title.length<4||title.length>160){toast('O título deve conter de 4 a 160 caracteres.',true);return;}
+    const {error}=await state.client.from('tg_title_suggestions').insert({video_id:videoId,original_title:currentTitle,proposed_title:title,author_id:state.user.id,room_id:state.room.id});
+    toast(error?'Não foi possível enviar. Confira a migration 023 e sua participação na sala.':'Sugestão enviada! A Central decidirá se será publicada.',Boolean(error));
+  }
+  function setupCatalogSuggestions(){
+    for(const holder of ['catalog-list','guest-library','stage-library'])$(holder)?.addEventListener('click',event=>{
+      const btn=event.target.closest('[data-tg124-suggest]');if(!btn)return;
+      void sendTitleSuggestion(btn.dataset.tg124Suggest,btn.dataset.originalTitle);
+    });
+  }
   function attachEvents(){
+    setupProfileQuickMenu();setupCatalogSuggestions();
+    $('tg124-choice-close')?.addEventListener('click',()=>$('tg124-choice-dialog')?.close());
     document.querySelectorAll('[data-scan-qr]').forEach(b=>b.addEventListener('click',startQrScan));
     $('tg16-scan-close').addEventListener('click',closeQrScan);$('tg16-scan-manual').addEventListener('click',closeQrScan);
     $('tg16-scan-dialog').addEventListener('close',()=>void closeQrScan());
@@ -2835,7 +2957,7 @@ function renderFullCatalog(){
     }
     document.querySelectorAll('[data-diva-mode]').forEach(b=>b.addEventListener('click',()=>{
       if(!canDirectDiva()){toast('A direção do humor é exclusiva do anfitrião.',true);return;}
-      state.humorMode=b.dataset.divaMode;$('humor-mode').value=state.humorMode;localStorage.setItem('tem-gogo-humor',state.humorMode);syncPrivateControls();updateVoxLine('opening');toast('Diva Gogó em modo '+b.textContent.trim());
+      state.humorMode=b.dataset.divaMode;$('humor-mode').value=state.humorMode;syncPrivateControls();updateVoxLine('opening');void persistRoomHumor(state.humorMode);
     }));
     $('tg17-send-message').addEventListener('click',()=>void sendGuestRecado());
     $('tg17-dictate').addEventListener('click',dictateGuestRecado);
@@ -2906,7 +3028,7 @@ function renderFullCatalog(){
     $('settings-close').addEventListener('click',()=>$('settings-dialog').close());
     $('settings-done').addEventListener('click',()=>{$('settings-dialog').close();toast('Tá TUDO, Brasil! Seu Tem Gogó tá pronto. 💅');});
     document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>applyTheme(button.dataset.themeChoice,true)));
-    $('humor-mode').addEventListener('change',e=>{if(!canDirectDiva())return;state.humorMode=e.target.value;localStorage.setItem('tem-gogo-humor',state.humorMode);toast('Diva Gogó atualizado. O deboche tem direção de arte!');});
+    $('humor-mode').addEventListener('change',e=>{if(!canDirectDiva())return;state.humorMode=e.target.value;syncPrivateControls();updateVoxLine('opening');void persistRoomHumor(state.humorMode);});
     $('gifs-enabled').addEventListener('change',e=>{state.gifsEnabled=e.target.checked;localStorage.setItem('tem-gogo-gifs',String(state.gifsEnabled));});
     $('effects-enabled').addEventListener('change',e=>{state.effectsEnabled=e.target.checked;localStorage.setItem('tem-gogo-effects',String(state.effectsEnabled));document.body.classList.toggle('effects-off',!state.effectsEnabled);});
     $('settings-contrast').addEventListener('change',e=>toggleContrast(e.target.checked));
@@ -3091,6 +3213,10 @@ function renderFullCatalog(){
       <section data-tg104-panel="sala" class="tg104-panel tg104-room-panel" role="tabpanel" hidden></section>
     </div>`;
     main.append(cockpit);
+    // D009: mover nó original dos controles para após o vídeo; preservar listeners.
+    const bar=$('tg123-host-bar'),screen=main.querySelector('.screen-row');if(bar&&screen)screen.insertAdjacentElement('afterend',bar);
+    const footerEnd=$('stage-exit');if(footerEnd)bar.append(footerEnd);
+    const solo=$('tg18-solo-button');if(solo)main.querySelector('.stage-meta')?.insertAdjacentElement('afterend',solo);
     const move=(selector,panel)=>{const element=stage.querySelector(selector),parent=cockpit.querySelector(panel);if(element&&parent)parent.append(element);};
     move('#tg17-console','.tg104-live-controls');
     move('.singer-strip','.tg104-live-side');

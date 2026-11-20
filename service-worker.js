@@ -1,8 +1,9 @@
-const CACHE='tem-gogo-beta123-catalogo-mobile';
-const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./visual-v18.css','./visual-v19.css','./refinamento-v19-2.css','./tour-suporte-v19-3.css','./beta10.css','./beta10.css?v=120','./beta12.css','./beta12.css?v=123','./beta123.css','./beta123.css?v=123','./beta10.js','./beta10.js?v=120','./beta12.js','./beta12.js?v=123','./tg-dialogs.js','./tg-dialogs.js?v=120','./termos.html','./privacidade.html','./bora-pro-role-logo.png','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./app.js?v=123','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='tem-gogo-beta124-consolidado';
+const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./visual-v18.css','./visual-v19.css','./refinamento-v19-2.css','./tour-suporte-v19-3.css','./beta10.css','./beta10.css?v=120','./beta12.css','./beta12.css?v=123','./beta123.css','./beta123.css?v=123','./tg124-refine.css','./tg124-enhance.js','./tg124-refine.css?v=124','./tg124-enhance.js?v=124','./beta10.js','./beta10.js?v=120','./beta12.js','./beta12.js?v=123','./tg-dialogs.js','./tg-dialogs.js?v=120','./termos.html','./privacidade.html','./bora-pro-role-logo.png','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./app.js?v=124','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));
 });
+self.addEventListener('message',event=>{if(event.data?.type==='TG_APPLY_UPDATE')self.skipWaiting();});
 self.addEventListener('activate',event=>{
   event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
