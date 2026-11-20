@@ -31,6 +31,18 @@
   if(!AVATARS[state.avatar]){state.avatar='urbano';localStorage.setItem('tem-gogo-avatar','urbano');}
   function avatarSrc(key){return AVATARS[key]||AVATARS.urbano;}
   function isPhoneSingerRole(){return state.role==='guest'||state.role==='remote';}
+  function updateMicPersona(){
+    const who=state.user?.id ? memberName(state.user.id) : 'Estrela';
+    const playing=state.songs.find(s=>s.status==='playing'&&isSinger(s,state.user?.id));
+    const track=playing?.title||state.guestPreflightSong?.title||'A Diva avisa quando chegar sua vez';
+    for(const prefix of ['guest','remote']){
+      const avatar=$('tg123-'+prefix+'-mic-avatar');if(!avatar)continue;
+      avatar.src=avatarSrc(state.avatar);
+      const name=$('tg123-'+prefix+'-mic-name');if(name)name.textContent=who;
+      const song=$('tg123-'+prefix+'-mic-track');if(song)song.textContent=track;
+    }
+  }
+
   function availableMic(){return !!state.localStream?.getAudioTracks().some(t=>t.readyState==='live'&&t.enabled);}
   function renderAvatarOptions(){
     for(const id of ['entry-avatar-options','profile-avatar-options']){
@@ -89,6 +101,7 @@
   }
   function renderRemoteMic(){
     const panel=$('tg18-remote-mic');if(!panel||state.role!=='remote')return;
+    updateMicPersona();
     const playing=state.songs.find(s=>s.status==='playing'&&isSinger(s,state.user?.id));
     const called=Boolean(state.guestPreflightSong);
     const active=Boolean(playing);
@@ -222,7 +235,7 @@
       ctx.createMediaStreamSource(stream).connect(analyser);await ctx.resume();
       state.soloMic={stream,ctx,analyser,samples:0,vocal:0,volume:0,last:0,songId:null};
       $('tg192-solo-dock').hidden=false;
-      $('tg192-solo-label').textContent='MIC SOLO ATIVO';
+      const soloLabel=document.querySelector('#tg192-solo-dock .tg192-solo-label');if(soloLabel)soloLabel.textContent='MIC SOLO ATIVO';
       stream.getAudioTracks().forEach(t=>t.onended=()=>stopSoloMic());
       $('tg18-solo-button').textContent='🎙️ Desligar microfone solo';
       $('tg18-solo-status').textContent='🟢 Mic ativo no celular · áudio não sai pelos alto-falantes para evitar eco';
@@ -433,6 +446,7 @@
     if(!called&&state.mobileTab==='mic')switchMobileTab('queue',false);
   }
   function renderGuestPreflight(){
+    updateMicPersona();
     const playing=state.songs.find(s=>s.status==='playing'&&isSinger(s,state.user?.id));
     const urgent=Boolean(playing&&!availableMic());
     const song=urgent?playing:state.guestPreflightSong,box=$('guest-preflight');
@@ -998,6 +1012,25 @@
       if(membership.error)throw membership.error;
       const names=new Map((membership.data||[]).map(m=>[m.room_id,m.display_name]));
       const heading=document.createElement('h3');heading.className='my-rooms-heading';heading.textContent='🎟️ Minhas festas ('+rooms.length+')';container.append(heading);
+      // Beta 1.2.3: atalho proprietário independente do QR de convidados.
+      const controls=$('tg123-active-controls');
+      if(controls){
+        controls.replaceChildren();
+        const own=rooms.filter(r=>r.owner_id===state.user.id&&r.status==='open');
+        controls.hidden=!own.length;
+        if(own.length){
+          const cap=document.createElement('strong');cap.textContent=own.length===1?'🎛️ Sua festa está no ar':'🎛️ Suas festas ativas';controls.append(cap);
+          for(const active of own){
+            const row=document.createElement('div');row.className='tg123-hub-room';
+            const label=document.createElement('span');label.textContent=active.title;
+            const control=document.createElement('button');control.type='button';control.className='button button-primary';control.textContent='Controlar minha festa';
+            control.addEventListener('click',()=>void enterRoomAsRemote(active));
+            const stage=document.createElement('button');stage.type='button';stage.className='button button-outline';stage.textContent='Abrir palco';
+            stage.addEventListener('click',()=>void enterRoomAsHost(active));
+            row.append(label,control,stage);controls.append(row);
+          }
+        }
+      }
       if(!rooms.length){const p=document.createElement('p');p.className='hub-empty';p.textContent='Ainda não tem festa por aqui. Crie uma ou entre com o convite de alguém!';container.append(p);return;}
       for(const room of rooms){
         const host=room.owner_id===state.user.id;
@@ -1278,7 +1311,15 @@
       const prefix=host?'host':'guest';const group=$(prefix+'-group-members');
       const selected=new Set([...group.querySelectorAll('input:checked')].map(c=>c.value));
       group.replaceChildren();
-      for(const member of choices){const label=document.createElement('label');label.className='tg16-group-person';const input=document.createElement('input');input.type='checkbox';input.value=member.user_id;input.checked=selected.has(member.user_id);label.append(input,document.createTextNode(member.display_name));group.append(label);}
+      for(const member of choices){
+        const label=document.createElement('label');label.className='tg16-group-person tg123-person-item';
+        const input=document.createElement('input');input.type='checkbox';input.value=member.user_id;input.checked=selected.has(member.user_id);
+        const symbol=document.createElement('span');symbol.className='tg123-person-avatar';
+        const key=state.avatars.get(member.user_id);
+        if(AVATARS[key]){const img=document.createElement('img');img.src=AVATARS[key];img.alt='';symbol.append(img);}
+        else symbol.textContent=String(member.display_name||'?').trim().charAt(0).toUpperCase();
+        label.append(input,symbol,document.createTextNode(member.display_name));group.append(label);
+      }
     }
   }
   function chosenSingers(host){
@@ -1303,14 +1344,15 @@
       yesBtn.addEventListener('click',accept);cancelBtn.addEventListener('click',reject);dialog.addEventListener('close',closed);dialog.showModal();
     });
   }
-  function chooseGuestSingers(title){
+  function chooseGuestSingers(title,initialMode='solo'){
     return new Promise(resolve=>{
       const dialog=$('tg17-singer-dialog');
       if(!dialog){resolve(null);return;}
       $('tg17-selected-track').textContent='🎶 '+title;
-      // The selection mode starts with solo; duet/group can be picked after the track.
-      const solo=dialog.querySelector('input[name="guest-mode"][value="solo"]');
-      if(solo)solo.checked=true;
+      // Reutiliza o diálogo real de seleção, como bottom sheet; sem duplicar a lógica do banco.
+      const selection=dialog.querySelector('input[name="guest-mode"][value="'+(['solo','duet','group'].includes(initialMode)?initialMode:'solo')+'"]');
+      if(selection)selection.checked=true;
+      $('tg17-singer-heading').textContent=initialMode==='group'?'Quem entra no seu grupo?':initialMode==='duet'?'Quem canta com você?':'Quem canta esta música?';
       dialog.querySelectorAll('[data-group-people] input[type="checkbox"]').forEach(el=>el.checked=false);
       refreshDuetOptions();updateGroupChoice(false);
       let done=false;
@@ -1323,11 +1365,11 @@
       dialog.showModal();
     });
   }
-  async function enqueueSelectedVideo(video,title,host){
-    const partners=host?chosenSingers(true):await chooseGuestSingers(title);
+  async function enqueueSelectedVideo(video,title,host,cardMode=null){
+    const partners=cardMode ? (cardMode==='solo'?[]:await chooseGuestSingers(title,cardMode)) : (host?chosenSingers(true):await chooseGuestSingers(title));
     if(partners===null)throw new Error('Seleção cancelada. A música não foi adicionada.');
     // Guest already confirmed track, format and singers in the same modal.
-    if(host&&!await confirmMusicSelection(title,partners))throw new Error('Escolha cancelada.');
+    if(host&&!cardMode&&!await confirmMusicSelection(title,partners))throw new Error('Escolha cancelada.');
     if(partners.length>=2)return callRPC('karaoke_enqueue_group',{p_room:state.room.id,p_video:video,p_title:title,p_partner_ids:partners});
     if(partners.length===1)return callRPC('karaoke_enqueue_duet',{p_room:state.room.id,p_video:video,p_title:title,p_partner:partners[0]});
     return callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title});
@@ -1690,12 +1732,13 @@
     const text={new:'● Conectando',connecting:'◌ Ligando ao palco',connected:'● PALCO CONECTADO',preview:'◉ Teste local',disconnected:'⚠ Desconectado',failed:'⚠ Falha no palco',closed:'● Desligado'};
     badge.textContent=text[connection]||'● '+connection;
     badge.classList.toggle('active',connection==='connected');
+    badge.setAttribute('aria-label',availableMic()?(connection==='connected'?'Microfone ligado e conectado à TV':'Microfone ligado, conexão com a TV ainda não confirmada'):'Microfone desligado');
     badge.dataset.status=connection;
     $('mic-card').classList.toggle('stage-connected',connection==='connected');
     $('mic-card').classList.toggle('tg103-mic-on',availableMic());
     $('mic-card').classList.toggle('tg103-mic-off',!availableMic());
     const statusCard=$('mic-card').querySelector('.tg103-mic-status-banner');
-    if(statusCard){statusCard.querySelector('strong').textContent=availableMic()?'MICROFONE LIGADO':'MICROFONE DESLIGADO';statusCard.querySelector('span:last-child').textContent=availableMic()?'Captando sua voz':'Toque no microfone para ligar';}
+    if(statusCard){statusCard.querySelector('strong').textContent=availableMic()?'MICROFONE LIGADO':'MICROFONE DESLIGADO';statusCard.querySelector('span:last-child').textContent=availableMic()?(connection==='connected'?'Voz conectada ao palco':connection==='failed'||connection==='disconnected'?'Captando no celular, sem conexão com a TV':'Captando no celular · aguardando a TV'):'Toque no microfone para ligar';}
     badge.textContent=availableMic()?(connection==='connected'?'🟢 LIGADO · AO VIVO':connection==='connecting'?'🟢 LIGADO · CONECTANDO':'🟢 LIGADO · CAPTANDO'):'🔴 DESLIGADO';
     if(connection==='failed')toast('WebRTC falhou. Confira a conexão ou configure um servidor TURN.',true);
     if(connection==='disconnected'||connection==='failed'){
@@ -2113,7 +2156,7 @@
     const token=state.reactionToken;
     void fetchReactionGIF(meme.query,token);
   }
-  function hideFinal(){clearTimeout(state.scoreOverlayTimer);clearGif();$('final-overlay').hidden=true;}
+  function hideFinal(){clearTimeout(state.scoreOverlayTimer);clearTimeout(window.__tg123PostScoreTimer);if($('tg123-post-score'))$('tg123-post-score').hidden=true;clearGif();$('final-overlay').hidden=true;}
   async function finishSong(skipped=false,showResults=true){
     if(!state.currentSong||state.finishing)return;
     state.finishing=true;
@@ -2131,13 +2174,19 @@
       if(!skipped&&showResults){
         // A tela cheia da central permanece: a pontuação faz parte da experiência completa.
         showPerformanceResults(results,singers);
-        state.scoreOverlayTimer=setTimeout(()=>{if(state.role==='host')advanceSong();},36000);
+        // Nota permanece visível; painel de próximas ações aparece depois, sem avançar sozinho.
+        const nextMenu=$('tg123-post-score');if(nextMenu)nextMenu.hidden=true;
+        state.scoreOverlayTimer=setTimeout(()=>{
+          if(state.role!=='host'||$('final-overlay')?.hidden)return;
+          hideFinal();setNowPlaying(null);if(nextMenu){nextMenu.hidden=false;clearTimeout(window.__tg123PostScoreTimer);window.__tg123PostScoreTimer=setTimeout(()=>{nextMenu.hidden=true;},12000);}
+        },16500);
       }
       $('play-pause').textContent='▶ Reproduzir';queueChanged();
     }catch(err){toast('Falha ao finalizar música: '+humanError(err),true);}
     finally{state.finishing=false;}
   }
   async function advanceSong(){
+    if($('tg123-post-score'))$('tg123-post-score').hidden=true;
     hideFinal();
     if(state.currentSong)await finishSong(true,false);
     if(state.role==='host'&&pendingGuestRecados.length){
@@ -2302,17 +2351,37 @@ async function queryLocalCatalog(query){
 function catalogCard(item,host){
   const videoId=youtubeId(item.video_id);
   if(!videoId)return null;
-  const card=document.createElement('article');card.className='history-song-card';
+  const card=document.createElement('article');card.className='history-song-card tg123-track';
   const cover=document.createElement('img');cover.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';cover.alt='';cover.loading='lazy';cover.width=95;cover.height=54;
   const info=document.createElement('div');info.className='history-song-info';
   const title=document.createElement('strong');title.textContent=item.title;
-  const tiny=document.createElement('small');tiny.textContent=Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões) no Tem Gogó`:'📚 Sugestão da playlist • ainda não testada no palco';
+  const tiny=document.createElement('small');tiny.textContent=item.source_kind==='external'?'🔎 Sugestão externa · reprodução sujeita ao YouTube':Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões)`:'📚 Música do catálogo';
   info.append(title,tiny);
-  const button=document.createElement('button');button.type='button';button.className='button button-primary history-add';button.textContent='+ FILA';
-  button.setAttribute('aria-label','Adicionar '+item.title+' à fila');
-  button.addEventListener('click',()=>addSearchedVideo({id:videoId,title:item.title},host,button,card));
-  card.append(cover,info,button);return card;
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='tg123-track-toggle';
+  toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent='+ FILA';
+  const expanded=document.createElement('div');expanded.className='tg123-track-choice';expanded.hidden=true;
+  const hint=document.createElement('span');hint.textContent='Como vai ser o show?';hint.className='tg123-track-hint';
+  const modes=document.createElement('div');modes.className='tg123-track-modes';modes.setAttribute('role','group');modes.setAttribute('aria-label','Formato da apresentação');
+  let chosen='solo';
+  for(const [mode,label] of [['solo','🎤 Solo'],['duet','🎤🎤 Dueto'],['group','👥 Grupo']]){
+    const option=document.createElement('button');option.type='button';option.className='tg123-mode';option.textContent=label;option.dataset.mode=mode;option.setAttribute('aria-pressed',String(mode==='solo'));
+    option.addEventListener('click',()=>{chosen=mode;for(const b of modes.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b===option));
+      add.textContent=mode==='solo'?'Adicionar solo à fila':mode==='duet'?'Escolher parceiro e adicionar':'Montar grupo e adicionar';});
+    modes.append(option);
+  }
+  const add=document.createElement('button');add.type='button';add.className='button button-primary tg123-track-add';add.textContent='Adicionar solo à fila';
+  add.setAttribute('aria-label','Confirmar '+item.title+' na fila');
+  add.addEventListener('click',()=>void addSearchedVideo({id:videoId,title:item.title},host,add,card,chosen));
+  expanded.append(hint,modes,add);
+  toggle.addEventListener('click',()=>{
+    const opening=expanded.hidden;
+    document.querySelectorAll('.tg123-track-choice:not([hidden])').forEach(el=>{if(el!==expanded){el.hidden=true;el.closest('.tg123-track')?.querySelector('.tg123-track-toggle')?.setAttribute('aria-expanded','false');}});
+    expanded.hidden=!opening;toggle.setAttribute('aria-expanded',String(opening));
+    if(opening)add.focus({preventScroll:true});
+  });
+  card.append(cover,info,toggle,expanded);return card;
 }
+
 function renderCatalog(){
   const groups=[['guest-library',false],['stage-library',true]];
   for(const [id,host] of groups){
@@ -2368,17 +2437,33 @@ function renderFullCatalog(){
     const node=document.createElement('div');node.className='search-feedback '+(kind==='error'?'search-error':'');
     node.textContent=message;results.append(node);
   }
-  async function addSearchedVideo(item,host,button,results) {
+  let tg123SuccessTimer=null;
+  function showEnqueueSuccess(title,mode){
+    const panel=$('tg123-success');if(!panel)return;
+    clearTimeout(tg123SuccessTimer);
+    const label={solo:'Solo',duet:'Dueto',group:'Grupo'}[mode]||'Apresentação';
+    $('tg123-success-track').textContent=title;
+    $('tg123-success-mode').textContent=label+' · adicionada ao setlist';
+    // Sem inventar posição: ela pode mudar quando outros convidados adicionam músicas.
+    panel.hidden=false;
+    const hide=()=>{panel.hidden=true;clearTimeout(tg123SuccessTimer);};
+    $('tg123-success-close').onclick=hide;
+    $('tg123-success-another').onclick=()=>{hide();if($('catalog-dialog')?.open)$('catalog-search')?.focus({preventScroll:true});};
+    tg123SuccessTimer=setTimeout(hide,4800);
+  }
+  async function addSearchedVideo(item,host,button,results,cardMode=null) {
     if(!state.room || !state.client){toast('Entre numa festa antes de adicionar músicas.',true);return;}
     if(!youtubeId(item.id)){toast('Vídeo indisponível. Escolha outro.',true);return;}
     setLoading(button,true,'Entrando na fila...');
     try {
-      await enqueueSelectedVideo(item.id,item.title.slice(0,120),host);
-      await fetchSongs();renderQueue();
+      await enqueueSelectedVideo(item.id,item.title.slice(0,120),host,cardMode);
+      // Confirmação de sucesso apenas depois do RPC; falha de refresh não desfaz a gravação.
+      try{await fetchSongs();renderQueue();}catch(err){console.warn('Fila salva; atualização visual pendente:',err);}
+      showEnqueueSuccess(item.title,cardMode);
       if($('catalog-dialog')?.open)$('catalog-dialog').close();
       if(host && $('song-dialog').open)$('song-dialog').close();
       else {const feedback=results.closest('.search-results')||results;if(feedback.id==='search-results')makeSearchMessage(feedback,'💚 Entrou na fila! Pode escolher outro hit se quiser.');}
-      toast('🎤 '+item.title.slice(0,65)+' entrou na fila. Diva Gogó tá de olho!');
+      toast('🎤 Música adicionada à fila!');
     }catch(err){toast(humanError(err),true);}
     finally{setLoading(button,false);}
   }
@@ -2410,24 +2495,13 @@ function renderFullCatalog(){
     const caption=document.createElement('div');caption.className='search-count';
     caption.textContent=`🎶 ${hits.length} sugestões do YouTube · a reprodução pode ter restrições`;
     results.append(caption);
-    hits.forEach(hit=>{
-      const videoId=youtubeId(hit.id);
-      if(!videoId)return;
-      const card=document.createElement('div');card.className='youtube-result-card';
-      const image=document.createElement('img');
-      image.src='https://i.ytimg.com/vi/'+videoId+'/mqdefault.jpg';
-      image.loading='lazy';image.alt='Capa do vídeo '+hit.title;image.width=120;image.height=68;
-      const info=document.createElement('div');info.className='youtube-result-info';
-      const title=document.createElement('strong');title.textContent=decodedYouTubeText(hit.title);
-      const channel=document.createElement('small');channel.textContent=decodedYouTubeText(hit.channel||'Canal no YouTube');
-      info.append(title,channel);
-      const button=document.createElement('button');button.type='button';
-      button.className='button button-primary youtube-add';
-      button.textContent=host?'+ FILA':'ESCOLHER';button.setAttribute('aria-label','Escolher '+hit.title+' para cantar');
-      button.addEventListener('click',()=>addSearchedVideo({id:videoId,title:decodedYouTubeText(hit.title)},host,button,results));
-      card.append(image,info,button);results.append(card);
-    });
+    for(const hit of hits){
+      const videoId=youtubeId(hit.id);if(!videoId)continue;
+      const card=catalogCard({video_id:videoId,title:decodedYouTubeText(hit.title),plays:0,source_kind:'external'},host);
+      if(card){card.classList.add('tg123-external-card');results.append(card);}
+    }
   }
+
   function showExternalFallback(results,host,query,reason){
     results.replaceChildren();
     const box=document.createElement('div');box.className='quota-fallback';
@@ -2581,6 +2655,7 @@ function renderFullCatalog(){
     clearInterval(state.memberVerifier);state.memberVerifier=null;
     clearInterval(state.roomPoller);state.roomPoller=null;clearInterval(state.signalPoller);state.signalPoller=null;state.realtimeOk=false;state.syncQueued=false;
     clearTimeout(state.roomReloadTimer);clearTimeout(state.scoreOverlayTimer);
+    if($('tg123-post-score'))$('tg123-post-score').hidden=true;clearTimeout(window.__tg123PostScoreTimer);
     clearHostPreflight(false);state.guestPreflightSong=null;state.guestReady=false;state.avatars.clear();
     if(state.localStream)await stopMicrophone(true);if(state.soloMic)stopSoloMic();
     if(state.role==='host'){for(const uid of state.peers.keys())void sendSignal(uid,'bye').catch(console.warn);}
@@ -2956,6 +3031,32 @@ function renderFullCatalog(){
     $('mobile-tab-mic').addEventListener('click',()=>switchMobileTab('mic'));
     $('mobile-tab-queue').addEventListener('click',()=>switchMobileTab('queue'));
     $('final-close').addEventListener('click',advanceSong);
+    for(const button of document.querySelectorAll('[data-tg123-host-command]')){
+      button.addEventListener('click',async()=>{
+        const cmd=button.dataset.tg123HostCommand;
+        if(state.role!=='host')return;
+        if(cmd==='toggle'){$('play-pause')?.click();return;}
+        if(cmd==='next'){$('skip-track')?.click();return;}
+        if(cmd==='volumes'){document.querySelector('[data-tg104-tab="mesa"]')?.click();$('playback-volume-range')?.focus({preventScroll:true});$('playback-volume-range')?.scrollIntoView({block:'nearest'});return;}
+        if(cmd==='call'){
+          if(state.preflight){$('stage-preflight-resend')?.click();return;}
+          const queued=state.songs.find(s=>s.status==='queued');
+          if(!queued){toast('Ainda não há músicas na fila.',true);return;}
+          await prepareSong(queued);return;
+        }
+      });
+    }
+    $('tg123-after-prepare')?.addEventListener('click',async()=>{
+      $('tg123-post-score').hidden=true;
+      const queued=state.songs.find(s=>s.status==='queued');
+      if(queued)await prepareSong(queued);else toast('A fila está vazia. Escolha outra música.',true);
+    });
+    $('tg123-after-call')?.addEventListener('click',async()=>{
+      $('tg123-post-score').hidden=true;
+      if(state.preflight){await sendPreflightInvites(true);toast('Aviso reenviado ao cantor.');return;}
+      const queued=state.songs.find(s=>s.status==='queued');
+      if(queued)await prepareSong(queued);else toast('Nenhum cantor na fila ainda.',true);
+    });
     $('qr-bubble').addEventListener('click',()=> $('qr-bubble').classList.toggle('qr-expanded'));
     $('qr-bubble').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('qr-bubble').classList.toggle('qr-expanded');}});
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.role==='host'&&!state.wakeLock)unlockWakeLock();void refreshRoomSnapshot();}});
@@ -3044,7 +3145,7 @@ function renderFullCatalog(){
       }
       document.body.classList.add('tg104-single-device');
       $('tg192-solo-dock').hidden=false;
-      $('tg192-solo-label').textContent='MODO SOLO · TOQUE EM ATIVAR MIC';
+      const soloHint=document.querySelector('#tg192-solo-dock .tg192-solo-label');if(soloHint)soloHint.textContent='MODO SOLO · TOQUE EM ATIVAR MIC';
       $('tg18-solo-status').textContent='🎤 Modo solo: toque em Ativar microfone solo. A letra continua no vídeo e sua nota usa a captação local.';
       toast('Modo solo pronto! Ative o microfone para captar sua voz. O vídeo permanece em destaque.');
       $('tg18-solo-button')?.focus({preventScroll:true});
