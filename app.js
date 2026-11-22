@@ -21,6 +21,15 @@
   };
 
 
+  // V7.5: contexto de leitura compartilhado com o painel isolado da Batalha.
+  // Nunca expor segredos administrativos, nem permitir que o painel altere state.
+  Object.defineProperty(window,'TG_APP_CONTEXT',{value:Object.freeze({
+    getClient:()=>state.client,
+    getUser:()=>state.user,
+    getRole:()=>state.role,
+    getRoomId:()=>state.room?.id||null
+  }),writable:false,configurable:false});
+
   // V14 — personagens originais enviados como homenagem; sem redesenhar seus traços.
   const AVATARS = Object.freeze({
     urbano:'./cantor-urbano.png', esporte:'./cantor-esporte.png',
@@ -497,6 +506,8 @@
     }
   }
   async function prepareSong(song){
+    window.TG74_DIVA_STUDIO?.stop(); // não sobrepor convocação da Diva ou microfones
+
     if(state.role!=='host'||!song||state.finishing)return;
     if(state.currentSong){toast('Finalize ou pule a música atual antes de preparar a próxima.',true);return;}
     if(state.preflight?.song.id===song.id){renderPreflightHost();return;}
@@ -560,9 +571,14 @@
     if (['NotAllowedError','PermissionDeniedError','SecurityError'].includes(String(err?.name||'')) || /notallowederror|permission denied by user|permission dismissed|microphone permission/i.test(msg))
       return 'Microfone bloqueado. Libere a permissão nas configurações do navegador.';
     if (String(err?.code||'')==='42501' || /permission denied|row.level security|insufficient.privilege|not authorized|unauthorized/i.test(msg))
-      return 'Acesso negado pelo Supabase. Confira a conta conectada e as permissões para esta operação.';
+      return 'Você não tem autorização para esta ação. Confira sua conta e tente novamente.';
     if (/notfounderror/i.test(msg)) return 'Nenhum microfone foi encontrado no celular.';
-    if (/network|failed to fetch/i.test(msg)) return 'Falha de conexão. Confira sua internet e o Supabase.';
+    if (/network|failed to fetch/i.test(msg)) return 'Falha de conexão. Confira sua internet e tente novamente.';
+    if (/PGRST|postgres|schema cache|relation .*does not exist|column .* does not exist|SQLSTATE|\b42P01\b|\b42703\b|\b23505\b|syntax error|https?:\/\/|supabase\.co|github\.com|service_role|\bSQL\b/i.test(msg))
+      return 'Não conseguimos concluir esta ação agora. Tente novamente ou abra o Suporte Tem Gogó.';
+    // Nao exibir respostas inesperadas do backend como stack trace ou caminho interno.
+    if (msg.length>175 || /\n|\r|(?:\/[A-Za-z0-9_.-]+){2,}|\bSELECT\b|\bINSERT\b|\bUPDATE\b/i.test(msg))
+      return 'Algo saiu do roteiro. Tente novamente ou peça ajuda pelo Suporte Tem Gogó.';
     return msg;
   }
   function escapeHTML(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -715,9 +731,18 @@
   function normalizeRoom(value){return String(value||'').trim().toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,12);}
   function validRoom(code){return /^(?:[A-F0-9]{8}|[A-F0-9]{12})$/.test(String(code||''));}
   function holdInvitation(code){
-    const clean=normalizeRoom(code);
-    if(validRoom(clean)) localStorage.setItem('tem-gogo-pending-room',clean);
-    return clean;
+    return window.TG73_INVITES.remember(localStorage,code);
+  }
+  // Apaga SOMENTE o convite transitório. Identidade, preferências, notas e histórico permanecem.
+  function forgetInvitation(code){
+    window.TG73_INVITES.forget(localStorage,code);
+    if(!code || state.inviteRoom===normalizeRoom(code))state.inviteRoom=null;
+  }
+  function cleanInvitationURL(){
+    const u=new URL(location.href);
+    if(u.searchParams.has('room') && u.searchParams.get('remote')!=='1'){
+      u.searchParams.delete('room');history.replaceState(history.state,'',u.href);
+    }
   }
   function showInvite(code){
     const clean=holdInvitation(code);
@@ -736,7 +761,10 @@
   }
   function showGuestEntry(code){
     const clean=normalizeRoom(code);
-    state.inviteRoom=clean||null;
+    // Todo convite novo substitui o antigo; ao entrar sem codigo, nao ressuscitar QR anterior.
+    if(validRoom(clean))holdInvitation(clean);
+    else {forgetInvitation();cleanInvitationURL();}
+    state.inviteRoom=validRoom(clean)?clean:null;
     document.body.classList.remove('invite-active');
     document.body.classList.toggle('entry-active',!!clean || isStandalone());
     $('invite-welcome').hidden=true;
@@ -745,6 +773,27 @@
     show('landing');
     window.dispatchEvent(new CustomEvent('temgogo:guest-entry',{detail:{room:clean}}));
     $(clean?'guest-name':'guest-code').focus({preventScroll:true});
+  }
+  async function switchToInvitation(rawCode){
+    const code=normalizeRoom(rawCode);
+    if(state.room && state.role){
+      const same=state.room.code===code;
+      if(same){toast('Você já está nesta festa! 🎤');return false;}
+      const message=state.role==='host'
+        ? 'Sair do palco neste aparelho? A festa continua aberta, mas o vídeo e o áudio deste dispositivo serão interrompidos.'
+        : 'Trocar de festa neste aparelho? Seu microfone será desligado e a festa anterior não será encerrada.';
+      const confirmed=await window.TG_UI.confirm(message,{title:'Entrar em outra festa',confirmText:'Trocar de festa'});
+      if(!confirmed)return false;
+      await stopSession();
+    }
+    if(code && validRoom(code)){
+      const u=new URL('./',location.href);u.searchParams.set('room',code);
+      history.replaceState(null,'',u.href);
+      showGuestEntry(code);
+    }else{
+      forgetInvitation();cleanInvitationURL();showGuestEntry('');
+    }
+    return true;
   }
   async function installFromInvite(){
     holdInvitation(state.inviteRoom);
@@ -955,7 +1004,8 @@
     const remoteIntent=!state.recoveryIntent&&url.searchParams.get('remote')==='1';
     const linkRoom=normalizeRoom(url.searchParams.get('room'));
     const savedRoom=state.recoveryIntent?null:normalizeRoom(localStorage.getItem('tem-gogo-pending-room'));
-    const targetRoom=linkRoom||savedRoom;
+    const targetRoom=window.TG73_INVITES.initial({linkRoom,savedRoom,recoveryIntent:state.recoveryIntent,remoteIntent});
+    if(targetRoom && validRoom(linkRoom) && !remoteIntent)holdInvitation(linkRoom); // URL recente prevalece.
     if(!state.recoveryIntent&&!remoteIntent&&linkRoom && url.searchParams.get('auth')!=='login'){
       showGuestEntry(linkRoom);
       $('invite-welcome').querySelector('p')?.replaceChildren(document.createTextNode('🎟️ Convite recebido! Informe seu apelido e escolha seu avatar para entrar.'));
@@ -1096,6 +1146,7 @@
   async function goToMyRooms(){
     if(state.role==='host' && state.currentSong && !await window.TG_UI.confirm('Ao trocar de sala neste aparelho, o vídeo e o som do palco serão interrompidos. A festa continuará aberta.',{title:'Trocar de sala',confirmText:'Sair desta tela'}))return;
     await stopSession();
+    forgetInvitation();
     document.body.classList.remove('tg104-single-device');
     history.replaceState(null,'',new URL('./',location.href).href);
     if(state.user)await openLobby();
@@ -1177,8 +1228,7 @@
       state.readyRoom={room};
       $('ready-code').textContent=room.code;
       $('room-ready-dialog').showModal();
-      $('room-title').value='';
-      await loadMyRooms();
+      await openLobby(); // Login autenticado deve abrir o lobby, nao somente consultar salas.
     }catch(err){toast(humanError(err),true);}finally{setLoading(button,false);}
   }
   async function joinRoomByCode(rawCode,{auto=false}={}){
@@ -1267,8 +1317,9 @@
           history.replaceState(null,'',new URL('./',location.href).href);
           show('landing');showPartyRecap(recap);
         } else {
-          showGuestEntry(code);
-          toast('Você saiu desta festa ou ela foi encerrada. Peça um novo convite ao anfitrião.',true);
+          forgetInvitation(code);
+          showGuestEntry('');
+          toast('Este convite não está mais valendo. Leia outro QR ou digite um novo código.',true);
         }
       }catch(err){console.warn('Verificação de acesso adiada:',err.message);}
     },12000);
@@ -2077,6 +2128,8 @@
     $('video-placeholder').hidden=!!song;setDivaStageState(song?'playing':(state.preflight?'preflight':'idle'));
   }
   async function startSong(song) {
+    window.TG74_DIVA_STUDIO?.stop();
+
     if(!song||state.role!=='host'||state.finishing)return;
     try {
       // Valide ANTES de remover a música anterior da tela ou marcar a nova como em reprodução.
@@ -2769,6 +2822,8 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
+    window.TG74_DIVA_STUDIO?.stop();
+
     if('speechSynthesis' in window)try{window.speechSynthesis.cancel();}catch{}
     clearTimeout(state.divaSpeakingTimer);document.body.classList.remove('diva-talking');
     clearInterval(state.ticker);state.ticker=null;
@@ -2954,7 +3009,7 @@ function renderFullCatalog(){
       qrTimer=setInterval(async()=>{
         if(qrBusy||video.readyState<2||!dlg.open)return;
         qrBusy=true;
-        try{const seen=await detector.detect(video);for(const scan of seen){const code=readQrRoom(scan.rawValue);if(code){await closeQrScan();$('guest-code').value=code;showGuestEntry(code);$('tab-guest').click();$('guest-name').focus();toast('QR reconhecido! Escolha seu apelido e avatar.');return;}}}catch(e){console.warn('Leitor QR:',e);}finally{qrBusy=false;}
+        try{const seen=await detector.detect(video);for(const scan of seen){const code=readQrRoom(scan.rawValue);if(code){await closeQrScan();if(await switchToInvitation(code)){toast('QR reconhecido! Escolha seu apelido e avatar.');}return;}}}catch(e){console.warn('Leitor QR:',e);}finally{qrBusy=false;}
       },350);
     }catch(err){$('tg16-scan-feedback').textContent='Não foi possível ativar a câmera. Verifique a permissão e use o código da festa.';for(const t of qrStream?.getTracks()||[])t.stop();qrStream=null;}
   }
@@ -3036,7 +3091,7 @@ function renderFullCatalog(){
     $('guest-install').addEventListener('click',installFromInvite);
     $('entry-install').addEventListener('click',installFromInvite);
     $('invite-continue').addEventListener('click',()=>showGuestEntry(state.inviteRoom));
-    $('hub-join-room').addEventListener('click',()=>showGuestEntry(''));
+    $('hub-join-room').addEventListener('click',()=>void switchToInvitation(''));
     $('guest-switch').addEventListener('click',goToMyRooms);
     $('stage-switch').addEventListener('click',goToMyRooms);
     $('copy-room-invite').addEventListener('click',async()=>{
@@ -3309,6 +3364,8 @@ function renderFullCatalog(){
     });
     // O QR de controle é acessível pela aba Sala; o QR dos convidados fica na tela.
     stage.classList.add('tg104-cockpit-ready');
+    window.dispatchEvent(new Event('temgogo:host-cockpit-ready'));
+
   }
 
   // Acesso seguro ao modo solo: não cria outro fluxo de música ou altera a pontuação.
@@ -3367,6 +3424,7 @@ function renderFullCatalog(){
   // Beta 1.0: apenas a interface social usa este contexto; não expõe chaves administrativas.
   window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
     members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,
+    canPreviewVoices:()=>state.role==='host'&&!state.currentSong&&!state.preflight&&!state.isPlaying,
     setAvatar(key){if(!AVATARS[key])return;state.avatar=key;localStorage.setItem('tem-gogo-avatar',key);
       void sendProfileToHost().catch(()=>{});renderAvatarOptions();}});
   init().catch(err=>{console.error(err);toast(humanError(err),true);});

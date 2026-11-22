@@ -1,0 +1,39 @@
+/* Painel separado. Sem regras globais sobre palco, microfones ou player. */
+#tg75-battle-panel{font-family:'DM Sans',system-ui,-apple-system,sans-serif;width:min(1000px,96vw);max-width:1000px;height:min(92dvh,920px);max-height:92dvh;padding:0;border:1px solid #9655a9;border-radius:22px;background:#111322;color:#f7eefb;box-shadow:0 20px 90px #090317c0;overscroll-behavior:contain}
+#tg75-battle-panel::backdrop{background:#080a16d9;backdrop-filter:blur(4px)}
+.tg75-shell{height:100%;display:flex;flex-direction:column;min-height:0}
+.tg75-header{display:flex;align-items:start;justify-content:space-between;gap:16px;padding:23px 25px 16px;background:linear-gradient(115deg,#241332,#171a35 70%);border-bottom:1px solid #745084}
+.tg75-kicker{letter-spacing:.11em;text-transform:uppercase;color:#fa8bdc;font-size:.72rem;font-weight:800;margin:0 0 5px}
+.tg75-header h2{font-size:clamp(1.4rem,4vw,2rem);margin:0;color:#fff}
+.tg75-close{width:42px;height:42px;border:1px solid #91689b;border-radius:12px;background:#2c233b;color:#fff;font-size:1.25rem;cursor:pointer}
+.tg75-tabs{display:flex;gap:5px;overflow-x:auto;padding:12px 18px;border-bottom:1px solid #393651;scrollbar-width:thin}
+.tg75-tabs button{font:inherit;white-space:nowrap;padding:10px 15px;background:transparent;color:#cfc3e0;border:1px solid transparent;border-radius:11px;cursor:pointer}
+.tg75-tabs button[aria-selected=true]{background:#612c68;color:#fff;border-color:#af6db3}
+.tg75-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:24px}
+.tg75-note{border:1px solid #7c547b;border-left:4px solid #e787bc;background:#292137;border-radius:12px;padding:15px;color:#f7e2f6;margin-bottom:16px;line-height:1.5}
+.tg75-note[role=alert]{border-left-color:#f3be6e}
+.tg75-stack{display:grid;gap:15px}
+.tg75-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.tg75-card{padding:18px;background:#211b35;border:1px solid #4c405d;border-radius:17px;min-width:0}
+.tg75-card h3{font-size:1.05rem;margin:0 0 10px;color:#fff}
+.tg75-card p{color:#e3d9ec;line-height:1.5;margin:7px 0}
+.tg75-card small{color:#d8c5e5}
+.tg75-card strong{color:#fff}
+.tg75-card label{font-size:.86rem;color:#f3d5e9;display:block;margin:12px 0 5px}
+.tg75-card input,.tg75-card select{display:block;width:100%;box-sizing:border-box;max-width:100%;background:#151726;color:#fff;padding:12px;border:1px solid #927299;border-radius:10px;min-height:43px;font:inherit}
+.tg75-button{margin:9px 8px 3px 0;padding:10px 15px;background:#773d84;color:#fff;border:1px solid #d88ad7;border-radius:11px;font:inherit;font-weight:650;cursor:pointer;min-height:42px}
+.tg75-button.alt{background:#292d45;border-color:#7b81a0}
+.tg75-button:disabled{opacity:.55;cursor:not-allowed}
+.tg75-number{display:inline-block;padding:5px 10px;background:#533459;border-radius:40px;color:#fff;font-size:.83rem}
+.tg75-list{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.tg75-list li{padding:12px;background:#28233a;border:1px solid #423b53;border-radius:10px;color:#fff}
+.tg75-muted{font-size:.85rem;color:#e0c9eb}
+.tg75-stars{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
+.tg75-stars label{cursor:pointer;padding:10px 12px;margin:0;background:#382942;border:1px solid #765f7d;border-radius:9px}
+.tg75-stars label:has(input:checked){background:#7f3a87;border-color:#edb4ee}
+.tg75-stars input{width:auto;min-height:0;display:inline;margin:0 4px 0 0;accent-color:#ec92db}
+.tg75-footer{border-top:1px solid #433853;padding:12px 24px;color:#c8b7d3;font-size:.78rem;background:#181728}
+.tg75-timer{font-variant-numeric:tabular-nums;font-size:1.3rem;font-weight:bold;color:#f5b7dc}
+#tg75-feedback:not(:empty){min-height:2em;padding:4px 0;color:#f6d6e9}
+@media(max-width:670px){#tg75-battle-panel{font-family:'DM Sans',system-ui,-apple-system,sans-serif;width:100vw;height:100dvh;max-height:100dvh;border-radius:0;border:0}.tg75-header{padding:18px}.tg75-scroll{padding:16px}.tg75-grid{grid-template-columns:1fr}.tg75-tabs{padding:8px}.tg75-tabs button{padding:10px 11px}}
+@media(prefers-reduced-motion:reduce){#tg75-battle-panel *{scroll-behavior:auto!important}}

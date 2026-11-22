@@ -1,0 +1,16 @@
+/* Tem Gogo V7.3 -- ajustes cirurgicos homologados (nao altera palco). */
+body:not([data-current-view="stage"]):not([data-current-view="guest"]) .landing .hero-copy .hero-stats,
+.landing .hero-copy .vox-intro,
+.landing .hero-copy .hero-decoration{display:none!important}
+.landing .hero-copy h1{font-size:clamp(1.8rem,4.7vw,3.5rem)!important;line-height:1.08!important;letter-spacing:-.04em!important;margin:.4rem 0!important}
+.landing .hero-copy>p{max-width:33rem!important;font-size:clamp(.88rem,2.2vw,1rem)!important;line-height:1.5!important}
+.landing .hero-copy .hero-badge{font-size:.65rem!important;letter-spacing:.12em}
+.landing .landing-main{align-items:start!important;padding-top:clamp(1rem,3vw,2rem)!important}
+.landing .access-card{scroll-margin-top:1rem!important}
+.tg73-signature{display:block;font-size:10px;opacity:.7;letter-spacing:.02em;padding:5px 0}
+.tg70-mode-list button:focus-visible,.tg70-guide-buttons button:focus-visible{outline:3px solid #ffcae5;outline-offset:3px}
+@media(max-width:740px){.landing .hero-copy{margin-bottom:8px!important;padding-bottom:0!important}.landing .hero-copy h1{font-size:1.65rem!important;margin:0!important}.landing .landing-main{gap:12px!important}.landing .hero-badge{display:none!important}.landing .hero-copy>p{margin:.5rem 0!important}.tg73-signature{width:100%;text-align:center}}
+@media(prefers-reduced-motion:reduce){.tg70-mode-list button{transition:none!important}}
+
+/* Ajuda e suporte continuam dentro do card de entrada; evitar barra duplicada. */
+.landing .tg193-help-tools{display:none!important}

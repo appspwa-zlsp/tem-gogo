@@ -25,11 +25,11 @@
 <link href="./visual-v2.css" rel="stylesheet"/>
 <link href="./visual-v14.css" rel="stylesheet"/>
 <link href="./visual-v15.css" rel="stylesheet"/>
-<link href="./visual-v16.css" rel="stylesheet"/><link href="./visual-v17.css" rel="stylesheet"/><link href="./visual-v18.css" rel="stylesheet"/><link href="./visual-v19.css" rel="stylesheet"/><link href="./refinamento-v19-2.css" rel="stylesheet"/><link href="./tour-suporte-v19-3.css" rel="stylesheet"/><link href="./beta10.css?v=120" rel="stylesheet"/><link href="./beta12.css?v=123" rel="stylesheet"/><link href="./beta123.css?v=123" rel="stylesheet"/><link href="./tg124-refine.css?v=124" rel="stylesheet"/><link href="./tg20.css?v=200" rel="stylesheet"/><link href="./tg21-shortcuts.css?v=201" rel="stylesheet"/>
+<link href="./visual-v16.css" rel="stylesheet"/><link href="./visual-v17.css" rel="stylesheet"/><link href="./visual-v18.css" rel="stylesheet"/><link href="./visual-v19.css" rel="stylesheet"/><link href="./refinamento-v19-2.css" rel="stylesheet"/><link href="./tour-suporte-v19-3.css" rel="stylesheet"/><link href="./beta10.css?v=120" rel="stylesheet"/><link href="./beta12.css?v=123" rel="stylesheet"/><link href="./beta123.css?v=123" rel="stylesheet"/><link href="./tg124-refine.css?v=124" rel="stylesheet"/><link href="./tg20.css?v=200" rel="stylesheet"/><link href="./tg21-shortcuts.css?v=201" rel="stylesheet"/><link href="./tg70-ui.css?v=700" rel="stylesheet"/><link href="./tg73-polish.css?v=730" rel="stylesheet"/><link href="./tg74-diva-studio.css?v=740" rel="stylesheet"/><link href="./tg75-battle-ui.css?v=750" rel="stylesheet"/>
 <script defer="" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script defer="" src="./qr-local.js"></script>
 <script defer="" src="./config.js"></script>
-<script defer src="./tg-dialogs.js?v=120"></script><script defer src="./app.js?v=200"></script><script defer src="./beta10.js?v=200"></script><script defer src="./beta12.js?v=200"></script><script defer src="./tg124-enhance.js?v=124"></script><script defer src="./tg20.js?v=200"></script><script defer src="./tg21-shortcuts.js?v=201"></script>
+<script defer src="./tg73-invitations.js?v=730"></script><script defer src="./tg73-battle-gate.js?v=730"></script><script defer src="./tg-dialogs.js?v=120"></script><script defer src="./app.js?v=200"></script><script defer src="./beta10.js?v=200"></script><script defer src="./beta12.js?v=200"></script><script defer src="./tg124-enhance.js?v=124"></script><script defer src="./tg20.js?v=200"></script><script defer src="./tg21-shortcuts.js?v=201"></script><script defer src="./tg70-ux.js?v=700"></script><script defer src="./tg74-voice-catalog.js?v=740"></script><script defer src="./tg74-diva-studio.js?v=740"></script><script defer src="./tg75-battle-core.js?v=750"></script><script defer src="./tg75-battle-bridge.js?v=750"></script><script defer src="./tg75-battle-panel.js?v=750"></script>
 </head>
 <body data-theme="baile">
 <div aria-hidden="true" class="grain"></div>
@@ -42,12 +42,12 @@
 <section class="landing view" id="landing">
 <header class="landing-top wrap">
 <a aria-label="Tem Gogó, início" class="brand" href="./"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></a>
-<div class="top-actions"><span class="tiny-tag"><span class="online-dot"></span> O REALITY DO SEU ROLÊ · BETA 2.0</span><button aria-label="Personalizar o TEM GOGÓ" class="icon-button open-settings" title="Personalizar o TEM GOGÓ" type="button">⚙</button><button aria-label="Instalar aplicativo" class="icon-button install-trigger" hidden="" title="Instalar aplicativo" type="button"><span>↓</span></button></div>
+<div class="top-actions"><span class="tiny-tag"><span class="online-dot"></span> KARAOKÊ · PALCO & CELULAR</span><button aria-label="Personalizar o TEM GOGÓ" class="icon-button open-settings" title="Personalizar o TEM GOGÓ" type="button">⚙</button><button aria-label="Instalar aplicativo" class="icon-button install-trigger" hidden="" title="Instalar aplicativo" type="button"><span>↓</span></button></div>
 </header>
 <main class="landing-main wrap">
-<div class="hero-copy"><div class="hero-badge">★ DIRETO DO BRASIL PRA SUA SALA ★</div>
+<div class="hero-copy"><div class="hero-badge">O KARAOKÊ DO SEU ROLÊ</div>
 <h1>HOJE É<br/><span>DIA DE</span><br/><span class="hero-shine">DIVAR!</span><span class="period">✦</span></h1>
-<p>A TV é o palco, seu celular vira microfone e a galera escolhe os hits pelo QR. <strong>A DIVA GOGÓ apresenta, a plateia surta e você vira lenda!</strong></p>
+<p>A TV é o palco, o celular é o microfone e a Diva Gogó apresenta. Entre com sua conta ou pelo QR da festa.</p>
 <div class="hero-stats"><span>✦ HIT ATRÁS DE HIT</span><span>✦ NOTAS COM MEMES</span><span>✦ MIC NO CELULAR</span></div><div class="vox-intro"><div aria-hidden="true" class="vox-bubble-avatar"><img alt="" aria-hidden="true" src="./diva.png"/></div><div><b>ALÔ, MEU POVO!</b><p>Se a afinação faltar, a personalidade entrega. — DIVA GOGÓ, sua apresentadora.</p></div></div>
 <div aria-hidden="true" class="hero-decoration"><span>♫</span><span>✦</span><span>♪</span></div>
 </div>
@@ -89,7 +89,7 @@
 <div class="access-foot">🎟️ Cada sala tem um QR exclusivo. Ao escanear, escolha seu apelido e avatar; o microfone só liga com sua autorização.</div>
 </div>
 </main>
-<nav class="tg193-help-tools" aria-label="Ajuda no acesso"><button class="tg193-help-button" type="button" data-tg193-faq>❔ Como funciona</button><button class="tg193-help-button" type="button" data-tg193-support>💬 Suporte</button></nav><footer class="landing-footer wrap"><span>TEM GOGÓ / BY THE PEOPLE, FOR THE PARTY</span><span>DIVA GOGÓ NO COMANDO • O BRASIL NO REFRÃO ✳</span></footer>
+<nav class="tg193-help-tools" aria-label="Ajuda no acesso"><button class="tg193-help-button" type="button" data-tg193-faq>❔ Como funciona</button><button class="tg193-help-button" type="button" data-tg193-support>💬 Suporte</button></nav><footer class="landing-footer wrap"><span>TEM GOGÓ / BY THE PEOPLE, FOR THE PARTY</span><span>DIVA GOGÓ NO COMANDO • O BRASIL NO REFRÃO ✳</span><small class="tg73-signature">© 2026 Tem Gogó · Desenvolvido por A.dev</small></footer>
 </section>
 <section class="lobby view" hidden="" id="lobby"><nav class="tg193-help-tools" aria-label="Ajuda nas festas"><button class="tg193-help-button" type="button" data-tg193-faq>❔ Dúvidas</button><button class="tg193-help-button" type="button" data-tg193-support>💬 Suporte</button></nav>
 <header class="simple-header wrap"><div class="brand"><span class="brand-symbol">✳</span><span>TEM <span class="brand-highlight">GOGÓ</span></span><span class="brand-dot">.</span></div><div class="header-control-group"><button class="button button-soft tg124-profile-shortcut" type="button" data-tg124-profile="1">👤 Perfil</button><button class="button button-ghost open-settings" type="button">✦ Personalizar</button><button class="button button-outline" id="account-password-open" type="button">🔒 Alterar senha</button><button class="button button-ghost" id="logout-button" type="button">Sair da conta ↗</button></div></header>
@@ -98,6 +98,16 @@
 <div class="lobby-perks"><div>📺 <span>PALCO NA TV</span></div><div>🎤 <span>MIC NO CELULAR</span></div><div>👑 <span>MEMES &amp; PRÊMIOS</span></div></div><div class="vox-intro lobby-vox"><div class="vox-bubble-avatar"><img alt="" aria-hidden="true" src="./diva.png"/></div><div><b>DIVA GOGÓ JÁ TÁ NO CAMARIM!</b><p>Abre essa sala que eu tô com a língua afiada e o troféu pronto.</p></div></div>
 </div>
 <div class="lobby-form" id="room-hub"><section id="tg123-active-controls" class="tg123-active-controls" hidden aria-label="Minhas festas ativas"></section>
+<section class="tg70-modes" aria-labelledby="tg70-modes-heading">
+ <p class="tg70-kicker">É HORA DA FESTA!</p>
+ <h2 id="tg70-modes-heading">Como você quer cantar?</h2>
+ <p>Os dois modos atuais continuam funcionando como antes. O Modo Batalha está em implantação técnica.</p>
+ <div class="tg70-mode-list">
+  <button type="button" id="tg70-go-solo"><span aria-hidden="true">🎙️</span><strong>Carreira Solo</strong><small>Cante no mesmo aparelho</small></button>
+  <button type="button" id="tg70-go-classic"><span aria-hidden="true">🪩</span><strong>Modo Clássico</strong><small>Crie sua festa e convide amigos</small></button>
+  <button type="button" id="tg70-go-battle"><span aria-hidden="true">🏆</span><strong>Modo Batalha</strong><small>Conhecer regras · ativação pendente</small></button>
+ </div>
+ </section>
 <div class="card-eyebrow">✦ SEU CAMARIM, SUAS FESTAS ✦</div><h2>Onde vamos brilhar?</h2>
 <p class="hub-intro">Você pode apresentar uma festa e cantar em outra usando a mesma conta. Cada festa tem seu QR exclusivo, sem senha de sala.</p>
 <div aria-live="polite" class="existing-rooms" id="existing-rooms"><p>Carregando suas salas…</p></div>
@@ -278,5 +288,21 @@
 <dialog id="tg20-account-choice" class="modal" aria-labelledby="tg20-account-choice-title"><div class="modal-inner tg20-account-choice"><button class="close-modal" id="tg20-account-choice-close" type="button" aria-label="Fechar">✕</button><span class="card-eyebrow">✦ CONTA E IDENTIDADE ✦</span><h2 id="tg20-account-choice-title">Seu perfil, do seu jeito</h2><p>Você pode cantar sem cadastro. Com uma conta, poderá voltar e acessar seus recursos de perfil.</p><button id="tg20-account-existing" class="button button-primary full" type="button">Entrar com e-mail e senha</button><button id="tg20-account-new" class="button button-soft full" type="button">Criar conta com e-mail</button><button id="tg20-account-preserve" class="button button-outline full" type="button">Salvar notas atuais (mesma identidade)</button><small>Se você já cantou como convidado, trocar de conta não transfere automaticamente as notas anônimas. Para tentar preservá-las, use “Salvar notas atuais” e siga a confirmação do Supabase.</small></div></dialog>
 <dialog id="tg20-host-profile-dialog" class="modal" aria-labelledby="tg20-profile-title"><form id="tg20-host-profile-form" class="modal-inner"><button type="button" id="tg20-host-profile-close" class="close-modal" aria-label="Fechar">✕</button><span class="card-eyebrow">★ MINHA IDENTIDADE ★</span><h2 id="tg20-profile-title">Editar meu perfil</h2><p>Atualize seu nome de palco e avatar sem alterar a senha.</p><label class="field-label" for="tg20-profile-name">Meu nome de palco</label><input required minlength="2" maxlength="40" id="tg20-profile-name" autocomplete="nickname"><fieldset class="avatar-picker"><legend>Meu avatar</legend><div id="tg20-profile-avatars" class="tg20-avatar-options"></div></fieldset><p id="tg20-profile-feedback" role="status" aria-live="polite"></p><button class="button button-primary full" id="tg20-profile-save" type="submit">Salvar meu perfil</button><button class="button button-outline full" id="tg20-open-password" type="button">Alterar senha da conta</button></form></dialog>
 <dialog id="tg124-profile-menu" class="tg124-profile-menu" aria-label="Meu perfil e navegação"><div class="tg124-profile-inner"><header><h2>Meu perfil</h2><button id="tg124-profile-close" type="button" aria-label="Fechar">✕</button></header><button type="button" data-tg124-action="edit">✎ Editar perfil</button><button type="button" data-tg124-action="change">⇄ Trocar de sala</button><button type="button" data-tg124-action="leave">↩ Sair desta festa</button><button type="button" data-tg124-action="logout">⏻ Sair da conta</button><button type="button" data-tg124-action="help">❔ Central de ajuda</button></div></dialog>
+<dialog id="tg70-battle-guide" aria-labelledby="tg70-battle-guide-title" class="tg70-battle-guide"><div class="tg70-guide-inner">
+ <button type="button" id="tg70-guide-close" class="tg70-guide-close" aria-label="Fechar guia">✕</button>
+ <div class="tg70-guide-top"><img src="./diva-busto.png" alt="Diva Gogó"><div><small>UM NOVO SHOW ESTÁ A CAMINHO</small><h2 id="tg70-battle-guide-title">Modo Batalha</h2></div></div>
+ <p id="tg70-guide-counter" class="tg70-guide-counter">Passo 1 de 5</p><h3 id="tg70-guide-heading"></h3><p id="tg70-guide-text"></p>
+ <div class="tg70-guide-buttons"><button type="button" id="tg70-guide-prev">Anterior</button><button type="button" id="tg70-guide-next">Próximo</button></div>
+ <button id="tg75-open-workspace" type="button" class="tg75-button">Conhecer painel completo da Batalha</button><div class="tg70-guide-note">Prévia educativa. O banco privado está preparado, mas nenhuma competição ou votação pode ser iniciada antes da integração segura e homologação.</div>
+ </div></dialog>
+
+<dialog id="tg75-battle-panel" aria-labelledby="tg75-battle-title">
+ <div class="tg75-shell">
+ <header class="tg75-header"><div><p class="tg75-kicker">Tem Gogó · Festival</p><h2 id="tg75-battle-title">Batalha de Estrelas</h2></div><button id="tg75-battle-close" class="tg75-close" type="button" aria-label="Fechar Batalha">✕</button></header>
+ <nav class="tg75-tabs" role="tablist" aria-label="Painéis da Batalha"><button type="button" data-tg75-tab="inicio" aria-selected="true">Festival</button><button type="button" data-tg75-tab="elenco" aria-selected="false">Elenco</button><button type="button" data-tg75-tab="classificatoria" aria-selected="false">Classificatória</button><button type="button" data-tg75-tab="chave" aria-selected="false">Confrontos</button><button type="button" data-tg75-tab="votacao" aria-selected="false">Votação</button><button type="button" data-tg75-tab="recuperacao" aria-selected="false">Recuperação</button></nav>
+ <div class="tg75-scroll"><p id="tg75-feedback" role="status" aria-live="polite"></p><div id="tg75-battle-content" class="tg75-stack"></div></div>
+ <footer class="tg75-footer">Resultados oficiais exigem validação do servidor. Nenhum microfone é ligado por este painel.</footer>
+ </div>
+</dialog>
 </body>
 </html>
