@@ -88,6 +88,9 @@
     $('tg18-remote-now').textContent=playing?.title||'Palco aguardando música';
     $('tg18-remote-next').textContent=next?.title||'Fim da fila';
     $('tg18-remote-count').textContent=state.songs.filter(x=>x.status==='queued').length+' na fila';
+    if($('tg92-remote-info-current'))$('tg92-remote-info-current').textContent=playing?.title||'Aguardando música';
+    if($('tg92-remote-info-next'))$('tg92-remote-info-next').textContent=next?.title||'Fim da fila';
+    if($('tg92-remote-info-queue'))$('tg92-remote-info-queue').textContent=state.songs.filter(x=>x.status==='queued').length+' na fila';
     const personal=state.scores.find(x=>x.user_id===state.user?.id);
     $('tg19-remote-score').textContent=personal?'🏆 Sua última nota: '+personal.score+'/100 · A Diva avaliou sua participação':'🏆 Seu placar aparece depois de cantar';
     renderRemoteQueue();
