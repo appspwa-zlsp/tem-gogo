@@ -9,3 +9,40 @@
 .tg70-battle-guide{border:1px solid #e8a6d2;max-width:min(520px,94vw);background:#21112e;color:#fff;border-radius:22px;padding:0;box-shadow:0 32px 75px #000c}.tg70-battle-guide::backdrop{background:#080412db}.tg70-guide-inner{padding:24px;position:relative}.tg70-guide-top{display:flex;align-items:center;gap:15px;padding:0 20px 15px 0;border-bottom:1px solid #ffffff25}.tg70-guide-top img{width:90px;max-height:120px;object-fit:contain}.tg70-guide-top small{font-size:10px;letter-spacing:.14em;color:#ffa9d4}.tg70-guide-top h2{font-size:30px;line-height:1.1;margin:10px 0}.tg70-guide-inner h3{font-size:25px;margin:14px 0 10px}.tg70-guide-inner>p:not(.tg70-guide-counter){line-height:1.65;color:#e7dced}.tg70-guide-counter{color:#ffb2d6;font-weight:900;font-size:11px}.tg70-guide-close{position:absolute;right:12px;top:12px;background:#59304b;border:0;color:white;border-radius:8px;cursor:pointer;padding:9px}.tg70-guide-buttons{display:flex;gap:10px;margin:20px 0}.tg70-guide-buttons button{background:#703758;color:#fff;border:1px solid #d68fae;border-radius:9px;padding:11px 16px;cursor:pointer}.tg70-guide-buttons #tg70-guide-next{background:#d74c86;border-color:#e76da1}.tg70-guide-buttons button:disabled{opacity:.35;cursor:default}.tg70-guide-note{padding:13px;border-radius:10px;border:1px solid #cf93ab77;background:#4e2842;color:#ffe6f1;font-size:12px;line-height:1.5}
 @media(max-width:540px){.tg70-mode-list{grid-template-columns:1fr}.tg70-mode-list button{min-height:74px;display:grid;grid-template-columns:36px 1fr;grid-template-rows:auto auto;gap:2px 7px}.tg70-mode-list button span{grid-row:1/3}.tg70-mode-list button strong{font-size:13px}.tg70-mode-list button small{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.tg70-mode-list button{transition:none}}
+
+/* R92 — modo Clássico principal, Solo independente, Batalha educativa. */
+.tg70-mode-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tg70-mode-list #tg70-go-classic{
+ grid-column:1/-1;min-height:100px;
+ border-color:#e975bd;
+ background:linear-gradient(115deg,#582650 0%,#292144 100%);
+ box-shadow:0 10px 24px #1208183a;
+}
+.tg70-mode-list #tg70-go-classic strong{font-size:clamp(1.05rem,2.4vw,1.3rem)}
+.tg70-mode-list #tg70-go-battle:disabled{opacity:.75;filter:saturate(.7);cursor:not-allowed}
+.tg70-mode-list #tg70-go-battle:disabled:hover{transform:none;background:#ffffff10;border-color:#edc3f544}
+.tg70-story-cta{
+ display:block;width:100%;min-height:48px;margin-top:12px;padding:13px 16px;
+ border:1px solid #e6a1d0;border-radius:14px;
+ background:#4c2a4e;color:#fff;text-align:left;
+ font:inherit;font-size:.94rem;font-weight:750;cursor:pointer;
+}
+.tg70-story-cta:hover{background:#60335d}
+.tg70-story-cta:focus-visible,.tg70-mode-list button:focus-visible{
+ outline:3px solid #ffd47c!important;outline-offset:3px;
+}
+#tg70-battle-guide .tg70-guide-inner{max-height:min(86dvh,780px);overflow-y:auto}
+#tg70-battle-guide .tg70-guide-close{min-width:42px;min-height:42px}
+@media(max-width:540px){
+ .tg70-mode-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .tg70-mode-list button{
+  display:flex;flex-direction:column;align-items:flex-start;
+  min-height:112px;padding:13px 11px;gap:8px;
+ }
+ .tg70-mode-list #tg70-go-classic{grid-column:1/-1}
+ .tg70-mode-list button strong{font-size:clamp(.83rem,3.2vw,1rem)}
+ .tg70-mode-list button small{font-size:.72rem}
+}
+@media(prefers-reduced-motion:reduce){
+ .tg70-story-cta,.tg70-mode-list button{transition:none!important;transform:none!important}
+}
