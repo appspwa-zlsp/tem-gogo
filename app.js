@@ -1088,7 +1088,11 @@
   async function openLobby() {
     document.body.classList.remove('invite-active','entry-active');
     show('lobby');
-    $('host-create-area').hidden=!state.user || isAnonymous(state.user);
+    // R92: o lobby comeca por Criar, Entrar ou Historico; os formularios
+    // originais continuam disponiveis depois da escolha do usuario.
+    $('host-create-area').hidden=true;
+    const modeSection=$('tg70-modes');if(modeSection)modeSection.hidden=true;
+    const modeTrigger=$('tg92-hub-create');if(modeTrigger)modeTrigger.setAttribute('aria-expanded','false');
     await loadMyRooms();
   }
   async function loadMyRooms() {
