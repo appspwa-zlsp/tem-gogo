@@ -1,0 +1,43 @@
+name: Tem Gogo — verificacao segura da candidata
+on:
+  push:
+    branches: [pre-release-tem-gogo]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in ./*.js; do
+            node --check "$file"
+          done
+      - name: Verificar HTML, recursos e gates
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const html=fs.readFileSync('index.html','utf8');
+          const cfg=fs.readFileSync('config.js','utf8');
+          const assets=[...html.matchAll(/(?:src|href)="\.\/([^"#?]+)(?:\?[^"]*)?"/g)].map(m=>m[1]);
+          const missing=[...new Set(assets)].filter(file=>!fs.existsSync(file));
+          if(missing.length)throw Error('Recursos ausentes: '+missing.join(', '));
+          const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+          const seen=new Set(),duplicates=[];
+          for(const id of ids){if(seen.has(id))duplicates.push(id);seen.add(id);}
+          if(duplicates.length)throw Error('IDs duplicados: '+duplicates.join(', '));
+          if(!/BATTLE_API_RELEASE_ALLOWED:\s*false/.test(cfg))throw Error('Gate de Batalha nao esta OFF');
+          if(!/id="tg70-go-battle"\s+disabled/.test(html))throw Error('Botao de Batalha nao bloqueado');
+          if(!/id="tg75-open-workspace"[^>]*disabled/.test(html))throw Error('Entrada operacional da Batalha nao bloqueada');
+          if(html.includes('tg91-visual-safe.js'))throw Error('Remendo R91 duplicado voltou');
+          const modes=['tg92-hub-create','tg92-hub-join','tg92-hub-history','tg70-battle-story-open'];
+          for(const id of modes)if(!ids.includes(id))throw Error('Navegacao ausente: '+id);
+          console.log('OK: JavaScript, recursos, IDs, navegacao, gates da Batalha');
+          NODE
