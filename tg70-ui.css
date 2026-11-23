@@ -46,3 +46,18 @@
 @media(prefers-reduced-motion:reduce){
  .tg70-story-cta,.tg70-mode-list button{transition:none!important;transform:none!important}
 }
+
+/* R92 — Primeiro decidir: criar, entrar ou rever, depois escolher modalidade. */
+#room-hub .tg70-modes[hidden],#room-hub #host-create-area[hidden]{display:none!important}
+.tg92-hub-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 16px}
+.tg92-hub-choices button{min-width:0;min-height:90px;display:grid;grid-template-columns:32px minmax(0,1fr);align-content:center;align-items:center;column-gap:10px;row-gap:2px;border:1px solid #a875a7;border-radius:15px;background:#30233e;color:#fff;text-align:left;padding:13px;font:inherit;cursor:pointer}
+.tg92-hub-choices button.tg92-hub-primary{grid-column:1/-1;min-height:92px;border-color:#ed82bc;background:linear-gradient(115deg,#64245d,#302346);box-shadow:0 8px 22px #0003}
+.tg92-hub-choices button>span{grid-row:1/3;font-size:1.45rem}
+.tg92-hub-choices button strong{font-size:clamp(.91rem,2vw,1.08rem);line-height:1.22}
+.tg92-hub-choices button small{font-size:.75rem;color:#e5d4e9;line-height:1.25}
+.tg92-hub-choices button:focus-visible{outline:3px solid #ffd47c;outline-offset:3px}
+.tg92-hub-choices button:hover{border-color:#ffe0ef;background:#513154}
+/* Os botões históricos continuam no DOM com seus listeners preservados.
+   O lobby usa os atalhos acima para evitar três entradas duplicadas. */
+#room-hub>#tg103-solo-entry,#room-hub>#hub-join-room,#room-hub>#reopen-recap{display:none!important}
+@media(max-width:390px){.tg92-hub-choices{grid-template-columns:1fr}.tg92-hub-choices button.tg92-hub-primary{grid-column:1}}
