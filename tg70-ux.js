@@ -14,7 +14,10 @@ $('tg192-show-password')?.addEventListener('change',()=>setTimeout(syncEyeButton
 new MutationObserver(()=>attachEyes()).observe(document.body,{childList:true,subtree:true});
 const solo=$('tg70-go-solo'),classic=$('tg70-go-classic'),battle=$('tg70-go-battle');
 solo?.addEventListener('click',()=>{const el=$('tg103-solo-entry');if(el&&!el.disabled)el.click();});
-classic?.addEventListener('click',()=>{const el=$('host-create-area');el?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'center'});$('room-title')?.focus({preventScroll:true});});
+classic?.addEventListener('click',()=>{const el=$('host-create-area');if(el)el.hidden=false;el?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'center'});$('room-title')?.focus({preventScroll:true});});
+const hubCreate=$('tg92-hub-create');hubCreate?.addEventListener('click',()=>{const modes=$('tg70-modes');if(!modes)return;modes.hidden=false;hubCreate.setAttribute('aria-expanded','true');modes.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});$('tg70-go-classic')?.focus({preventScroll:true});});
+$('tg92-hub-join')?.addEventListener('click',()=>$('hub-join-room')?.click());
+$('tg92-hub-history')?.addEventListener('click',()=>$('reopen-recap')?.click());
 const guides=[
  ['Bem-vindos à Batalha!', 'A Drag Diva apresenta o festival: inscrições, apresentações, confrontos e um pódio oficial. Talento ajuda, mas coragem também conta!'],
  ['Vamos montar o elenco!', 'O anfitrião abre as inscrições e aprova de dois a doze competidores. Depois do fechamento do elenco, ninguém entra como novo competidor; espectadores podem solicitar participação conforme as regras.'],
