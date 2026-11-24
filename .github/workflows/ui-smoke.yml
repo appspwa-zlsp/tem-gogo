@@ -1,0 +1,27 @@
+name: Tem Gogo — smoke de interface no navegador
+on:
+  push:
+    branches: [pre-release-tem-gogo]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar navegador no runner (nao no computador do usuario)
+        run: |
+          npm install --no-save --no-package-lock playwright
+          npx playwright install --with-deps chromium
+      - name: Executar smoke local sem backend real
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/tem-gogo-http.log 2>&1 &
+          sleep 2
+          node tests/ui-smoke.cjs
