@@ -26,7 +26,31 @@ const guides=[
  ['Todo voto importa!', 'Votantes habilitados avaliam de uma a cinco estrelas. São 150 segundos com uma única prorrogação possível de 30 segundos. O eleitorado é congelado ao abrir a votação e o voto confirmado não pode ser trocado.'],
  ['O grande pódio!', 'A Drag Diva comemora conquistas oficiais de ouro, prata e bronze, persistentes somente na Batalha. Se não houver um resultado justo e válido, ninguém recebe um título inventado.']
  ];let i=0;const dialog=$('tg70-battle-guide');function showGuide(){const g=guides[i];$('tg70-guide-counter').textContent=`Cena ${i+1} de ${guides.length}`;$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';}
-$('tg70-battle-story-open')?.addEventListener('click',()=>{i=0;showGuide();dialog?.showModal();});$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());$('tg70-guide-prev')?.addEventListener('click',()=>{i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{if(i===guides.length-1){dialog.close();return;}i++;showGuide();});dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
+$('tg70-battle-story-open')?.addEventListener('click',()=>{i=0;showGuide();dialog?.showModal();});$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());
+$('tg70-guide-skip')?.addEventListener('click',()=>dialog?.close());$('tg70-guide-prev')?.addEventListener('click',()=>{i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{if(i===guides.length-1){dialog.close();return;}i++;showGuide();});dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
 const faq=$('faq-dialog')?.querySelector('.tg193-faq-actions');if(faq){const btn=document.createElement('button');btn.type='button';btn.className='button button-outline';btn.textContent='🏆 Rever apresentação da Batalha';btn.addEventListener('click',()=>{if($('faq-dialog')?.open)$('faq-dialog').close();i=0;showGuide();dialog?.showModal();});faq.append(btn);}
 if(battle){battle.disabled=true;battle.setAttribute('aria-disabled','true');}
+// Preferencias individuais de acessibilidade (nao ligam audio automaticamente).
+function readPreference(key,fallback){
+ try{const value=localStorage.getItem('tem-gogo-a11y-'+key);return value===null?fallback:value==='true';}
+ catch{return fallback;}
+}
+const reducedSystem=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
+const preferences=[
+ {id:'tg93-reduce-motion',key:'reduce-motion',css:'tg93-reduce-motion',fallback:reducedSystem},
+ {id:'tg93-large-text',key:'large-text',css:'tg93-large-text',fallback:false},
+ {id:'tg93-voice-previews',key:'voice-previews',css:'tg93-voice-previews-off',fallback:true,invert:true}
+];
+for(const item of preferences){
+ const field=$(item.id);if(!field)continue;
+ function update(next,save){
+  field.checked=next;
+  document.body.classList.toggle(item.css,item.invert?!next:next);
+  if(save){try{localStorage.setItem('tem-gogo-a11y-'+item.key,String(next));}catch{}}
+  if(item.key==='voice-previews'&&!next)window.TG74_DIVA_STUDIO?.stop();
+ }
+ update(readPreference(item.key,item.fallback),false);
+ field.addEventListener('change',()=>update(field.checked,true));
+}
+
 })();
