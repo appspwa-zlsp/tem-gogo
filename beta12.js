@@ -56,7 +56,7 @@ function initAccess(){
  if(nameLabel)identityPanel.append(nameLabel);identityPanel.append(name);
  const avatar=guest.querySelector('.avatar-picker');if(avatar)identityPanel.append(avatar);
  const notice=mk('p',{class:'tg12-privacy-note'},'Sem login, suas notas e seu histórico não ficarão salvos no seu perfil.');identityPanel.append(notice);
- const submit=form.querySelector('button[type="submit"]');if(submit){submit.textContent='Entrar mesmo assim';identityPanel.append(submit);}
+ const submit=form.querySelector('button[type="submit"]');if(submit){submit.textContent='Entrar na festa';identityPanel.append(submit);}
  const edit=button('← Trocar sala ou ler outro QR','tg12-back-link');edit.addEventListener('click',()=>{setStep('room');$('guest-code')?.focus({preventScroll:true});});identityPanel.append(edit);
  name.addEventListener('focus',()=>{const preview=$('tg12-code-preview');if(preview)preview.textContent=code.value;});
  form.addEventListener('submit',e=>{if(guestStep!=='identity'){e.preventDefault();e.stopImmediatePropagation();if(validCode(code.value)){setStep('identity');}else{code.reportValidity();}}},true); // The original handler runs only on the confirmed step.

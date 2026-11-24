@@ -327,3 +327,9 @@ body.tg95-join-signed-in #access-tabs,body.tg95-join-signed-in #host-access{disp
 .tg96-party-member button{min-height:44px;flex-shrink:0}
 .tg96-party-people :focus-visible{outline:3px solid #ffd47b;outline-offset:3px}
 body.tg95-join-signed-in .tg20-auth-choices,body.tg95-join-signed-in #tg12-back-login{display:none!important}
+
+/* R97 — sessão já autenticada: não oferecer registro nem descrição de modo anônimo. */
+body.tg95-join-signed-in #tg12-guest-entry-cta,
+body.tg95-join-signed-in .tg12-privacy-note,
+body.tg95-join-signed-in .tg20-auth-choices,
+body.tg95-join-signed-in #tg12-back-login{display:none!important}

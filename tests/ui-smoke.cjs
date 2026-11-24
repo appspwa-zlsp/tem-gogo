@@ -34,6 +34,10 @@ const assert=require('node:assert/strict');
    // A pessoa autenticada no fluxo de convite nao ve novo acesso com e-mail.
    await page.evaluate(()=>document.body.classList.add('tg95-join-signed-in'));
    assert.equal(await page.locator('.tg20-auth-choices').first().isVisible(),false);
+   const guestCTA=await page.locator('#tg12-guest-entry-cta').evaluate(el=>getComputedStyle(el).display);
+   assert.equal(guestCTA,'none','Usuário autenticado não recebe segundo convite para login');
+   const anonInfo=await page.locator('.tg12-privacy-note').evaluate(el=>getComputedStyle(el).display);
+   assert.equal(anonInfo,'none','Aviso de sessão anônima não deve aparecer para pessoa autenticada');
    await page.evaluate(()=>document.body.classList.remove('tg95-join-signed-in'));
 
    assert.equal(await page.locator('#tg92-hub-choices').count(),1);
