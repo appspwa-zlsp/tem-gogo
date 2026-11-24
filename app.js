@@ -892,7 +892,7 @@
       ['Entrou no camarim!','Escolha o seu avatar e faça parte da festa. Na aba Músicas você procura e adiciona sua favorita à fila.'],
       ['A Diva vai chamar','Quando chegar sua vez, você recebe o aviso e autoriza o microfone em um toque. Antes disso, ele fica desligado.'],
       ['O celular é seu microfone','Segure o aparelho como preferir. Veja o indicador de voz e o estado da conexão; o vídeo com a letra fica na TV.'],
-      ['Salve seu histórico se quiser','Você pode cantar sem conta. Para guardar notas, criar sua identidade e participar da Galera e do ranking, faça cadastro quando desejar. FAQ e suporte ficam no rodapé.']
+      ['Salve seu histórico se quiser','Você pode cantar sem conta. O cadastro é opcional para guardar a identidade de palco e permitir conquistas oficiais quando disponíveis. FAQ e suporte ficam no rodapé.']
     ],
     'tg18-remote':[
       ['Seu controle está na mão!','O notebook/TV continua como palco. O celular controla a fila, a reprodução e o volume sem assumir o vídeo.'],
@@ -1092,7 +1092,7 @@
     $('guest-name').value=localStorage.getItem('tem-gogo-display-name')||'';
   }
   async function openLobby() {
-    document.body.classList.remove('invite-active','entry-active');
+    document.body.classList.remove('invite-active','entry-active','tg95-join-signed-in');
     show('lobby');
     // R92: o lobby comeca por Criar, Entrar ou Historico; os formularios
     // originais continuam disponiveis depois da escolha do usuario.

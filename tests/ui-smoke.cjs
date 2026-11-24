@@ -26,6 +26,15 @@ const assert=require('node:assert/strict');
    assert.equal(await page.locator('#tg-beta-person-friend').count(),0);
    assert.equal(await page.locator('#tg95-room-list').count(),1);
    assert.equal(await page.locator('#tg95-person-bora[hidden]').count(),1);
+   assert.equal(await page.locator('#tg96-party-open').count(),1,'Participantes acessiveis sem nova conta');
+   assert.equal(await page.locator('#tg96-party-people').count(),1,'Dialogo de pessoas da propria festa');
+   assert.equal(await page.locator('#tg-beta-remote-nav [data-tg-beta-open="galera"]').count(),0);
+   assert.equal(await page.locator('#tg-beta-dialog .tg-beta-tabs button').count(),4);
+   assert.equal(await page.locator('#tg-beta-dialog [data-tg-beta-panel="profile"] #tg95-room-members').count(),1);
+   // A pessoa autenticada no fluxo de convite nao ve novo acesso com e-mail.
+   await page.evaluate(()=>document.body.classList.add('tg95-join-signed-in'));
+   assert.equal(await page.locator('.tg20-auth-choices').first().isVisible(),false);
+   await page.evaluate(()=>document.body.classList.remove('tg95-join-signed-in'));
 
    assert.equal(await page.locator('#tg92-hub-choices').count(),1);
    assert.equal(await page.locator('#tg70-modes').isVisible(),false);

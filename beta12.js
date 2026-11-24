@@ -120,7 +120,7 @@ function initParticipant(){
    const sync=()=>title.textContent=roomTitle.textContent||'Sua festa';sync();new MutationObserver(sync).observe(roomTitle,{childList:true,characterData:true,subtree:true});
  }
  const hero=guest.querySelector('.guest-hit-library');if(hero){const h=hero.querySelector('h2');if(h)h.textContent='Catálogo de músicas';}
- const bar=guest.querySelector('.mobile-switch');if(bar){bar.setAttribute('aria-label','Catálogo, Galera, Perfil e Ranking');const songs=$('mobile-tab-queue');if(songs){songs.textContent='';songs.append(mk('span',{},'♫'),mk('span',{},'Catálogo'));}}
+ const bar=guest.querySelector('.mobile-switch');if(bar){bar.setAttribute('aria-label','Músicas, microfone quando chamado, placar e perfil');const songs=$('mobile-tab-queue');if(songs){songs.textContent='';songs.append(mk('span',{},'♫'),mk('span',{},'Catálogo'));}}
  // The original score remains available from the single Ranking area; no duplicate fixed button.
  const communication=guest.querySelector('.vox-guest-quip');if(communication){communication.setAttribute('aria-live','polite');let timeout;
  const showTemporary=()=>{if(document.body.dataset.currentView!=='guest')return;communication.classList.add('tg12-visible');clearTimeout(timeout);timeout=setTimeout(()=>communication.classList.remove('tg12-visible'),4600);};
