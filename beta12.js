@@ -76,6 +76,9 @@ function initAccess(){
  if(room&&validCode(room))openGuest(room);
 }
 function initHub(){
+ // R93: o hub homologado ja existe no HTML. Evitar duplicar escolhas e mover
+ // formularios, filas e botao Solo para paineis concorrentes.
+ if($('tg92-hub-choices'))return;
  const hub=$('room-hub');if(!hub)return;
  hub.classList.add('tg12-hub');
  const top=mk('div',{class:'tg12-hub-heading'});top.innerHTML='<span class="tg12-kicker">SEU CAMARIM</span><h2>O que vamos fazer?</h2><p>Escolha uma ação para começar.</p>';
@@ -127,7 +130,7 @@ function initParticipant(){
 function initRemote(){
  const remote=$('tg18-remote');if(!remote)return;remote.classList.add('tg12-remote');
  const h=remote.querySelector('.tg18-remote-shell > .card-eyebrow');if(h)h.textContent='CONTROLE · TEM GOGÓ';
- const tabs=remote.querySelector('.tg19-remote-tabs');if(tabs){const singer=$('tg19-tab-singing');if(singer)singer.textContent='🎤 Participar';}
+ const tabs=remote.querySelector('.tg19-remote-tabs');if(tabs){const singer=$('tg19-tab-singing');if(singer)singer.textContent=$('tg92-remote-info-current')?'📋 Informações':'🎤 Participar';}
  const social=$('tg-beta-remote-nav');if(social)social.classList.add('tg12-remote-social');
 }
 function initStage(){const stage=$('stage');if(!stage)return;stage.classList.add('tg12-stage');
@@ -137,7 +140,7 @@ function initStage(){const stage=$('stage');if(!stage)return;stage.classList.add
 function init(){initAccess();initHub();initParticipant();initRemote();initStage();
  window.addEventListener('temgogo:view',e=>{currentView=e.detail.view;if(currentView==='landing'){
  const remote=new URL(location.href).searchParams.get('remote')==='1';if(remote)backToLogin();
- }if(currentView==='lobby')showHub('main');});
+ }if(currentView==='lobby'&&!$('tg92-hub-choices'))showHub('main');});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
