@@ -48,6 +48,7 @@ const assert=require('node:assert/strict');
    assert.equal(await page.locator('#tg70-battle-guide').evaluate(el=>el.open),false);
 
    await page.locator('#settings-dialog').evaluate(el=>el.showModal());
+   await page.locator('#tg93-a11y-panel').evaluate(el=>{el.open=true;});
    await page.locator('#tg93-reduce-motion').check();
    await page.locator('#tg93-large-text').check();
    await page.locator('#tg93-voice-previews').uncheck();
