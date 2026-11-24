@@ -2,11 +2,12 @@ name: Tem Gogo — verificacao segura da candidata
 on:
   push:
     branches: [pre-release-tem-gogo]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: tem-gogo-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   static-check:
     runs-on: ubuntu-latest

@@ -2,11 +2,12 @@ name: Tem Gogo — smoke de interface no navegador
 on:
   push:
     branches: [pre-release-tem-gogo]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: tem-gogo-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   ui-smoke:
     runs-on: ubuntu-latest

@@ -61,6 +61,21 @@ const assert=require('node:assert/strict');
    const fit=await page.locator('#guest-profile-avatar').evaluate(img=>getComputedStyle(img).objectFit);
    assert.equal(fit,'contain','Avatar oficial deve caber na bolinha sem cortar rosto');
 
+   // Nenhum alerta do navegador deve mostrar o dominio como origem.
+   page.on('dialog',dialog=>{throw Error('Dialogo nativo proibido: '+dialog.type());});
+   await page.locator('#party-recap-dialog').evaluate(el=>el.showModal());
+   await page.locator('#tg124-recap-image').click();
+   assert.equal(await page.locator('#tg-ui-dialog').evaluate(el=>el.open),true,'Mensagem deve usar modal Tem Gogo');
+   await page.locator('#tg-ui-dialog-actions button.primary').click();
+   // Fixture SOMENTE do teste de interface, nunca gravada no banco.
+   await page.locator('#recap-podium').evaluate(el=>{
+     el.innerHTML='<div class="recap-winner"><span class="recap-medal">1</span><img src="./cantor-urbano.png"><b>Artista de teste</b><strong>95/100</strong></div>';
+   });
+   const downloadEvent=page.waitForEvent('download');
+   await page.locator('#tg124-recap-image').click();
+   const download=await downloadEvent;
+   assert.match(download.suggestedFilename(),/tem-gogo-placar-classico.png/);
+   await page.locator('#party-recap-dialog').evaluate(el=>el.close());
    const overflow=await page.evaluate(()=>({view:innerWidth,page:document.documentElement.scrollWidth}));
    console.log('OK viewport',width,'scrollWidth',overflow.page);
    await page.close();
