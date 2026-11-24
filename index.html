@@ -102,7 +102,7 @@
 <nav id="tg92-hub-choices" class="tg92-hub-choices" aria-label="O que deseja fazer?">
 <button type="button" id="tg92-hub-create" class="tg92-hub-primary" aria-controls="tg70-modes" aria-expanded="false"><span aria-hidden="true">🎉</span><strong>Criar uma festa</strong><small>Escolher como cantar</small></button>
 <button type="button" id="tg92-hub-join"><span aria-hidden="true">🎟️</span><strong>Entrar em uma festa</strong><small>Usar convite ou QR</small></button>
-<button type="button" id="tg92-hub-history"><span aria-hidden="true">🏆</span><strong>Ver histórico</strong><small>Último placar</small></button>
+<button type="button" id="tg92-hub-history" aria-expanded="false" aria-controls="tg93-history-panel"><span aria-hidden="true">🏆</span><strong>Ver histórico</strong><small>Festas e último placar</small></button>
 </nav>
 <section class="tg70-modes" id="tg70-modes" hidden aria-labelledby="tg70-modes-heading">
  <p class="tg70-kicker">É HORA DA FESTA!</p>
@@ -115,9 +115,13 @@
  </div>
  <button type="button" id="tg70-battle-story-open" class="tg70-story-cta">🎬 Conhecer a Batalha com a Drag Diva →</button>
  </section>
-<div class="card-eyebrow">✦ SEU CAMARIM, SUAS FESTAS ✦</div><h2>Onde vamos brilhar?</h2>
-<p class="hub-intro">Você pode apresentar uma festa e cantar em outra usando a mesma conta. Cada festa tem seu QR exclusivo, sem senha de sala.</p>
+<section id="tg93-history-panel" class="tg93-history-panel" hidden aria-labelledby="tg93-history-title">
+<div class="card-eyebrow">✦ SEU CAMARIM, SUAS FESTAS ✦</div><h2 id="tg93-history-title">Minhas festas e histórico</h2>
+<p class="hub-intro">Veja suas festas em andamento ou concluídas. O último placar recreativo continua disponível quando houver dados salvos.</p>
 <div aria-live="polite" class="existing-rooms" id="existing-rooms"><p>Carregando suas salas…</p></div>
+<button class="button button-soft full" id="reopen-recap" type="button">🏆 Rever último placar</button>
+<button class="button button-outline full" id="tg93-history-back" type="button">← Voltar às opções</button>
+</section>
 <div class="hub-create-area" id="host-create-area">
 <form id="create-room-form"><label class="field-label" for="room-title">Nome da sua nova festa</label>
 <input id="room-title" maxlength="50" placeholder="Ex.: Sextou na casa da Bia ✨" required="" value="Meu karaokê ✨"/>
@@ -125,7 +129,7 @@
 <button class="button button-primary full" type="submit">🎉 CRIAR FESTA AGORA <span>→</span></button>
 </form>
 </div>
-<button class="button button-soft full" id="tg103-solo-entry" type="button">🎙️ Aparelho único · vou cantar sozinho(a)</button><button class="button button-soft full" id="hub-join-room" type="button">🎟️ ENTRAR EM OUTRA FESTA</button><button class="button button-primary full" data-scan-qr="" type="button">📷 Ler QR de outra festa</button><button class="button button-soft full" id="reopen-recap" type="button">🏆 Rever último placar</button>
+<button class="button button-soft full" id="tg103-solo-entry" type="button">🎙️ Aparelho único · vou cantar sozinho(a)</button><button class="button button-soft full" id="hub-join-room" type="button">🎟️ ENTRAR EM OUTRA FESTA</button><button class="button button-primary full" data-scan-qr="" type="button">📷 Ler QR de outra festa</button>
 <p class="hub-security">🔐 Sua conta continua protegida por senha. O QR da festa é um convite: compartilhe com quem vai participar.</p>
 </div>
 </main>
