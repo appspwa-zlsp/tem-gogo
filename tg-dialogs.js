@@ -41,6 +41,10 @@ function prompt(message,value='',title='Meu nome no palco'){
 function choose({title,message,choices}){
   return open({title,message,choices:[...(choices||[]),{label:'Agora não',value:null}]});
 }
+
+function notice(message,{title='Tem Gogó',buttonText='Entendi'}={}){
+  return open({title,message,choices:[{label:buttonText,value:true,primary:true}]});
+}
 function shareLink(message,url){
   return open({title:'Controle no celular',message,inputValue:url,maxLength:2048,choices:[{label:'Fechar',value:null},{label:'Copiar endereço',value:null,primary:true,input:true}]}).then(async value=>{
     if(value===null)return;try{await navigator.clipboard.writeText(value);}catch{
@@ -48,5 +52,5 @@ function shareLink(message,url){
     }
   });
 }
-window.TG_UI={confirm,prompt,choose,shareLink};
+window.TG_UI={confirm,prompt,choose,notice,shareLink};
 })();

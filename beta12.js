@@ -56,7 +56,7 @@ function initAccess(){
  if(nameLabel)identityPanel.append(nameLabel);identityPanel.append(name);
  const avatar=guest.querySelector('.avatar-picker');if(avatar)identityPanel.append(avatar);
  const notice=mk('p',{class:'tg12-privacy-note'},'Sem login, suas notas e seu histórico não ficarão salvos no seu perfil.');identityPanel.append(notice);
- const submit=form.querySelector('button[type="submit"]');if(submit){submit.textContent='Entrar mesmo assim';identityPanel.append(submit);}
+ const submit=form.querySelector('button[type="submit"]');if(submit){submit.textContent='Entrar na festa';identityPanel.append(submit);}
  const edit=button('← Trocar sala ou ler outro QR','tg12-back-link');edit.addEventListener('click',()=>{setStep('room');$('guest-code')?.focus({preventScroll:true});});identityPanel.append(edit);
  name.addEventListener('focus',()=>{const preview=$('tg12-code-preview');if(preview)preview.textContent=code.value;});
  form.addEventListener('submit',e=>{if(guestStep!=='identity'){e.preventDefault();e.stopImmediatePropagation();if(validCode(code.value)){setStep('identity');}else{code.reportValidity();}}},true); // The original handler runs only on the confirmed step.
@@ -76,6 +76,9 @@ function initAccess(){
  if(room&&validCode(room))openGuest(room);
 }
 function initHub(){
+ // R93: o hub homologado ja existe no HTML. Evitar duplicar escolhas e mover
+ // formularios, filas e botao Solo para paineis concorrentes.
+ if($('tg92-hub-choices'))return;
  const hub=$('room-hub');if(!hub)return;
  hub.classList.add('tg12-hub');
  const top=mk('div',{class:'tg12-hub-heading'});top.innerHTML='<span class="tg12-kicker">SEU CAMARIM</span><h2>O que vamos fazer?</h2><p>Escolha uma ação para começar.</p>';
@@ -117,7 +120,7 @@ function initParticipant(){
    const sync=()=>title.textContent=roomTitle.textContent||'Sua festa';sync();new MutationObserver(sync).observe(roomTitle,{childList:true,characterData:true,subtree:true});
  }
  const hero=guest.querySelector('.guest-hit-library');if(hero){const h=hero.querySelector('h2');if(h)h.textContent='Catálogo de músicas';}
- const bar=guest.querySelector('.mobile-switch');if(bar){bar.setAttribute('aria-label','Catálogo, Galera, Perfil e Ranking');const songs=$('mobile-tab-queue');if(songs){songs.textContent='';songs.append(mk('span',{},'♫'),mk('span',{},'Catálogo'));}}
+ const bar=guest.querySelector('.mobile-switch');if(bar){bar.setAttribute('aria-label','Músicas, microfone quando chamado, placar e perfil');const songs=$('mobile-tab-queue');if(songs){songs.textContent='';songs.append(mk('span',{},'♫'),mk('span',{},'Catálogo'));}}
  // The original score remains available from the single Ranking area; no duplicate fixed button.
  const communication=guest.querySelector('.vox-guest-quip');if(communication){communication.setAttribute('aria-live','polite');let timeout;
  const showTemporary=()=>{if(document.body.dataset.currentView!=='guest')return;communication.classList.add('tg12-visible');clearTimeout(timeout);timeout=setTimeout(()=>communication.classList.remove('tg12-visible'),4600);};
@@ -127,7 +130,7 @@ function initParticipant(){
 function initRemote(){
  const remote=$('tg18-remote');if(!remote)return;remote.classList.add('tg12-remote');
  const h=remote.querySelector('.tg18-remote-shell > .card-eyebrow');if(h)h.textContent='CONTROLE · TEM GOGÓ';
- const tabs=remote.querySelector('.tg19-remote-tabs');if(tabs){const singer=$('tg19-tab-singing');if(singer)singer.textContent='🎤 Participar';}
+ const tabs=remote.querySelector('.tg19-remote-tabs');if(tabs){const singer=$('tg19-tab-singing');if(singer)singer.textContent=$('tg92-remote-info-current')?'📋 Informações':'🎤 Participar';}
  const social=$('tg-beta-remote-nav');if(social)social.classList.add('tg12-remote-social');
 }
 function initStage(){const stage=$('stage');if(!stage)return;stage.classList.add('tg12-stage');
@@ -137,7 +140,7 @@ function initStage(){const stage=$('stage');if(!stage)return;stage.classList.add
 function init(){initAccess();initHub();initParticipant();initRemote();initStage();
  window.addEventListener('temgogo:view',e=>{currentView=e.detail.view;if(currentView==='landing'){
  const remote=new URL(location.href).searchParams.get('remote')==='1';if(remote)backToLogin();
- }if(currentView==='lobby')showHub('main');});
+ }if(currentView==='lobby'&&!$('tg92-hub-choices'))showHub('main');});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

@@ -95,7 +95,7 @@ function accountChoice(){
     if(validRoom(code))sessionStorage.setItem('tg20-auth-return-room',code);
     dlg.close();
     if(bridge?.isMyTurn?.()){
-      alert('Termine primeiro sua apresentação antes de trocar a conta.');return;
+      void window.TG_UI?.notice?.('Termine a apresentação e desligue o microfone antes de trocar de conta.',{title:'Seu show está acontecendo'});return;
     }
     const u=new URL('./',location.href);u.searchParams.set('auth','login');
     if(validRoom(code))u.searchParams.set('room',code);

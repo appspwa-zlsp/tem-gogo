@@ -88,6 +88,9 @@
     $('tg18-remote-now').textContent=playing?.title||'Palco aguardando música';
     $('tg18-remote-next').textContent=next?.title||'Fim da fila';
     $('tg18-remote-count').textContent=state.songs.filter(x=>x.status==='queued').length+' na fila';
+    if($('tg92-remote-info-current'))$('tg92-remote-info-current').textContent=playing?.title||'Aguardando música';
+    if($('tg92-remote-info-next'))$('tg92-remote-info-next').textContent=next?.title||'Fim da fila';
+    if($('tg92-remote-info-queue'))$('tg92-remote-info-queue').textContent=state.songs.filter(x=>x.status==='queued').length+' na fila';
     const personal=state.scores.find(x=>x.user_id===state.user?.id);
     $('tg19-remote-score').textContent=personal?'🏆 Sua última nota: '+personal.score+'/100 · A Diva avaliou sua participação':'🏆 Seu placar aparece depois de cantar';
     renderRemoteQueue();
@@ -99,7 +102,7 @@
     list.innerHTML=pending.length?pending.map((song,index)=>`<article class="tg19-remote-queue-item">
       <div class="tg19-remote-queue-name"><small>#${index+1} · ${escapeHTML(songSingerLabel(song))}</small><strong>${escapeHTML(song.title)}</strong></div>
       <div class="tg19-remote-queue-actions"><button class="button button-primary" type="button" data-tg19-prepare="${song.id}">🎬 Preparar</button><button class="button button-soft" type="button" data-tg19-remove="${song.id}">✕</button></div>
-    </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Use “Eu cantando” para escolher seu hit!</p>';
+    </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Abra Informações e toque em Escolher música para cantar.</p>';
   }
   async function remoteRemoveSong(songId){
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
@@ -286,6 +289,14 @@
     if($('tg18-account-cta'))$('tg18-account-cta').hidden=!anon;
     if($('tg18-account-history'))$('tg18-account-history').hidden=state.role!=='guest';
     if($('tg18-push-cta'))$('tg18-push-cta').hidden=state.role!=='guest';
+    const promo=document.querySelector('#guest .tg18-account-promo');
+    if(promo&&state.role==='guest'){
+      const headline=promo.querySelector(':scope > strong'),copy=promo.querySelector(':scope > p');
+      if(headline)headline.textContent=anon?'🎖️ Suas notas merecem um histórico!':'🏆 Seu histórico está no camarim!';
+      if(copy)copy.textContent=anon
+        ?'Criar uma conta é opcional para guardar suas notas e voltar às suas festas.'
+        :'Consulte suas notas recreativas, suas festas e as preferências da conta. Não é necessário cadastrar-se novamente.';
+    }
   }
   async function saveGuestIdentity(event){
     event.preventDefault();if(!state.user||state.role!=='guest')return;
@@ -768,8 +779,14 @@
     document.body.classList.remove('invite-active');
     document.body.classList.toggle('entry-active',!!clean || isStandalone());
     $('invite-welcome').hidden=true;
-    $('access-tabs').hidden=false;
+    // Sessão autenticada já existente: entrar por convite sem outra tela de login.
+    const signedIn=!!(state.user&&!isAnonymous(state.user));
+    $('access-tabs').hidden=signedIn;
+    document.body.classList.toggle('tg95-join-signed-in',signedIn);
     openGuestEntry(clean);
+    if(signedIn&&!$('guest-name').value.trim()){
+      $('guest-name').value=String(state.user.user_metadata?.display_name||localStorage.getItem('tem-gogo-display-name')||'');
+    }
     show('landing');
     window.dispatchEvent(new CustomEvent('temgogo:guest-entry',{detail:{room:clean}}));
     $(clean?'guest-name':'guest-code').focus({preventScroll:true});
@@ -883,12 +900,12 @@
       ['Entrou no camarim!','Escolha o seu avatar e faça parte da festa. Na aba Músicas você procura e adiciona sua favorita à fila.'],
       ['A Diva vai chamar','Quando chegar sua vez, você recebe o aviso e autoriza o microfone em um toque. Antes disso, ele fica desligado.'],
       ['O celular é seu microfone','Segure o aparelho como preferir. Veja o indicador de voz e o estado da conexão; o vídeo com a letra fica na TV.'],
-      ['Salve seu histórico se quiser','Você pode cantar sem conta. Para guardar notas, criar sua identidade e participar da Galera e do ranking, faça cadastro quando desejar. FAQ e suporte ficam no rodapé.']
+      ['Salve seu histórico se quiser','Você pode cantar sem conta. O cadastro é opcional para guardar a identidade de palco e permitir conquistas oficiais quando disponíveis. FAQ e suporte ficam no rodapé.']
     ],
     'tg18-remote':[
       ['Seu controle está na mão!','O notebook/TV continua como palco. O celular controla a fila, a reprodução e o volume sem assumir o vídeo.'],
       ['Controle','Na primeira aba, chame cantores, prepare músicas e veja se o comando foi executado na TV.'],
-      ['Eu cantando','Ao ser chamado, abra Eu cantando. Seu microfone usa o mesmo padrão dos convidados e só transmite durante a sua vez.'],
+      ['Informações e microfone','Na aba Informações, acompanhe a fila e escolha sua música. Quando chegar a sua vez, o microfone aparece no celular e transmite somente após autorização.'],
       ['Ajustes e suporte','Os volumes ficam em Ajustes de áudio. Use FAQ, Tour ou Suporte se precisar de ajuda.']
     ]
   };
@@ -1083,9 +1100,15 @@
     $('guest-name').value=localStorage.getItem('tem-gogo-display-name')||'';
   }
   async function openLobby() {
-    document.body.classList.remove('invite-active','entry-active');
+    document.body.classList.remove('invite-active','entry-active','tg95-join-signed-in');
     show('lobby');
-    $('host-create-area').hidden=!state.user || isAnonymous(state.user);
+    // R92: o lobby comeca por Criar, Entrar ou Historico; os formularios
+    // originais continuam disponiveis depois da escolha do usuario.
+    $('host-create-area').hidden=true;
+    const modeSection=$('tg70-modes');if(modeSection)modeSection.hidden=true;
+    const historySection=$('tg93-history-panel');if(historySection)historySection.hidden=true;
+    const modeTrigger=$('tg92-hub-create');if(modeTrigger)modeTrigger.setAttribute('aria-expanded','false');
+    $('tg92-hub-history')?.setAttribute('aria-expanded','false');
     await loadMyRooms();
   }
   async function loadMyRooms() {

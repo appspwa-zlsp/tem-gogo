@@ -101,3 +101,13 @@ body.tg124-remote-focus .tg18-remote-grid,body.tg124-remote-focus .tg192-remote-
 @media(prefers-reduced-motion:reduce){.tg124-diva-announcement{animation:none!important;transition:none!important}}
 
 body.tg104-single-device .tg124-invite-shortcut{display:none!important}
+
+/* R92 — Solo: nao reservar coluna vazia de QR; player usa largura total. */
+body.tg104-single-device #stage .screen-row>.qr-rail{display:none!important}
+body.tg104-single-device #stage .screen-row{display:block!important}
+body.tg104-single-device #stage .screen-row>.video-frame{width:100%!important;max-width:100%!important;aspect-ratio:16/9}
+/* Cartao de informacoes no controle remoto; microfone original permanece acessivel na sua vez. */
+#tg18-remote .tg92-remote-info{padding:13px 15px;margin:12px 0;border:1px solid #a978ab;border-radius:15px;background:#2a203a;color:#f6e8f9}
+#tg18-remote .tg92-remote-info h2{font-size:1rem;margin:0 0 8px;color:#ffe1f3}
+#tg18-remote .tg92-remote-info p{font-size:.86rem;line-height:1.45;margin:6px 0;color:#eed8f2;overflow-wrap:anywhere}
+#tg18-remote .tg92-remote-info p strong{color:#fff}

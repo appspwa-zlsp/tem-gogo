@@ -280,3 +280,56 @@ body.tg104-single-device #tg18-solo-button{outline:2px solid #d9ffac;outline-off
 @media(max-width:1020px){#stage .tg104-show-panel{grid-template-columns:1fr}#stage .tg104-live-side{grid-template-columns:repeat(2,minmax(0,1fr))}#stage .tg104-room-panel{grid-template-columns:1fr}#stage .tg104-room-panel .tg19-host-remote-card,#stage .tg104-room-panel .tg19-stage-tool-grid{grid-column:1}}
 @media(max-width:680px){#stage.tg104-cockpit-ready .tg104-cockpit{margin:12px 6px}#stage .tg104-cockpit-header{padding:15px 13px}#stage .tg104-cockpit-live{display:none}#stage .tg104-cockpit-tabs{padding:0 9px 9px;gap:4px}#stage .tg104-cockpit-tabs button{font-size:11px;min-height:44px}#stage .tg104-panel{padding:10px}#stage .tg104-live-side{grid-template-columns:1fr}#stage .tg104-show-panel .tg17-console-body{grid-template-columns:1fr!important}#stage .tg104-room-panel .tg19-stage-tool-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#stage .tg104-catalog-panel #stage-library{grid-template-columns:1fr}#stage .tg104-room-panel .tg19-host-remote-card{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){#stage .tg104-cockpit-tabs button{transition:none}}
+
+/* R93 — Avatares oficiais preservados no círculo. Não realizar corte cego. */
+#guest-profile-avatar:is([src*="cantor-"],[src*="cantora-"]),
+#tg123-guest-mic-avatar:is([src*="cantor-"],[src*="cantora-"]),
+#tg123-remote-mic-avatar:is([src*="cantor-"],[src*="cantora-"]),
+.tg124-podium-avatar:is([src*="cantor-"],[src*="cantora-"]),
+#tg124-flop-avatar:is([src*="cantor-"],[src*="cantora-"]),
+.tg-beta-heading img:is([src*="cantor-"],[src*="cantora-"]),
+.tg-beta-person>img:is([src*="cantor-"],[src*="cantora-"]),
+.tg-beta-avatar-option img:is([src*="cantor-"],[src*="cantora-"]) {
+ object-fit:contain!important;object-position:center center!important;
+ background-color:#352147;
+}
+/* Fotografia pessoal: recorte controlado no editor 1:1; nada automático. */
+#tg-beta-crop-canvas{border-radius:50%;outline:2px solid #ffe4f6;outline-offset:2px}
+#tg-beta-crop-editor .tg93-avatar-guide{
+ color:#f6e6f3;font-size:.85rem;line-height:1.55;text-align:center;
+ padding:8px 12px;margin:8px auto;max-width:340px;
+ border:1px solid #8f6a96;border-radius:10px;
+}
+
+/* R95: miniperfil restrito ao contexto da festa ou ranking público, sem camada social. */
+#guest .mobile-switch{grid-template-columns:repeat(auto-fit,minmax(68px,1fr))!important}
+#tg95-room-members[hidden],#tg-beta-person-view[hidden]{display:none!important}
+#tg95-room-members,.tg95-achievements,.tg95-bora{margin:12px 0;padding:12px;border:1px solid #91689b;border-radius:13px;background:#2c1a3a}
+#tg95-room-members summary{cursor:pointer;font-weight:800;min-height:38px}
+#tg95-room-members p,.tg95-achievements p,.tg95-bora p{font-size:.85rem;line-height:1.6;color:#ead9ee}
+.tg95-room-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #ffffff28}
+.tg95-room-row span{min-width:0;overflow-wrap:anywhere}
+.tg95-room-row button{min-height:40px;flex-shrink:0}
+#tg-beta-person-avatar{object-fit:contain!important;object-position:center!important;background:#35233f}
+.tg95-links{display:flex;flex-wrap:wrap;gap:10px}.tg95-links a{color:#fff;text-decoration:underline;background:#4c3156;padding:10px;border-radius:10px}.tg95-links a[hidden]{display:none!important}
+body.tg95-join-signed-in #access-tabs,body.tg95-join-signed-in #host-access{display:none!important}
+
+/* R96 — pessoas da propria festa, visibilidade contextual, sem descoberta global. */
+.tg96-party-open{min-height:42px;white-space:normal;overflow-wrap:anywhere;font-size:.82rem}
+.tg96-party-people{border:1px solid #a876ab;border-radius:17px;background:#21182f;color:#fff;max-width:min(95vw,620px);max-height:85dvh;overflow:auto}
+.tg96-party-people::backdrop{background:#12091bc9}
+.tg96-party-inner{padding:18px;display:grid;gap:14px}
+.tg96-party-inner header{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.tg96-party-inner h2{color:#ffe1f2;margin:0;font-size:clamp(1.1rem,3vw,1.5rem)}
+.tg96-party-inner p{line-height:1.55;color:#eee0ed;margin:0}
+.tg96-party-member{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ffffff29}
+.tg96-party-member span{overflow-wrap:anywhere}
+.tg96-party-member button{min-height:44px;flex-shrink:0}
+.tg96-party-people :focus-visible{outline:3px solid #ffd47b;outline-offset:3px}
+body.tg95-join-signed-in .tg20-auth-choices,body.tg95-join-signed-in #tg12-back-login{display:none!important}
+
+/* R97 — sessão já autenticada: não oferecer registro nem descrição de modo anônimo. */
+body.tg95-join-signed-in #tg12-guest-entry-cta,
+body.tg95-join-signed-in .tg12-privacy-note,
+body.tg95-join-signed-in .tg20-auth-choices,
+body.tg95-join-signed-in #tg12-back-login{display:none!important}
