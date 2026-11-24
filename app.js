@@ -1092,7 +1092,9 @@
     // originais continuam disponiveis depois da escolha do usuario.
     $('host-create-area').hidden=true;
     const modeSection=$('tg70-modes');if(modeSection)modeSection.hidden=true;
+    const historySection=$('tg93-history-panel');if(historySection)historySection.hidden=true;
     const modeTrigger=$('tg92-hub-create');if(modeTrigger)modeTrigger.setAttribute('aria-expanded','false');
+    $('tg92-hub-history')?.setAttribute('aria-expanded','false');
     await loadMyRooms();
   }
   async function loadMyRooms() {
