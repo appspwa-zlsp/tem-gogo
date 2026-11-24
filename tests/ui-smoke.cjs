@@ -28,6 +28,9 @@ const assert=require('node:assert/strict');
    assert.equal(await page.locator('#tg95-person-bora[hidden]').count(),1);
    assert.equal(await page.locator('#tg96-party-open').count(),1,'Participantes acessiveis sem nova conta');
    assert.equal(await page.locator('#tg96-party-people').count(),1,'Dialogo de pessoas da propria festa');
+   assert.equal(await page.locator('#tg18-remote .tg19-remote-tabs button').count(),2);
+   assert.match(await page.locator('#tg19-tab-singing').innerText(),/Informações/);
+
    assert.equal(await page.locator('#tg-beta-remote-nav [data-tg-beta-open="galera"]').count(),0);
    assert.equal(await page.locator('#tg-beta-dialog .tg-beta-tabs button').count(),4);
    assert.equal(await page.locator('#tg-beta-dialog [data-tg-beta-panel="profile"] #tg95-room-members').count(),1);

@@ -102,7 +102,7 @@
     list.innerHTML=pending.length?pending.map((song,index)=>`<article class="tg19-remote-queue-item">
       <div class="tg19-remote-queue-name"><small>#${index+1} · ${escapeHTML(songSingerLabel(song))}</small><strong>${escapeHTML(song.title)}</strong></div>
       <div class="tg19-remote-queue-actions"><button class="button button-primary" type="button" data-tg19-prepare="${song.id}">🎬 Preparar</button><button class="button button-soft" type="button" data-tg19-remove="${song.id}">✕</button></div>
-    </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Use “Eu cantando” para escolher seu hit!</p>';
+    </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Abra Informações e toque em Escolher música para cantar.</p>';
   }
   async function remoteRemoveSong(songId){
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
@@ -289,6 +289,14 @@
     if($('tg18-account-cta'))$('tg18-account-cta').hidden=!anon;
     if($('tg18-account-history'))$('tg18-account-history').hidden=state.role!=='guest';
     if($('tg18-push-cta'))$('tg18-push-cta').hidden=state.role!=='guest';
+    const promo=document.querySelector('#guest .tg18-account-promo');
+    if(promo&&state.role==='guest'){
+      const headline=promo.querySelector(':scope > strong'),copy=promo.querySelector(':scope > p');
+      if(headline)headline.textContent=anon?'🎖️ Suas notas merecem um histórico!':'🏆 Seu histórico está no camarim!';
+      if(copy)copy.textContent=anon
+        ?'Criar uma conta é opcional para guardar suas notas e voltar às suas festas.'
+        :'Consulte suas notas recreativas, suas festas e as preferências da conta. Não é necessário cadastrar-se novamente.';
+    }
   }
   async function saveGuestIdentity(event){
     event.preventDefault();if(!state.user||state.role!=='guest')return;
@@ -897,7 +905,7 @@
     'tg18-remote':[
       ['Seu controle está na mão!','O notebook/TV continua como palco. O celular controla a fila, a reprodução e o volume sem assumir o vídeo.'],
       ['Controle','Na primeira aba, chame cantores, prepare músicas e veja se o comando foi executado na TV.'],
-      ['Eu cantando','Ao ser chamado, abra Eu cantando. Seu microfone usa o mesmo padrão dos convidados e só transmite durante a sua vez.'],
+      ['Informações e microfone','Na aba Informações, acompanhe a fila e escolha sua música. Quando chegar a sua vez, o microfone aparece no celular e transmite somente após autorização.'],
       ['Ajustes e suporte','Os volumes ficam em Ajustes de áudio. Use FAQ, Tour ou Suporte se precisar de ajuda.']
     ]
   };
