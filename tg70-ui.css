@@ -61,3 +61,13 @@
    O lobby usa os atalhos acima para evitar três entradas duplicadas. */
 #room-hub>#tg103-solo-entry,#room-hub>#hub-join-room,#room-hub>#reopen-recap{display:none!important}
 @media(max-width:390px){.tg92-hub-choices{grid-template-columns:1fr}.tg92-hub-choices button.tg92-hub-primary{grid-column:1}}
+
+/* R93 — preferencias de acessibilidade individuais */
+#tg93-a11y-panel{margin-top:15px;border:1px solid #a078a6;border-radius:13px;padding:12px;background:#25192f}
+#tg93-a11y-panel summary{font-weight:800;cursor:pointer;min-height:42px;display:flex;align-items:center;color:#fff}
+#tg93-a11y-panel .setting-switch{margin:10px 0;padding:7px 0;min-width:0}
+#tg93-a11y-panel .setting-switch small{line-height:1.45}
+#tg93-a11y-panel summary:focus-visible,#tg93-a11y-panel input:focus-visible{outline:3px solid #ffcf80;outline-offset:3px}
+body.tg93-large-text .tg70-modes>p,body.tg93-large-text .tg70-mode-list button small,body.tg93-large-text .tg92-hub-choices button small,body.tg93-large-text .settings-note,body.tg93-large-text .tg70-guide-inner>p,body.tg93-large-text .tg19-remote-queue-list,body.tg93-large-text .guest-main p{font-size:max(1rem,15px)!important;line-height:1.65!important}
+body.tg93-large-text .tg70-mode-list button strong,body.tg93-large-text .tg92-hub-choices button strong{font-size:max(1.1rem,18px)!important}
+body.tg93-reduce-motion *,body.tg93-reduce-motion *::before,body.tg93-reduce-motion *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
