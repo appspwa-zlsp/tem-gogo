@@ -280,3 +280,23 @@ body.tg104-single-device #tg18-solo-button{outline:2px solid #d9ffac;outline-off
 @media(max-width:1020px){#stage .tg104-show-panel{grid-template-columns:1fr}#stage .tg104-live-side{grid-template-columns:repeat(2,minmax(0,1fr))}#stage .tg104-room-panel{grid-template-columns:1fr}#stage .tg104-room-panel .tg19-host-remote-card,#stage .tg104-room-panel .tg19-stage-tool-grid{grid-column:1}}
 @media(max-width:680px){#stage.tg104-cockpit-ready .tg104-cockpit{margin:12px 6px}#stage .tg104-cockpit-header{padding:15px 13px}#stage .tg104-cockpit-live{display:none}#stage .tg104-cockpit-tabs{padding:0 9px 9px;gap:4px}#stage .tg104-cockpit-tabs button{font-size:11px;min-height:44px}#stage .tg104-panel{padding:10px}#stage .tg104-live-side{grid-template-columns:1fr}#stage .tg104-show-panel .tg17-console-body{grid-template-columns:1fr!important}#stage .tg104-room-panel .tg19-stage-tool-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#stage .tg104-catalog-panel #stage-library{grid-template-columns:1fr}#stage .tg104-room-panel .tg19-host-remote-card{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){#stage .tg104-cockpit-tabs button{transition:none}}
+
+/* R93 — Avatares oficiais preservados no círculo. Não realizar corte cego. */
+#guest-profile-avatar:is([src*="cantor-"],[src*="cantora-"]),
+#tg123-guest-mic-avatar:is([src*="cantor-"],[src*="cantora-"]),
+#tg123-remote-mic-avatar:is([src*="cantor-"],[src*="cantora-"]),
+.tg124-podium-avatar:is([src*="cantor-"],[src*="cantora-"]),
+#tg124-flop-avatar:is([src*="cantor-"],[src*="cantora-"]),
+.tg-beta-heading img:is([src*="cantor-"],[src*="cantora-"]),
+.tg-beta-person>img:is([src*="cantor-"],[src*="cantora-"]),
+.tg-beta-avatar-option img:is([src*="cantor-"],[src*="cantora-"]) {
+ object-fit:contain!important;object-position:center center!important;
+ background-color:#352147;
+}
+/* Fotografia pessoal: recorte controlado no editor 1:1; nada automático. */
+#tg-beta-crop-canvas{border-radius:50%;outline:2px solid #ffe4f6;outline-offset:2px}
+#tg-beta-crop-editor .tg93-avatar-guide{
+ color:#f6e6f3;font-size:.85rem;line-height:1.55;text-align:center;
+ padding:8px 12px;margin:8px auto;max-width:340px;
+ border:1px solid #8f6a96;border-radius:10px;
+}
