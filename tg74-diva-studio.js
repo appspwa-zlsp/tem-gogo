@@ -23,6 +23,7 @@
     return Math.min(75,Math.max(0,Number(raw)||0));
   }
   async function play(){
+    if(document.body.classList.contains('tg93-voice-previews-off')){stop();status('Prévia da Diva silenciada nas preferências deste aparelho.');return false;}
     if(!hostAllowed()){stop();status('Prévia disponível apenas para o anfitrião, com o palco parado e sem chamada em andamento.');return false;}
     const id=document.getElementById('tg74-voice-select')?.value;
     const voice=byId.get(id);if(!voice){status('Escolha uma fala válida.');return false;}
