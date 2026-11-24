@@ -20,6 +20,13 @@ const assert=require('node:assert/strict');
     dispatchEvent(new CustomEvent('temgogo:view',{detail:{view:'lobby'}}));
    });
    assert.equal(await page.locator('#tg12-hub-choices').count(),0,'Menu antigo duplicado');
+   assert.equal(await page.locator('[data-tg-beta-tab="galera"]').count(),0);
+   assert.equal(await page.locator('[data-tg-beta-open="galera"]').count(),0);
+   assert.equal(await page.locator('#tg-beta-person-follow').count(),0);
+   assert.equal(await page.locator('#tg-beta-person-friend').count(),0);
+   assert.equal(await page.locator('#tg95-room-list').count(),1);
+   assert.equal(await page.locator('#tg95-person-bora[hidden]').count(),1);
+
    assert.equal(await page.locator('#tg92-hub-choices').count(),1);
    assert.equal(await page.locator('#tg70-modes').isVisible(),false);
    await page.locator('#tg92-hub-history').click();

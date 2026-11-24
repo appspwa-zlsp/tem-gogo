@@ -300,3 +300,16 @@ body.tg104-single-device #tg18-solo-button{outline:2px solid #d9ffac;outline-off
  padding:8px 12px;margin:8px auto;max-width:340px;
  border:1px solid #8f6a96;border-radius:10px;
 }
+
+/* R95: miniperfil restrito ao contexto da festa ou ranking público, sem camada social. */
+#guest .mobile-switch{grid-template-columns:repeat(auto-fit,minmax(68px,1fr))!important}
+#tg95-room-members[hidden],#tg-beta-person-view[hidden]{display:none!important}
+#tg95-room-members,.tg95-achievements,.tg95-bora{margin:12px 0;padding:12px;border:1px solid #91689b;border-radius:13px;background:#2c1a3a}
+#tg95-room-members summary{cursor:pointer;font-weight:800;min-height:38px}
+#tg95-room-members p,.tg95-achievements p,.tg95-bora p{font-size:.85rem;line-height:1.6;color:#ead9ee}
+.tg95-room-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #ffffff28}
+.tg95-room-row span{min-width:0;overflow-wrap:anywhere}
+.tg95-room-row button{min-height:40px;flex-shrink:0}
+#tg-beta-person-avatar{object-fit:contain!important;object-position:center!important;background:#35233f}
+.tg95-links{display:flex;flex-wrap:wrap;gap:10px}.tg95-links a{color:#fff;text-decoration:underline;background:#4c3156;padding:10px;border-radius:10px}.tg95-links a[hidden]{display:none!important}
+body.tg95-join-signed-in #access-tabs,body.tg95-join-signed-in #host-access{display:none!important}

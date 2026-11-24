@@ -771,8 +771,14 @@
     document.body.classList.remove('invite-active');
     document.body.classList.toggle('entry-active',!!clean || isStandalone());
     $('invite-welcome').hidden=true;
-    $('access-tabs').hidden=false;
+    // Sessão autenticada já existente: entrar por convite sem outra tela de login.
+    const signedIn=!!(state.user&&!isAnonymous(state.user));
+    $('access-tabs').hidden=signedIn;
+    document.body.classList.toggle('tg95-join-signed-in',signedIn);
     openGuestEntry(clean);
+    if(signedIn&&!$('guest-name').value.trim()){
+      $('guest-name').value=String(state.user.user_metadata?.display_name||localStorage.getItem('tem-gogo-display-name')||'');
+    }
     show('landing');
     window.dispatchEvent(new CustomEvent('temgogo:guest-entry',{detail:{room:clean}}));
     $(clean?'guest-name':'guest-code').focus({preventScroll:true});
