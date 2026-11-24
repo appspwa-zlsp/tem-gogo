@@ -71,3 +71,11 @@
 body.tg93-large-text .tg70-modes>p,body.tg93-large-text .tg70-mode-list button small,body.tg93-large-text .tg92-hub-choices button small,body.tg93-large-text .settings-note,body.tg93-large-text .tg70-guide-inner>p,body.tg93-large-text .tg19-remote-queue-list,body.tg93-large-text .guest-main p{font-size:max(1rem,15px)!important;line-height:1.65!important}
 body.tg93-large-text .tg70-mode-list button strong,body.tg93-large-text .tg92-hub-choices button strong{font-size:max(1.1rem,18px)!important}
 body.tg93-reduce-motion *,body.tg93-reduce-motion *::before,body.tg93-reduce-motion *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+
+/* R93 — Histórico separado da criação, sem formulários duplicados. */
+#room-hub #tg93-history-panel[hidden],#room-hub #tg70-modes[hidden],#room-hub #host-create-area[hidden]{display:none!important}
+#room-hub #tg93-history-panel{margin:14px 0 20px;padding:15px;border:1px solid #9c6aa4;border-radius:16px;background:linear-gradient(145deg,#241933,#171223)}
+#room-hub #tg93-history-panel h2{margin:5px 0 8px;color:#fff;font-size:clamp(1.2rem,3vw,1.6rem)}
+#room-hub #tg93-history-panel .existing-rooms{min-width:0;width:100%;max-width:100%}
+#room-hub #tg93-history-panel button{min-height:44px;margin-top:10px}
+#room-hub #tg93-history-back:focus-visible{outline:3px solid #ffcf7c;outline-offset:3px}
