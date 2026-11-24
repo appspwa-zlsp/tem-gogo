@@ -22,6 +22,12 @@ const assert=require('node:assert/strict');
    assert.equal(await page.locator('#tg12-hub-choices').count(),0,'Menu antigo duplicado');
    assert.equal(await page.locator('#tg92-hub-choices').count(),1);
    assert.equal(await page.locator('#tg70-modes').isVisible(),false);
+   await page.locator('#tg92-hub-history').click();
+   assert.equal(await page.locator('#tg93-history-panel').isVisible(),true);
+   assert.equal(await page.locator('#tg70-modes').isVisible(),false);
+   assert.equal(await page.locator('#reopen-recap').count(),1);
+   await page.locator('#tg93-history-back').click();
+   assert.equal(await page.locator('#tg93-history-panel').isVisible(),false);
    await page.locator('#tg92-hub-create').click();
    assert.equal(await page.locator('#tg70-modes').isVisible(),true);
    assert.equal(await page.locator('#tg70-go-battle').isDisabled(),true);
@@ -37,6 +43,23 @@ const assert=require('node:assert/strict');
    }
    await page.locator('#tg70-guide-next').click();
    assert.equal(await page.locator('#tg70-battle-guide').evaluate(el=>el.open),false);
+   await page.locator('#tg70-battle-story-open').click();
+   await page.locator('#tg70-guide-skip').click();
+   assert.equal(await page.locator('#tg70-battle-guide').evaluate(el=>el.open),false);
+
+   await page.locator('#settings-dialog').evaluate(el=>el.showModal());
+   await page.locator('#tg93-reduce-motion').check();
+   await page.locator('#tg93-large-text').check();
+   await page.locator('#tg93-voice-previews').uncheck();
+   assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('tg93-reduce-motion')),true);
+   assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('tg93-large-text')),true);
+   assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('tg93-voice-previews-off')),true);
+   await page.locator('#settings-dialog').evaluate(el=>el.close());
+
+   await page.locator('#guest-profile-avatar').evaluate(img=>{img.src='./cantor-urbano.png'});
+   const fit=await page.locator('#guest-profile-avatar').evaluate(img=>getComputedStyle(img).objectFit);
+   assert.equal(fit,'contain','Avatar oficial deve caber na bolinha sem cortar rosto');
+
    const overflow=await page.evaluate(()=>({view:innerWidth,page:document.documentElement.scrollWidth}));
    console.log('OK viewport',width,'scrollWidth',overflow.page);
    await page.close();
