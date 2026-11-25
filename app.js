@@ -139,14 +139,16 @@
     const pending=state.songs.filter(song=>song.status==='queued');
     list.innerHTML=pending.length?pending.map((song,index)=>`<article class="tg19-remote-queue-item">
       <div class="tg19-remote-queue-name"><small>#${index+1} · ${escapeHTML(songSingerLabel(song))}</small><strong>${escapeHTML(song.title)}</strong></div>
-      <div class="tg19-remote-queue-actions"><button class="button button-primary" type="button" data-tg19-prepare="${song.id}">🎬 Preparar</button><button class="button button-soft" type="button" data-tg19-remove="${song.id}">✕</button></div>
+      <div class="tg19-remote-queue-actions"><button class="button button-primary" type="button" data-tg19-prepare="${song.id}">🎬 Preparar</button><button class="button button-soft" type="button" data-tg19-remove="${song.id}" aria-label="Remover música da fila">✕</button></div>
     </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Abra Informações e toque em Escolher música para cantar.</p>';
   }
   async function remoteRemoveSong(songId){
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
+    const scope=tg07Scope();
     const song=state.songs.find(s=>s.id===songId&&s.status==='queued');
     if(!song||!await window.TG_UI.confirm('Remover “'+song.title+'” da fila?',{title:'Organizar fila',confirmText:'Remover música',danger:true}))return;
-    try{await callRPC('karaoke_remove_song',{p_room:state.room.id,p_song:song.id});await fetchSongs();toast('Música removida da fila.');}
+    if(state.emergencyBlocked||!tg07Current(scope)||state.role!=='remote'||callActive()||!state.songs.some(s=>s.id===songId&&s.status==='queued'))return;
+    try{await callRPC('karaoke_remove_song',{p_room:scope.room,p_song:song.id});if(!tg07Current(scope))return;await fetchSongs();toast('Música removida da fila.');}
     catch(err){toast('Não foi possível remover a música: '+humanError(err),true);}
   }
   function renderRemoteMic(){
@@ -155,6 +157,9 @@
     const playing=state.songs.find(s=>s.status==='playing'&&isSinger(s,state.user?.id));
     const called=Boolean(state.guestPreflightSong);
     const active=Boolean(playing);
+    const controlTab=$('tg19-tab-control');
+    controlTab.disabled=called||active;
+    controlTab.title=called||active?'Controle protegido durante sua apresentação.':'';
     document.body.classList.toggle('tg18-remote-singing',active);
     document.body.classList.toggle('tg103-remote-mic-focus',called||active);document.body.classList.toggle('tg124-remote-focus',called||active);
     if(called||active){
@@ -176,7 +181,7 @@
     $('tg18-remote-mic-status').textContent=!availableMic()?'🔴 MICROFONE DESLIGADO':state.localPeer?.connectionState==='connected'?'Ao vivo · TV conectada':state.guestReady?'Pronto(a) · aguardando TV':'Autorizado · conectando';
     const micAction=availableMic()?'Desligar microfone':called?'Ativar mic e ficar pronto(a)':'Ativar microfone';$('tg192-remote-mic-action').textContent=micAction;$('tg18-remote-mic-toggle').setAttribute('aria-label',micAction);$('tg18-remote-mic-toggle').classList.toggle('active',availableMic());
     const ready=$('tg18-remote-mic-ready');ready.hidden=true;
-    $('tg18-remote-mic-note').textContent=active?'Seu áudio está sendo enviado à TV por WebRTC; a nota vem do medidor deste celular. O controle permanece acessível na outra aba.':called?'Um toque autoriza seu microfone e avisa o anfitrião automaticamente. A TV só libera o vídeo quando todos estiverem preparados.':'Sua voz só é capturada quando a Diva chamar.';
+    $('tg18-remote-mic-note').textContent=active?'Seu áudio está sendo enviado à TV por WebRTC; a nota vem do medidor deste celular. O controle fica protegido durante sua apresentação e volta a ficar disponível ao terminar.':called?'Um toque autoriza seu microfone e avisa o anfitrião automaticamente. A TV só libera o vídeo quando todos estiverem preparados.':'Sua voz só é capturada quando a Diva chamar.';
     if($('tg19-remote-vocal-gain'))$('tg19-remote-vocal-gain').value=String(Math.round(state.guestMicGain*100));
   }
   async function renameRemoteSinger(){
@@ -253,6 +258,8 @@
       return;
     }
     try{
+      const toggleHadSong=cmd==='toggle'&&Boolean(state.currentSong);
+      const toggleTarget=toggleHadSong?(state.isPlaying?2:1):null;
       if(cmd==='prepare-song'){
         let song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');
         if(!song){await fetchSongs();song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');}
@@ -279,7 +286,7 @@
       }else if(cmd==='stage-status'){
         // Leitura local do palco, devolvida no ACK.
       }else if(cmd==='diva-preview-volume'){
-        if(typeof data.value!=='number'||!Number.isFinite(data.value)||data.value<0||data.value>75||!window.TG74_DIVA_STUDIO?.setVolume)throw new Error('Volume da prévia inválido ou estúdio indisponível.');
+        if(typeof data.value!=='number'||!Number.isFinite(data.value)||data.value<0||data.value>75||!window.TG74_DIVA_STUDIO?.setVolume)throw new Error('Volume da Drag Diva inválido ou estúdio indisponível.');
         window.TG74_DIVA_STUDIO.setVolume(data.value);
       }else if(cmd==='pop-volume'){
         if(!window.TG74_DIVA_STUDIO?.setPopVolume)throw new Error('Controle POP indisponível.');
@@ -297,10 +304,11 @@
       if(playbackCmd && state.currentSong && state.playerReady){
         await new Promise(resolve=>setTimeout(resolve,240));
         const status=state.player?.getPlayerState?.();
+        if(cmd==='toggle' && toggleTarget!==null && status!==toggleTarget)throw new Error('O player ainda não confirmou a alteração de reprodução.');
         if(cmd==='pause' && status!==2)throw new Error('O player ainda não confirmou a pausa.');
         if(cmd==='play' && status!==1)throw new Error('O player ainda não confirmou a reprodução.');
       }
-      await ack(true,playbackCmd?'Ação recebida pelo player; confira a reprodução.':'Comando executado no palco');
+      await ack(true,cmd==='toggle'&&!toggleHadSong&&state.preflight?'Apresentação preparada; aguarde a prontidão dos cantores.':playbackCmd?'Ação recebida pelo player; confira a reprodução.':'Comando executado no palco');
     }catch(err){console.warn('Comando remoto:',err);await ack(false,String(err.message||'Falha ao executar').slice(0,130));}
   }
   // V18: microfone solo utiliza a captura local SEM enviar áudio para a própria saída,
@@ -1642,12 +1650,13 @@
   function renderGuestScore(){
     if(!tg13Recreational()){tg13ScorePrivacy();return;}
     const el=$('guest-latest-score');if(!el||!state.user)return;
-    const last=state.scores.find(row=>row.user_id===state.user.id&&Number.isFinite(Number(row.score)));
+    const last=state.scores.find(row=>row.user_id===state.user.id&&row.score!==null&&row.score!==undefined&&row.score!==''&&Number.isFinite(Number(row.score)));
     el.hidden=!last;if(!last)return;
     const value=Math.max(0,Math.min(100,Math.round(Number(last.score))));
     $('guest-latest-score-value').textContent=value+'/100';
     if(isAnonymous(state.user))$('tg18-account-cta').hidden=false;
-    $('guest-latest-score-comment').textContent=value>=85?'Diva Gogó: meu amor, que estrela!':value>=65?'Diva Gogó: você entregou espetáculo!':value>=40?'Diva Gogó: foi intenso… o refrão pediu explicações!':'Diva Gogó: o microfone pediu férias; tenta de novo!';
+    $('guest-latest-score-comment').textContent='Drag Diva: '+(value>=85?'Meu amor, que estrela!':value>=65?'Você entregou espetáculo!':value>=40?'A próxima apresentação promete!':'Coragem também é show. Vamos de bis?');
+    if($('tg05-guest-score-avatar'))$('tg05-guest-score-avatar').src=avatarSrc(state.avatars.get(state.user.id));
   }
   function memberName(userId) {const member=state.members.find(m=>m.user_id===userId);if(member)return member.display_name;if(userId===state.room?.owner_id)return userId===state.user?.id?(localStorage.getItem('tem-gogo-display-name')||'Anfitrião'):'Anfitrião';return 'Artista';}
   let tg07SessionEpoch=0;
@@ -2494,11 +2503,12 @@
   }
   function showPerformanceResults(results,singers){
     if(!tg13Recreational()){tg13ScorePrivacy();return;}
+    $('final-overlay').dataset.phase='revealed';$('final-overlay').querySelector('.tg05-result-wait').hidden=true;$('final-overlay').querySelector('.tg05-result-reveal').hidden=false;
     if(!results.length){
       clearGif();$('final-overlay').hidden=false;setDivaStageState('result');$('tg192-result-tier').textContent='SEM DADOS DE MICROFONE';$('final-overlay').dataset.verdict='missing';
       $('final-meme').textContent='';$('final-person').textContent=singers.map(memberName).join(' + ')||'Artista';
       $('final-number').innerHTML='—<span>/100</span>';
-      $('final-stars').textContent='☆☆☆☆☆';
+      $('final-stars').textContent='Sem avaliação';$('final-stars').setAttribute('aria-label','Sem avaliação disponível');
       $('final-caption').textContent='A voz pode ter sido captada no celular, mas não chegou ao placar. Confira a conexão e a sincronização antes de tentar novamente.';
       tgBetaStageAvatars(singers,'result');
       $('final-duet-details').hidden=true;
@@ -2518,7 +2528,7 @@
         entry.textContent=memberName(uid)+' • '+(result?result.score+' pontos':'Sem sinal para avaliação');
         detail.append(entry);
       }
-      $('final-caption').textContent=results.length===singers.length?'Nota do grupo: média das avaliações individuais. 💕':'Algumas vozes ficaram sem dados. Nota parcial de quem teve sinal.';
+      $('final-caption').textContent=results.length===singers.length?'Média das notas individuais. '+tg05ResultPhrase(mean):'Nota parcial das vozes com sinal. Nem todos tiveram dados suficientes para avaliação.';
     }else detail.hidden=true;
   }
   /* Um veredito bem brasileiro. Os textos são originais, sem copiar falas de artistas. */
@@ -2549,12 +2559,19 @@
       caos:['PAREM TUDO! A PRÓXIMA TEMPORADA TEM PROTAGONISTA!','EU NÃO TÔ BEM! DEU 100! CHAMEM UM CAMINHÃO DE CONFETE!']}
   ];
   function selectedMeme(score){return memes.find(m=>score<=m.max)||memes[memes.length-1];}
-  const EXTRA_MEMES={
-    lgbt:['Que close! O glitter imaginário já invadiu a pista! 🏳️‍🌈','Um babado com vogais e muito brilho! 💅','Foi show, foi representatividade, foi carão!','A peruca levantou sozinha de tanta energia!'],
-    reality:['Corta para o confessionário: você veio entregar tudo! 📺','A edição já separou seu melhor take!','O júri tá em silêncio... de emoção e entretenimento!'],
-    bafao:['O grupo da festa já tá comentando esse close!','O microfone viu o babado primeiro!','Chama a produção, que hoje o palco virou notícia!']
-  };
-
+  // Comentários por faixa: família nunca recebe shade, mesmo em notas baixas.
+  function tg05ResultPhrase(score){
+    const tier=score<20?0:score<40?1:score<60?2:score<80?3:score<95?4:5;
+    const mode=state.humorMode;
+    const extra={lgbt:[['O glitter chegou antes da nota, amor!','O close veio, falta o bis!'],['A passarela veio antes do hit!','Foi conceito, agora bora de bis!'],['Babado em construção!','O close já tá encaminhado!'],['Serviu brilho!','Que energia, amor!'],['Pisa menos, estrela!','A pista é sua!'],['Coroa e glitter, meu amor!','O palco virou passarela!']],reality:[['O júri quer uma nova chance de show.','Corta pro confessionário!'],['A produção pede um bis!','A edição salvou o carão!'],['Tem potencial no próximo episódio.','O júri quer ver mais!'],['A bancada aprovou a energia!','O episódio ganhou seu destaque!'],['A plateia pediu final de temporada!','O júri aplaudiu!'],['Protagonista da temporada!','A edição coroou seu show!']],bafao:[['A produção pede outro capítulo!','O grupo já quer um bis!'],['O babado ficou pela metade!','O próximo hit promete!'],['Tá começando o close!','Ainda tem muito show pela frente!'],['O grupo da festa tá comentando!','Que close gostoso!'],['Chama a produção, virou notícia!','O babado foi grande!'],['O grupo entrou em colapso de alegria!','O palco virou manchete!']]};
+    const pool=extra[mode]?.[tier]||memes[tier][mode]||memes[tier].debochado;const choices=pool.filter(line=>line!==tg05ResultPhrase.last);const line=choices[Math.floor(Math.random()*choices.length)]||pool[0];tg05ResultPhrase.last=line;return line;
+  }
+  function tg05BeginResult(singers){
+    const overlay=$('final-overlay');clearGif();overlay.dataset.phase='announcing';overlay.dataset.verdict='pending';overlay.querySelector('.tg05-result-wait').hidden=false;overlay.querySelector('.tg05-result-reveal').hidden=true;
+    tgBetaStageAvatars(singers,'result');$('final-number').textContent='—';$('final-stars').textContent='';$('final-caption').textContent='';$('final-person').textContent='';$('final-duet-details').hidden=true;
+    $('tg05-result-narration').textContent='Segura o glitter! A nota já vem.';
+    overlay.hidden=false;setDivaStageState('result');
+  }
   function clearGif(){
     state.reactionToken++;
     const img=$('final-gif');img.removeAttribute('src');img.hidden=true;
@@ -2599,9 +2616,9 @@
     if(!tg13Recreational()){tg13ScorePrivacy();return;}
     const value=Math.max(0,Math.min(100,Math.round(Number(result?.score)||0)));
     const meme=selectedMeme(value);
-    const verdict=value<40?'A DIVA NÃO PERDOOU':value<60?'A DIVA QUER BIS (COM ENSAIO)':value<80?'A DIVA APROVOU':value<95?'A DIVA APLAUDIU DE PÉ':'A DIVA COROOU';
+    const verdict=value<40?(state.humorMode==='familia'?'VAMOS TENTAR DE NOVO':'A DIVA NÃO PERDOOU'):value<60?'A DIVA QUER BIS (COM ENSAIO)':value<80?'A DIVA APROVOU':value<95?'A DIVA APLAUDIU DE PÉ':'A DIVA COROOU';
     $('tg192-result-tier').textContent=verdict;
-    $('final-overlay').dataset.verdict=value<40?'shade':value<60?'tease':value<80?'good':value<95?'great':'legend';
+    $('final-overlay').dataset.phase='revealed';$('final-overlay').querySelector('.tg05-result-wait').hidden=true;$('final-overlay').querySelector('.tg05-result-reveal').hidden=false;$('final-overlay').dataset.verdict=value<40?'shade':value<60?'tease':value<80?'good':value<95?'great':'legend';
     clearGif();
     $('final-meme').textContent='';
     $('final-person').textContent=memberName(result?.user_id);
@@ -2609,13 +2626,13 @@
     const stars=Math.ceil(value/20);
     $('final-stars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);
     $('final-stars').setAttribute('aria-label',`${stars} de cinco estrelas`);
-    $('final-caption').textContent=chooseDifferent((value<40?meme[state.humorMode]||meme.debochado:EXTRA_MEMES[state.humorMode]||meme[state.humorMode]||meme.debochado));
+    $('final-caption').textContent=tg05ResultPhrase(value);
     $('final-overlay').hidden=false;setDivaStageState('result');
     if(value>=60)confetti();
     const token=state.reactionToken;
     void fetchReactionGIF(meme.query,token);
   }
-  function hideFinal(){clearTimeout(state.scoreOverlayTimer);clearTimeout(window.__tg123PostScoreTimer);if($('tg123-post-score'))$('tg123-post-score').hidden=true;clearGif();$('final-overlay').hidden=true;}
+  function hideFinal(){if($('final-overlay')&&!$('final-overlay').hidden)window.TG74_DIVA_STUDIO?.stop();clearTimeout(state.scoreOverlayTimer);clearTimeout(window.__tg123PostScoreTimer);if($('tg123-post-score'))$('tg123-post-score').hidden=true;clearGif();$('final-overlay').hidden=true;}
   async function finishSong(skipped=false,showResults=true){
     if(state.emergencyBlocked)return;
     if(!state.currentSong||state.finishing)return;
@@ -2647,15 +2664,27 @@
         const studio=window.TG74_DIVA_STUDIO;
         const eventKey=completedRoom+':'+completedSong;
         const decision=verifiedScores?window.TG30DivaResult?.decide(completedSong,singers,results,state.scores):null;
+        const stillCurrent=()=>tg07Current(finishScope)&&!state.emergencyBlocked&&state.role==='host'&&tg13Recreational()&&!state.currentSong&&!state.preflight&&!$('final-overlay').hidden;
+        tg05BeginResult(singers);
         if(studio&&decision){
           const spoken=await studio.announce(decision.event,'resultado:'+eventKey,completedSong);
-          if(!spoken&&decision.count&&tg07Current(finishScope)&&!state.emergencyBlocked&&!state.currentSong&&!state.preflight)await studio.pop('suspense','suspense:'+eventKey);
+          await studio.waitForCaption?.();if(!stillCurrent())return;
+          if(!spoken&&decision.count)await studio.pop('suspense','suspense:'+eventKey);
+          if(!stillCurrent())return;
+          // Elogio publicado só antes de revelar, com todas as notas altas e verificadas.
+          if(decision.praise){await studio.announce('elogio','elogio:'+eventKey,completedSong);await studio.waitForCaption?.();}
         }
-        if(!tg07Current(finishScope)||state.emergencyBlocked||state.role!=='host'||!tg13Recreational()||state.currentSong||state.preflight)return;
-        showPerformanceResults(results,singers);
-        if(decision?.count&&studio){
-          void (async()=>{const spoken=decision.praise&&await studio.announce('elogio','elogio:'+eventKey,completedSong);if(!spoken&&tg07Current(finishScope)&&!state.emergencyBlocked&&!state.currentSong&&!state.preflight)await studio.pop('palmas','palmas:'+eventKey);})();
+        // Mesmo quando o áudio está desligado, dê tempo à apresentação textual antes da nota.
+        await new Promise(resolve=>setTimeout(resolve,1200));
+        if(!stillCurrent())return;
+        if(decision){showPerformanceResults(results,singers);}
+        else {
+          // Não apresentar estimativa local como nota confirmada quando a leitura falha/diverge.
+          showPerformanceResults([],singers);$('final-overlay').dataset.verdict='pending';
+          $('tg192-result-tier').textContent='AGUARDANDO SINCRONIZAÇÃO';
+          $('final-caption').textContent='O resultado ainda não foi confirmado nesta tela. Consulte o placar após a sincronização. Nenhuma nota foi inventada.';
         }
+        if(decision?.praise&&studio)void studio.pop('palmas','palmas:'+eventKey);
         // Nota permanece visível; painel de próximas ações aparece depois, sem avançar sozinho.
         const nextMenu=$('tg123-post-score');if(nextMenu)nextMenu.hidden=true;
         state.scoreOverlayTimer=setTimeout(()=>{
@@ -2939,8 +2968,19 @@ async function openFullCatalog(){
   const scope=tg07Scope();await loadCatalog();if(!tg07Current(scope)||!$('catalog-dialog').open)return;renderFullCatalog();
   $('catalog-search').focus({preventScroll:true});
 }
+function tg05RenderGenreNav(){
+  const nav=$('tg05-genre-nav'),strip=$('tg05-genre-strip'),select=$('catalog-filter');if(!nav||!strip||!select)return;
+  const genres=state.catalogGenreUnavailable?[]:state.catalogGenres||[];
+  nav.hidden=!genres.length;if(!genres.length){strip.replaceChildren();delete strip.dataset.signature;return;}
+  const icons={sertanejo:'🤠',pop:'✨',reggae:'🌿',rock:'🎸',pagode:'🥁',samba:'🪘',mpb:'🎼',funk:'🔊',forro:'🪗',rap:'🎤',eletronica:'🎛️',axe:'☀️',infantil:'🎈',outros:'♫'};
+  const counts=new Map();let totalMatches=0;for(const song of state.catalog){if(matchesMusic(song,state.catalogQuery)){totalMatches++;counts.set(song.genre,(counts.get(song.genre)||0)+1);}}
+  const entries=[{code:'all',label:'Todos'},...genres];const signature=JSON.stringify(entries.map(g=>[g.code,g.label]));
+  if(strip.dataset.signature!==signature){strip.dataset.signature=signature;strip.replaceChildren();for(const g of entries){const btn=document.createElement('button');btn.type='button';btn.className='tg05-genre-chip';btn.dataset.filter=g.code==='all'?'all':'genre:'+g.code;btn.dataset.genre=g.code;btn.textContent=(icons[g.code]||'♫')+' '+g.label;btn.addEventListener('click',()=>{if(![...select.options].some(o=>o.value===btn.dataset.filter))return;select.value=btn.dataset.filter;select.dispatchEvent(new Event('change',{bubbles:true}));});strip.append(btn);}}
+  for(const btn of strip.querySelectorAll('button')){const code=btn.dataset.genre,n=code==='all'?totalMatches:counts.get(code)||0;btn.setAttribute('aria-pressed',String(btn.dataset.filter===state.catalogFilter));btn.title=n+' música(s) na busca atual';}
+}
 function renderFullCatalog(){
   if(!$('catalog-dialog')?.open)return;
+  tg05RenderGenreNav();
   const items=catalogResults(state.catalogQuery,state.catalogFilter);
   const total=state.catalog.length;
   $('catalog-total').textContent=`${items.length} de ${total} música(s) do acervo${state.catalogQuery?' para sua busca':''}${state.catalogGenreUnavailable?' · classificação musical indisponível':state.catalogError?' · última consulta falhou; dados anteriores':state.catalogIncomplete?' · limite de leitura atingido; acervo parcial':''}`;
@@ -3617,6 +3657,7 @@ function renderFullCatalog(){
     $('settings-close').addEventListener('click',()=>$('settings-dialog').close());
     $('settings-done').addEventListener('click',()=>{$('settings-dialog').close();toast('Tá TUDO, Brasil! Seu Tem Gogó tá pronto. 💅');});
     document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>void chooseTheme(button.dataset.themeChoice)));
+    $('tg05-theme-reset')?.addEventListener('click',()=>void chooseTheme('glam'));
     $('humor-mode').addEventListener('change',e=>{if(!canDirectDiva())return;state.humorMode=e.target.value;syncPrivateControls();updateVoxLine('opening');void persistRoomHumor(state.humorMode);});
     $('gifs-enabled').addEventListener('change',e=>{state.gifsEnabled=e.target.checked;localStorage.setItem('tem-gogo-gifs',String(state.gifsEnabled));});
     $('effects-enabled').addEventListener('change',e=>{state.effectsEnabled=e.target.checked;localStorage.setItem('tem-gogo-effects',String(state.effectsEnabled));document.body.classList.toggle('effects-off',!state.effectsEnabled);});
@@ -3755,7 +3796,7 @@ function renderFullCatalog(){
         if(state.role!=='host')return;
         if(cmd==='toggle'){$('play-pause')?.click();return;}
         if(cmd==='next'){$('skip-track')?.click();return;}
-        if(cmd==='volumes'){document.querySelector('[data-tg104-tab="mesa"]')?.click();$('playback-volume-range')?.focus({preventScroll:true});$('playback-volume-range')?.scrollIntoView({block:'nearest'});return;}
+        if(cmd==='volumes'){$('tg17-console')?.scrollIntoView({block:'nearest'});$('playback-volume-range')?.focus({preventScroll:true});return;}
         if(cmd==='call'){
           if(state.preflight){$('stage-preflight-resend')?.click();return;}
           const queued=state.songs.find(s=>s.status==='queued');
