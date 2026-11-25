@@ -99,12 +99,14 @@
   }
   // V18: controle remoto por sinais autenticados e dirigidos ao palco (sem segundo player).
   async function enterRoomAsRemote(room){
+    if(state.emergencyClosing||state.finishing||state.startingSong)return false;
     if(room?.room_mode==='solo'){toast('A Carreira Solo usa apenas o aparelho do palco.',true);return;}
     if(!state.user || room.owner_id!==state.user.id || isAnonymous(state.user)){toast('Somente a conta anfitriã pode usar o controle remoto.',true);return;}
     const uid=state.user.id,epoch=tg07SessionEpoch+1;await stopSession();if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room)return false;state.room=room;state.role='remote';state.remoteTab='control';state.remoteAutoSinger=false;show('tg18-remote');switchRemoteTab('control');
     $('tg18-remote-room').textContent=room.title;document.body.classList.add('tg18-remote-active');
-    try{const scope=tg07Scope();await hydrateRoom();if(state.emergencyBlocked||!tg07Current(scope))return;await subscribeRoom();if(state.emergencyBlocked||!tg07Current(scope))return;startTicker();renderRemote();void loadCatalog();await sendProfileToHost();toast('Controle remoto conectado. Você também pode cantar pelo celular!');void remoteCommand('stage-status');}
-    catch(err){toast('Não foi possível conectar o controle: '+humanError(err),true);}
+    const scope=tg07Scope(),current=()=>tg38RoomCurrent(scope,'remote');
+    try{await hydrateRoom();if(!current())return;await subscribeRoom();if(!current())return;startTicker();renderRemote();void loadCatalog();await sendProfileToHost();if(!current())return;toast('Controle remoto conectado. Você também pode cantar pelo celular!');void remoteCommand('stage-status');}
+    catch(err){if(tg07Current(scope)&&!state.emergencyClosing)toast('Não foi possível conectar o controle: '+humanError(err),true);}
   }
   function switchRemoteTab(tab='control'){
     if(state.role!=='remote')return;
@@ -1076,6 +1078,7 @@
     $(clean?'guest-name':'guest-code').focus({preventScroll:true});
   }
   async function switchToInvitation(rawCode){
+    if(state.emergencyClosing||state.finishing||state.startingSong){toast('Aguarde a operação atual antes de trocar de festa.',true);return false;}
     const code=normalizeRoom(rawCode);
     if(state.room && state.role){
       const same=state.room.code===code;
@@ -1085,7 +1088,7 @@
         : 'Trocar de festa neste aparelho? Seu microfone será desligado e a festa anterior não será encerrada.';
       const scope=tg07Scope();
       const confirmed=await window.TG_UI.confirm(message,{title:'Entrar em outra festa',confirmText:'Trocar de festa'});
-      if(!confirmed||!tg07Current(scope))return false;
+      if(!confirmed||!tg07Current(scope)||state.emergencyClosing||state.finishing||state.startingSong)return false;
       const nextEpoch=tg07SessionEpoch+1;await stopSession();
       if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return false;
     }else if(tgR18RoomRequest)return false;
@@ -1505,10 +1508,10 @@
   }
   async function goToMyRooms(){
     const uid=state.user?.id,epoch=tg07SessionEpoch,roomId=state.room?.id;
-    if(state.finishing||state.startingSong){toast('Aguarde a conclusão da operação atual antes de trocar de sala.',true);return;}
+    if(state.emergencyClosing||state.finishing||state.startingSong){toast('Aguarde a conclusão da operação atual antes de trocar de sala.',true);return;}
     const active=state.role==='host'&&(state.currentSong||state.preflight)||(['remote','guest'].includes(state.role)&&callActive());
     if(active&&!await window.TG_UI.confirm('Ao trocar de sala, a apresentação ou o microfone deste aparelho será interrompido. A festa continuará aberta.',{title:'Trocar de sala',confirmText:'Ir para Minhas salas'}))return;
-    if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room?.id!==roomId||state.finishing||state.startingSong)return;
+    if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room?.id!==roomId||state.emergencyClosing||state.finishing||state.startingSong)return;
     await stopSession();
     if(state.user?.id!==uid||tg07SessionEpoch!==epoch+1||state.room)return;
     forgetInvitation();
@@ -1695,23 +1698,28 @@
     }catch(err){if(tg07Current(scope))toast('Não foi possível verificar o palco. Continue usando o controle.',true);return false;}
     finally{if(tgR15StageTicket===scope){tgR15StageTicket=null;button.disabled=false;}}
   }
-  async function enterRoomAsHost(room) {
+  async function enterRoomAsHost(room){
+    if(state.emergencyClosing||state.finishing||state.startingSong)return false;
     if(!state.user||isAnonymous(state.user)||room?.owner_id!==state.user.id)return false;
     const uid=state.user.id,epoch=tg07SessionEpoch+1;await stopSession();if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room)return false;
     state.room=room;state.role='host';if($('tg30-control-qr-details'))$('tg30-control-qr-details').open=false;tg100SyncRoomMode();setSyncStatus('sync');$('stage-room-title').textContent=room.title;
     $('room-code').textContent=room.code;show('stage');setDivaStageState('idle');drawQR();
-    try{const scope=tg07Scope();await hydrateRoom();if(state.emergencyBlocked||!tg07Current(scope))return;await subscribeRoom();if(state.emergencyBlocked||!tg07Current(scope))return;startTicker();
+    const scope=tg07Scope(),current=()=>tg38RoomCurrent(scope,'host');
+    try{await hydrateRoom();if(!current())return;await subscribeRoom();if(!current())return;startTicker();
       void loadCatalog(true);
-      try{if(!state.emergencyBlocked){await loadYouTubeAPI();if(state.room?.current_song_id)await resumeExistingSong();}}
-      catch(err){toast(humanError(err),true);}
+      try{if(current()){await loadYouTubeAPI();if(!current())return;if(state.room?.current_song_id)await resumeExistingSong();}}
+      catch(err){if(current())toast(humanError(err),true);}
+      if(!current())return;
       await unlockWakeLock();
+      if(!current())return;
       updateVoxLine('opening');
       clearInterval(state.voxTimer);
       state.voxTimer=setInterval(()=>{if(!state.emergencyBlocked&&state.role==='host'&&!state.isPlaying&&!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden)updateVoxLine('opening');},14000);
       toast(state.room?.room_mode==='solo'?'Seu palco solo está pronto! 🎤':'Diva Gogó NO AR! Mostre o QR: ele já dá acesso direto à festa. 🎉');
-    }catch(err){toast(humanError(err),true);}
+    }catch(err){if(tg07Current(scope)&&!state.emergencyClosing)toast(humanError(err),true);}
   }
-  async function enterRoomAsGuest(room,name) {
+  async function enterRoomAsGuest(room,name){
+    if(state.emergencyClosing||state.finishing||state.startingSong)return false;
     if(!state.user||!room?.id)return false;
     const uid=state.user.id,epoch=tg07SessionEpoch+1;await stopSession();if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room)return false;
     document.body.classList.remove('invite-active','entry-active');
@@ -1721,8 +1729,9 @@
     history.pushState({temGogo:true,view:'guest',tab:'queue'},'',currentURL(room.code));
     localStorage.setItem('tem-gogo-pending-room',room.code);
     state.mobileTab=null;switchMobileTab('queue',false);updateAccountCTA();
-    try{const scope=tg07Scope();await hydrateRoom();if(state.emergencyBlocked||!tg07Current(scope))return;void loadCatalog(true);await subscribeRoom();if(state.emergencyBlocked||!tg07Current(scope))return;startTicker();startMemberVerifier();await sendProfileToHost();toast('Entrou! 🎉 Escolha um hit para sua fila.');}
-    catch(err){toast(humanError(err),true);}
+    const scope=tg07Scope(),current=()=>tg38RoomCurrent(scope,'guest');
+    try{await hydrateRoom();if(!current())return;void loadCatalog(true);await subscribeRoom();if(!current())return;startTicker();startMemberVerifier();await sendProfileToHost();if(current())toast('Entrou! 🎉 Escolha um hit para sua fila.');}
+    catch(err){if(tg07Current(scope)&&!state.emergencyClosing)toast(humanError(err),true);}
   }
   function startMemberVerifier(){
     clearInterval(state.memberVerifier);
@@ -1760,9 +1769,8 @@
   async function hydrateRoom() {const scope=tg07Scope();await fetchRoom();if(!tg07Current(scope))return;await tg23Start();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;renderAll();void fetchRoomHumor();if(state.role==='host')void syncPartyMessages();}
   let tgR15SyncTicket=null;
   async function refreshRoomSnapshot(){
+    if(state.emergencyBlocked||state.emergencyClosing||!state.room)return;
     if(Date.now()-state.catalogFetchedAt>45000)void loadCatalog();
-    if(state.emergencyBlocked)return;
-    if(!state.room)return;
     if(tgR15SyncTicket&&tg07Current(tgR15SyncTicket.scope)){state.syncQueued=true;return;}
     const roomId=state.room.id,scope=tg07Scope(),ticket={scope};tgR15SyncTicket=ticket;state.syncRunning=true;
     try{
@@ -3556,10 +3564,19 @@ function renderFullCatalog(){
     $('score-list').innerHTML=sorted.length?sorted.map((d,i)=>`<details class="tg124-rank-entry"><summary class="score-row"><span class="score-rank">${['🥇','🥈','🥉'][i]||i+1+'º'}</span><div class="score-detail"><strong>${escapeHTML(memberName(d.uid))}</strong><small>${escapeHTML(d.title)} · ${d.count} tentativa(s) · melhor nota ${d.best}</small></div><strong class="score-value">${d.best}/100</strong></summary><div class="tg124-attempts">${d.attempts.map((a,n)=>`<p>${n+1}ª tentativa · ${Math.round(a.score)}/100 ${Math.round(a.score)===d.best?'🏆':''}</p>`).join('')}</div></details>`).join(''):'<p class="subtle">O ranking começa depois da primeira apresentação avaliada. 🎤</p>';
     $('score-dialog').showModal();
   }
+  function tg38RoomCurrent(scope,role){return tg07Current(scope)&&state.role===role&&!state.emergencyBlocked&&!state.emergencyClosing;}
+  let tg38WakePending=null;
   async function unlockWakeLock(){
-    if('wakeLock' in navigator&&document.visibilityState==='visible'){
-      try{state.wakeLock=await navigator.wakeLock.request('screen');}catch{}
-    }
+    const scope=tg07Scope(),current=()=>tg38RoomCurrent(scope,'host');
+    if(!current()||!('wakeLock' in navigator)||document.visibilityState!=='visible'||(state.wakeLock&&!state.wakeLock.released))return;
+    if(tg38WakePending&&tg07Current(tg38WakePending.scope))return;
+    const ticket={scope};tg38WakePending=ticket;
+    try{
+      const lock=await navigator.wakeLock.request('screen');
+      if(tg38WakePending!==ticket||!current()||document.visibilityState!=='visible'){await lock.release();return;}
+      state.wakeLock=lock;
+      lock.addEventListener?.('release',()=>{if(state.wakeLock===lock)state.wakeLock=null;},{once:true});
+    }catch{}finally{if(tg38WakePending===ticket)tg38WakePending=null;}
   }
   function startTicker(){
     clearInterval(state.ticker);let cycles=0;
@@ -3748,7 +3765,7 @@ function renderFullCatalog(){
         console.error('Tem Gogó: falha ao encerrar festa no Supabase',{
           code:error?.code||null,message:error?.message||String(error),hint:error?.hint||null
         });
-        toast(finalizePartyError(error),true);
+        if(tg07Current(scope)&&!state.emergencyClosing)toast(finalizePartyError(error),true);
         return;
       }
       // Depois do sucesso no banco, nenhuma falha de limpeza pode esconder o placar.
@@ -4215,8 +4232,8 @@ function renderFullCatalog(){
     });
     $('qr-bubble').addEventListener('click',()=> $('qr-bubble').classList.toggle('qr-expanded'));
     $('qr-bubble').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('qr-bubble').classList.toggle('qr-expanded');}});
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){void tg23Poll();if(state.role==='host'&&!state.wakeLock)unlockWakeLock();void refreshRoomSnapshot();}});
-    window.addEventListener('online',()=>{void tg23Poll();toast('Internet conectada novamente. ✅');void refreshRoomSnapshot();void fetchRecentSignals();void fetchHostDeviceSignals();});
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void tg38Reconnect(false);});
+    window.addEventListener('online',()=>{void tg38Reconnect(true);});
     window.addEventListener('offline',()=>{if(state.room)tg23Suspend('Conexão interrompida. Não foi possível confirmar a segurança do palco.','connection');setSyncStatus('offline');toast('Sem internet: o palco e a fila podem parar.',true);});
     window.addEventListener('popstate',event=>{
       if(state.role==='guest'&&state.room){
@@ -4384,6 +4401,16 @@ function renderFullCatalog(){
       }catch{if(tg07Current(scope)&&tg23Pending===ticket)tg23Suspend('Não conseguimos consultar a segurança da sala. O áudio foi interrompido por precaução; isso não confirma uma suspensão administrativa. Verifique a conexão e entre novamente.', 'connection');return false;}
       finally{clearTimeout(timer);if(tg23Pending===ticket)tg23Pending=null;}
     })();return ticket.promise;
+  }
+  async function tg38Reconnect(announce){
+    if(!state.room){if(announce)toast('Internet conectada novamente. ✅');return;}
+    const scope=tg07Scope(),role=state.role;
+    const safe=await tg23Poll();
+    if(!tg07Current(scope)||state.emergencyClosing)return;
+    if(!safe||!tg38RoomCurrent(scope,role)){if(announce)toast('Internet voltou, mas este palco precisa de nova entrada para retomar com segurança.',true);return;}
+    if(announce)toast('Internet conectada novamente. ✅');
+    if(role==='host')void unlockWakeLock();
+    void refreshRoomSnapshot();void fetchRecentSignals();void fetchHostDeviceSignals();
   }
   async function tg23Start(){clearInterval(tg23Timer);tg23Timer=setInterval(()=>{void tg23Poll();},4000);return tg23Poll();}
   function tg23Reset(){clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;state.emergencyBlocked=true;state.emergencyLatch=false;state.emergencyGeneration=undefined;state.emergencyClosing=false;state.startingSong=null;state.playerSongId=null;if($('tg23-emergency')?.open)$('tg23-emergency').close();}
