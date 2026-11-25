@@ -125,20 +125,8 @@ function groupCommunityProfile(){
   }
 }
 function adaptHostStage(){
-  const stage=$('stage'),rail=stage?.querySelector('.qr-rail'),main=stage?.querySelector('.stage-main'),screen=stage?.querySelector('.screen-row');
-  const controls=$('tg123-host-bar'),next=$('tg123-post-score');if(!rail||!main||!screen||!controls)return;
-  const mq=window.matchMedia('(min-width: 960px)');
-  function arrange(){
-    if(mq.matches&&!document.body.classList.contains('tg104-single-device')){
-      rail.append(controls);if(next)rail.append(next);
-    }else{screen.after(controls);if(next)controls.after(next);}
-  }
-  arrange();mq.addEventListener?.('change',arrange);
-  // Existing controls keep their original IDs + listeners.
-  window.addEventListener('resize',()=>{if(document.body.dataset.currentView==='stage')arrange();},{passive:true});
-  // Solo mode may be entered dynamically without changing breakpoints.
-  new MutationObserver(arrange).observe(document.body,{attributes:true,attributeFilter:['class']});
-  controls.setAttribute('aria-label','Controle rápido do palco');
+  const controls=$('tg123-host-bar');if(controls)controls.setAttribute('aria-label','Ações complementares do palco');
+  // R100: app.js é o único responsável pela composição. Não mover controles em resize.
 }
 function statusPolish(){
   const toast=$('toast');if(toast)toast.setAttribute('aria-live','polite');

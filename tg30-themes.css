@@ -1,0 +1,110 @@
+/* Tem Gogo 3.0 - Glam Pop Futurista | PROPOSTA v1.0, nao publicar. */
+/* Camada de tokens; mapear classes reais antes de integrar. */
+:root, html[data-tg-theme="glam"] {
+  color-scheme: dark;
+  --tg-bg: #14071F;
+  --tg-bg2: #2B0F42;
+  --tg-surface: #29183B;
+  --tg-surface-raised: #36234B;
+  --tg-text: #FFF6FF;
+  --tg-muted: #D8C4E7;
+  --tg-border: #A76DBC;
+  --tg-focus: #89C8FF;
+  --tg-primary: #A91B67;
+  --tg-primary-end: #6422C4;
+  --tg-on-primary: #FFFFFF;
+  --tg-shine: #FF5FC4;
+  --tg-alt: #5EA7FF;
+  --tg-success: #69E6A0;
+  --tg-warning: #FFD078;
+  --tg-error: #FFA0A9;
+  --tg-cta: linear-gradient(135deg, var(--tg-primary), var(--tg-primary-end));
+  --tg-radius: 18px;
+  --tg-radius-input: 14px;
+  --tg-touch: 44px;
+  --tg-space: 8px;
+  --tg-font: Inter, "DM Sans", system-ui, sans-serif;
+}
+html[data-tg-theme="crystal"] {
+  color-scheme: light;
+  --tg-bg: #F9F4FA;
+  --tg-bg2: #E9DDF4;
+  --tg-surface: #FFFFFF;
+  --tg-surface-raised: #F2E8F5;
+  --tg-text: #2A183C;
+  --tg-muted: #685377;
+  --tg-border: #9E7AAE;
+  --tg-focus: #6531A9;
+  --tg-primary: #A12265;
+  --tg-primary-end: #6631A6;
+  --tg-on-primary: #FFFFFF;
+  --tg-shine: #D56AAB;
+  --tg-alt: #7957C0;
+  --tg-success: #17663C;
+  --tg-warning: #855000;
+  --tg-error: #A72443;
+  --tg-cta: linear-gradient(135deg, var(--tg-primary), var(--tg-primary-end));
+  --tg-radius: 18px;
+  --tg-radius-input: 14px;
+  --tg-touch: 44px;
+  --tg-space: 8px;
+  --tg-font: Inter, "DM Sans", system-ui, sans-serif;
+}
+html[data-tg-theme="midnight"] {
+  color-scheme: dark;
+  --tg-bg: #080E1D;
+  --tg-bg2: #142744;
+  --tg-surface: #13233A;
+  --tg-surface-raised: #1A3150;
+  --tg-text: #F2F7FF;
+  --tg-muted: #BBCDE4;
+  --tg-border: #527DA1;
+  --tg-focus: #7FE4F0;
+  --tg-primary: #14588A;
+  --tg-primary-end: #3049A7;
+  --tg-on-primary: #FFFFFF;
+  --tg-shine: #5CE1EA;
+  --tg-alt: #B3A0FF;
+  --tg-success: #71E5B5;
+  --tg-warning: #FFD078;
+  --tg-error: #FFADB8;
+  --tg-cta: linear-gradient(135deg, var(--tg-primary), var(--tg-primary-end));
+  --tg-radius: 18px;
+  --tg-radius-input: 14px;
+  --tg-touch: 44px;
+  --tg-space: 8px;
+  --tg-font: Inter, "DM Sans", system-ui, sans-serif;
+}
+/* Classes de referencia: so aplicar em componentes mapeados. */
+.tg-theme-surface { background: var(--tg-surface); color: var(--tg-text); border: 1px solid var(--tg-border); border-radius: var(--tg-radius); }
+.tg-theme-primary { background: var(--tg-cta); color: var(--tg-on-primary); min-height: var(--tg-touch); border-radius: 999px; font-weight: 700; }
+.tg-theme-focus:focus-visible { outline: 3px solid var(--tg-focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .tg-theme-motion { animation: none !important; transition: none !important; } }
+/* Brasil em Canto: referências culturais e naturais, sem símbolos cívicos. */
+html[data-tg-theme="brasil"] {
+  color-scheme: dark;
+  --tg-bg: #0C2624; --tg-bg2: #193A3D; --tg-surface: #173D35;
+  --tg-surface-raised: #285146; --tg-text: #FFF5E5; --tg-muted: #C7DCCF;
+  --tg-border: #81A995; --tg-focus: #F4D18B;
+  --tg-primary: #155E48; --tg-primary-end: #27558B; --tg-on-primary: #FFFFFF;
+  --tg-shine: #F4D18B; --tg-alt: #80C3E0; --tg-success: #83E6B0;
+  --tg-warning: #FFD078; --tg-error: #FFADB8;
+  --tg-cta: linear-gradient(135deg,var(--tg-primary),var(--tg-primary-end));
+  --tg-coral: #C47759; --tg-sand: #F5E8D2;
+}
+/* Scoped compatibility with existing token names. Do not recolor iframe or QR. */
+html[data-tg-theme] body:not(.high-contrast){--bg:var(--tg-bg);--surface:var(--tg-surface);--surface-2:var(--tg-surface-raised);--text:var(--tg-text);--muted:var(--tg-muted);--line:var(--tg-border);--violet:var(--tg-focus);--lime:var(--tg-focus);--pink:var(--tg-shine);--gold:var(--tg-warning);color:var(--text);background:var(--bg)}
+html[data-tg-theme] body:not(.high-contrast) :is(.landing,.lobby,.guest,.stage,.tg18-remote){background-color:var(--tg-bg);color:var(--tg-text)}
+html[data-tg-theme] body:not(.high-contrast) :is(.access-card,.lobby-form,.modal,.mobile-card,.tg19-remote-queue,.tg30-voice-field){background-color:var(--tg-surface);color:var(--tg-text);border-color:var(--tg-border)}
+html[data-tg-theme] body:not(.high-contrast) :is(.button-primary,.tg30-feedback-submit){background:var(--tg-cta);color:var(--tg-on-primary);border-radius:999px}
+html[data-tg-theme] body:not(.high-contrast) :is(.button-outline,.button-soft){color:var(--tg-text);background:var(--tg-surface-raised);border:1px solid var(--tg-border)}
+html[data-tg-theme] body:not(.high-contrast) :is(.field-label,.settings-note,.text-button){color:var(--tg-text)}
+html[data-tg-theme] body:not(.high-contrast) :is(input:not([type=radio]):not([type=checkbox]):not([type=range]),select,textarea){background:var(--tg-surface-raised);color:var(--tg-text);border-color:var(--tg-border)}
+html[data-tg-theme] body:not(.high-contrast) input::placeholder{color:var(--tg-muted)}
+html[data-tg-theme] body:not(.high-contrast) :focus-visible{outline:3px solid var(--tg-focus);outline-offset:3px}
+/* Brasil: luz tropical, trama abstrata e ritmo; decoração restrita a entrada/home. */
+html[data-tg-theme="brasil"] body:not(.high-contrast) :is(.landing,.lobby){background-image:radial-gradient(ellipse at 95% 8%,#CFAC6330,transparent 35%),radial-gradient(ellipse at 10% 80%,#C4775924,transparent 35%),repeating-linear-gradient(132deg,transparent 0 27px,#80C3E009 28px 29px,transparent 30px 55px),linear-gradient(140deg,#0C2624,#174D3A,#193A3D)}
+.tg30-swatch-glam{background:linear-gradient(135deg,#A91B67,#6422C4,#89C8FF)}
+.tg30-swatch-crystal{background:linear-gradient(135deg,#FFFFFF,#E9DDF4,#A12265)}
+.tg30-swatch-midnight{background:linear-gradient(135deg,#080E1D,#14588A,#5CE1EA)}
+.tg30-swatch-brasil{background:linear-gradient(135deg,#155E48,#27558B,#F4D18B,#C47759)}

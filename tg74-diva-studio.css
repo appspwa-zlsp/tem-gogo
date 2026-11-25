@@ -10,3 +10,7 @@
 #tg74-voice-preview .tg74-studio-actions button { min-height: 44px; flex: 1 1 125px; }
 #tg74-voice-preview :is(.tg74-studio-duration,.tg74-studio-status) { font-size: .84rem; color: #e9d6ed; line-height: 1.5; margin: .45rem 0; }
 @media (prefers-reduced-motion:reduce) { #tg74-voice-preview * { scroll-behavior: auto!important; } }
+
+#tg74-voice-preview textarea{width:100%;min-height:5rem;background:#241c38;color:#fff;border:1px solid #ac86b3;border-radius:9px;padding:.7rem;font:inherit;resize:vertical} 
+#tg74-voice-preview textarea:focus-visible{outline:3px solid #f8a4e0;outline-offset:3px}
+.tg05-audio-caption:not([hidden]){display:block;position:relative;z-index:3;margin:.5rem 0;padding:.55rem .8rem;border-radius:12px;background:#241c38;color:#fff;font-weight:600;line-height:1.45;overflow-wrap:anywhere}

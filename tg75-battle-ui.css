@@ -37,3 +37,10 @@
 #tg75-feedback:not(:empty){min-height:2em;padding:4px 0;color:#f6d6e9}
 @media(max-width:670px){#tg75-battle-panel{font-family:'DM Sans',system-ui,-apple-system,sans-serif;width:100vw;height:100dvh;max-height:100dvh;border-radius:0;border:0}.tg75-header{padding:18px}.tg75-scroll{padding:16px}.tg75-grid{grid-template-columns:1fr}.tg75-tabs{padding:8px}.tg75-tabs button{padding:10px 11px}}
 @media(prefers-reduced-motion:reduce){#tg75-battle-panel *{scroll-behavior:auto!important}}
+
+/* C08: mesmos tokens homologados, sem alterações na interface clássica. */
+#tg75-battle-panel textarea{width:100%;min-height:64px;resize:vertical;font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:8px;padding:.65rem;box-sizing:border-box}
+#tg75-battle-panel form{display:grid;gap:.5rem;margin:.75rem 0}
+#tg75-battle-panel .tg75-button{min-height:44px;margin:.2rem .25rem .2rem 0;white-space:normal}
+#tg75-battle-panel .tg75-card{overflow-wrap:anywhere}
+.tg08-stage-access:not([hidden]){position:fixed;right:1rem;bottom:1rem;z-index:50}

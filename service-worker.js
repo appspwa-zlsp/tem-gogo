@@ -1,5 +1,10 @@
-const CACHE='tem-gogo-r98-ux-final-review';
-const SHELL=['./','./index.html','./styles.css','./visual-v2.css','./visual-v14.css','./visual-v15.css','./visual-v16.css','./visual-v17.css','./visual-v18.css','./visual-v19.css','./refinamento-v19-2.css','./tour-suporte-v19-3.css','./beta10.css','./beta10.css?v=970','./beta12.css','./beta12.css?v=123','./beta123.css','./beta123.css?v=123','./tg124-refine.css','./tg124-enhance.js','./tg124-refine.css?v=930','./tg20.css','./tg20.css?v=200','./tg20.js','./tg20.js?v=940','./tg21-shortcuts.css','./tg21-shortcuts.css?v=201','./tg21-shortcuts.js','./tg21-shortcuts.js?v=201','./tg70-ui.css','./tg70-ui.css?v=930','./tg70-ux.js','./tg73-invitations.js','./tg73-battle-gate.js','./tg73-polish.css','./tg74-diva-studio.css?v=740','./tg74-voice-catalog.js?v=740','./tg74-diva-studio.js?v=930','./tg75-battle-ui.css?v=750','./tg75-battle-core.js?v=750','./tg75-battle-bridge.js?v=750','./tg75-battle-panel.js?v=750','./tg70-ux.js?v=930','./tg124-enhance.js?v=940','./beta10.js','./beta10.js?v=960','./beta12.js','./beta12.js?v=970','./tg-dialogs.js','./tg-dialogs.js?v=940','./termos.html','./privacidade.html','./bora-pro-role-logo.png','./diva.png','./diva-busto.png','./cantor-urbano.png','./cantor-esporte.png','./cantora-ruiva.png','./cantora-oculos.png','./qr-local.js','./app.js','./app.js?v=980','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='tem-gogo-30-beta01-offline';
+const SHELL=["./tg30-campaign.css?v=3020","./pop-recado.wav","./pop-suspense.wav","./pop-palmas.wav","./tg04-controls.css?v=3004","./tg30-feedback.css","./tg30-feedback.css?v=3002","./","./index.html","./styles.css","./visual-v2.css","./visual-v14.css","./visual-v15.css","./visual-v16.css","./visual-v17.css","./visual-v18.css","./visual-v19.css","./refinamento-v19-2.css","./tour-suporte-v19-3.css","./beta10.css","./beta10.css?v=970","./beta12.css","./beta12.css?v=123","./beta123.css","./beta123.css?v=123","./tg124-refine.css","./tg124-enhance.js","./tg124-refine.css?v=930","./tg20.css","./tg20.css?v=200","./tg20.js","./tg21-shortcuts.css","./tg21-shortcuts.css?v=201","./tg21-shortcuts.js","./tg70-ui.css","./tg70-ui.css?v=930","./tg70-ux.js","./tg73-invitations.js","./tg73-battle-gate.js","./tg73-polish.css","./tg100-layout.css?v=3001","./tg74-diva-studio.css?v=3005","./tg75-battle-ui.css?v=3008","./beta10.js","./beta12.js","./tg-dialogs.js","./termos.html","./privacidade.html","./bora-pro-role-logo.png","./diva.png","./diva-busto.png","./cantor-urbano.png","./cantor-esporte.png","./cantora-ruiva.png","./cantora-oculos.png","./qr-local.js","./app.js","./tg30-functional.css?v=3003","./tg30-themes.css?v=3003","./manifest.webmanifest","./icon-192.png","./icon-512.png","./tg73-polish.css?v=730","./qr-local.js?v=3beta01","./tg73-invitations.js?v=3beta01","./tg73-battle-gate.js?v=3beta01","./tg-dialogs.js?v=3beta01","./tg30-voice.js?v=3beta01","./tg30-voice-shadow.js?v=3beta01","./tg30-voice-ui.js?v=3beta01","./tg30-diva-result.js?v=3beta01","./app.js?v=3beta01","./beta10.js?v=3beta01","./beta12.js?v=3beta01","./tg124-enhance.js?v=3beta01","./tg20.js?v=3beta01","./tg21-shortcuts.js?v=3beta01","./tg70-ux.js?v=3beta01","./tg74-voice-catalog.js?v=3beta01","./tg74-diva-studio.js?v=3beta01","./tg75-battle-core.js?v=3beta01","./tg75-battle-bridge.js?v=3beta01","./tg75-battle-panel.js?v=3beta01","./tg100-story.js?v=3beta01","./tg30-campaign.js?v=3beta01"];
+// Cache apenas de recursos estáticos inventariados e deste escopo.
+const scopeURL=()=>new URL(self.registration.scope);
+const isShell=url=>SHELL.some(path=>new URL(path,scopeURL()).href===url.href);
+const cacheable=response=>response.ok&&!response.redirected&&!/\b(?:private|no-store)\b/i.test(response.headers.get('cache-control')||'');
+const ownCache=key=>caches.match(key,{cacheName:CACHE});
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));
 });
@@ -17,17 +22,21 @@ self.addEventListener('fetch',event=>{
   // A configuração deve refletir sempre a versão mais recente, sem cache de credenciais.
   if(url.pathname.endsWith('/config.js'))return;
   if(request.mode==='navigate'){
-    event.respondWith(fetch(request).then(response=>{
-      if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put('./index.html',copy));}
+    const base=new URL(self.registration.scope);
+    const relative=url.pathname.startsWith(base.pathname)?url.pathname.slice(base.pathname.length):null;
+    const key=relative===''||relative==='index.html'?'./index.html':relative==='termos.html'?'./termos.html':relative==='privacidade.html'?'./privacidade.html':null;
+    event.respondWith(fetch(request).then(async response=>{
+      if(cacheable(response)&&key){const copy=response.clone();try{await (await caches.open(CACHE)).put(key,copy);}catch{}}
       return response;
-    }).catch(()=>caches.match('./index.html')));
+    }).catch(async()=> (key&&await ownCache(key))||new Response('Sem conexão. Esta página não está disponível offline.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}})));
     return;
   }
-  // Sempre buscar os arquivos recentes online e usar cache apenas como fallback.
-  event.respondWith(fetch(request).then(response=>{
-    if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(request,copy));}
+  // Não interceptar APIs, arquivos de outros sistemas ou URLs arbitrárias da mesma origem.
+  if(!isShell(url))return;
+  event.respondWith(fetch(request).then(async response=>{
+    if(cacheable(response)){try{await (await caches.open(CACHE)).put(request,response.clone());}catch{}}
     return response;
-  }).catch(()=>caches.match(request)));
+  }).catch(async()=> (await ownCache(request))||new Response('Recurso indisponível offline.',{status:503})));
 });
 
 // Web Push genuíno: mensagem enviada pela Edge Function autenticada.

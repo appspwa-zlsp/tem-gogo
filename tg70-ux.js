@@ -59,7 +59,7 @@ for(const item of preferences){
   field.checked=next;
   document.body.classList.toggle(item.css,item.invert?!next:next);
   if(save){try{localStorage.setItem('tem-gogo-a11y-'+item.key,String(next));}catch{}}
-  if(item.key==='voice-previews'&&!next)window.TG74_DIVA_STUDIO?.stop();
+  if(item.key==='voice-previews'&&!next)window.TG74_DIVA_STUDIO?.stopVoice();
  }
  update(readPreference(item.key,item.fallback),false);
  field.addEventListener('change',()=>update(field.checked,true));

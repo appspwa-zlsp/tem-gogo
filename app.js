@@ -7,7 +7,7 @@
   const $ = (id) => document.getElementById(id);
   const cfg = window.TEM_GOGO_CONFIG || {};
   const state = {
-    client: null, user: null, room: null, role: null,
+    client: null, user: null, room: null, role: null, emergencyBlocked:true, emergencyLatch:false, emergencyGeneration:undefined,
     songs: [], members: [], scores: [], channel: null,
     currentSong: null, player: null, playerReady: false,
     playerAPIReady: false, isPlaying: false, finishing: false,
@@ -16,7 +16,7 @@
     context: null, masterGain: 1, playbackVolume: 80, guestMicGain: 1, micGainNode: null, micSendStream: null, micStats: new Map(),
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
-    pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'baile',
+    pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'glam',
     roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"urbano", lastProfileSent: 0, divaVoiceEnabled: false, divaSpeakingTimer: null, divaLastSpokenAt: 0, lastGuestResultKey: null, micPermissions: new Map(), remoteLastSent:0, soloMic:null, pushAsked:false, guestMicLock:false, remoteTab:"control", remoteAutoSinger:false, remotePending:new Map(), remoteLatestCommandId:null, recoveryVerified:false, recoveryIntent:false, deviceChannelReady:false, lastDevicePoll:0, deviceId:(typeof crypto.randomUUID==="function"?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2))
   };
 
@@ -27,7 +27,23 @@
     getClient:()=>state.client,
     getUser:()=>state.user,
     getRole:()=>state.role,
-    getRoomId:()=>state.room?.id||null
+    getRoomId:()=>state.room?.id||null,
+    getCompetitiveRoom:()=>state.role==='host'&&state.room?.owner_id===state.user?.id?{id:state.room.id,reserved:state.room.tg30_battle_reserved===true}:null,
+    reserveCompetitiveRoom:async festivalId=>{
+      const room=state.room?.id,uid=state.user?.id;
+      if(state.role!=='host'||!room||state.room.owner_id!==uid||state.currentSong||state.songs.length)throw Error('Abra uma sala clássica nova, sem músicas ou convidados.');
+      const result=await callRPC('tg30_reserve_battle_room',{p_room:room,p_festival:festivalId});
+      if(state.room?.id!==room||state.user?.id!==uid||state.role!=='host')throw Error('Sessão alterada. Consulte a sala novamente.');
+      if(result?.reserved!==true||result.room_id!==room)throw Error('Reserva não confirmada.');
+      await fetchRoom();if(state.room?.id!==room||state.room.tg30_battle_reserved!==true)throw Error('Reserva não confirmada na leitura da sala.');
+      renderAll();return result;
+    },
+    refreshCompetitiveRoom:async roomId=>{if(state.room?.id===roomId&&state.room.tg30_battle_reserved===true)await fetchRoom();},
+    getBattlePerformance:()=>{
+      const song=state.currentSong;
+      if(state.room?.tg30_battle_reserved!==true||state.role!=='host'||state.room?.owner_id!==state.user?.id||!song||state.room.current_song_id!==song.id||song.status!=='playing'||state.finishing)return null;
+      return {room_id:state.room.id,song_id:song.id,singers:songSingers(song)};
+    }
   }),writable:false,configurable:false});
 
   // V14 — personagens originais enviados como homenagem; sem redesenhar seus traços.
@@ -38,6 +54,26 @@
   const AVATAR_NUMBERS={urbano:'1',esporte:'2',ruiva:'3',oculos:'4'};
   // Quem usava 'diva' como avatar na V14 passa a usar 1; a Diva Gogó agora é somente apresentadora.
   if(!AVATARS[state.avatar]){state.avatar='urbano';localStorage.setItem('tem-gogo-avatar','urbano');}
+  // Estado desconhecido também não exibe notas; o banco é a fonte da classificação.
+  function tg13Recreational(){return state.room?.tg30_battle_reserved===false;}
+  function tg13ScorePrivacy(){
+    if(tg13Recreational())return;
+    state.scores=[];
+    if($('guest-latest-score'))$('guest-latest-score').hidden=true;
+    if($('guest-latest-score-value'))$('guest-latest-score-value').textContent='';
+    if($('stage-rank-list'))$('stage-rank-list').textContent='Placar recreativo indisponível nesta sala.';
+    if($('rank-updated'))$('rank-updated').textContent='';
+    if($('live-score-list'))$('live-score-list').textContent='Avaliação técnica reservada.';
+    if($('mic-list'))for(const el of $('mic-list').querySelectorAll('.mic-person-top b'))el.textContent='Sinal do microfone';
+    if($('tg19-remote-score'))$('tg19-remote-score').textContent='Avaliação técnica reservada.';
+    if($('tg04-remote-ranking'))$('tg04-remote-ranking').textContent='Placar recreativo indisponível nesta sala.';
+    if($('score-list'))$('score-list').replaceChildren();
+    if($('score-dialog')?.open)$('score-dialog').close();
+    if($('final-number'))$('final-number').textContent='';
+    if($('final-stars'))$('final-stars').textContent='';
+    if($('final-duet-details'))$('final-duet-details').replaceChildren();
+    if($('final-overlay')&&!$('final-overlay').hidden)hideFinal();
+  }
   function avatarSrc(key){return AVATARS[key]||AVATARS.urbano;}
   function isPhoneSingerRole(){return state.role==='guest'||state.role==='remote';}
   function updateMicPersona(){
@@ -63,10 +99,11 @@
   }
   // V18: controle remoto por sinais autenticados e dirigidos ao palco (sem segundo player).
   async function enterRoomAsRemote(room){
+    if(room?.room_mode==='solo'){toast('A Carreira Solo usa apenas o aparelho do palco.',true);return;}
     if(!state.user || room.owner_id!==state.user.id || isAnonymous(state.user)){toast('Somente a conta anfitriã pode usar o controle remoto.',true);return;}
     await stopSession();state.room=room;state.role='remote';state.remoteTab='control';state.remoteAutoSinger=false;show('tg18-remote');switchRemoteTab('control');
     $('tg18-remote-room').textContent=room.title;document.body.classList.add('tg18-remote-active');
-    try{await hydrateRoom();await subscribeRoom();startTicker();renderRemote();void loadCatalog();await sendProfileToHost();toast('Controle remoto conectado. Você também pode cantar pelo celular!');}
+    try{const scope=tg07Scope();await hydrateRoom();if(state.emergencyBlocked||!tg07Current(scope))return;await subscribeRoom();if(state.emergencyBlocked||!tg07Current(scope))return;startTicker();renderRemote();void loadCatalog();await sendProfileToHost();toast('Controle remoto conectado. Você também pode cantar pelo celular!');void remoteCommand('stage-status');}
     catch(err){toast('Não foi possível conectar o controle: '+humanError(err),true);}
   }
   function switchRemoteTab(tab='control'){
@@ -91,10 +128,11 @@
     if($('tg92-remote-info-current'))$('tg92-remote-info-current').textContent=playing?.title||'Aguardando música';
     if($('tg92-remote-info-next'))$('tg92-remote-info-next').textContent=next?.title||'Fim da fila';
     if($('tg92-remote-info-queue'))$('tg92-remote-info-queue').textContent=state.songs.filter(x=>x.status==='queued').length+' na fila';
-    const personal=state.scores.find(x=>x.user_id===state.user?.id);
+    const personal=tg13Recreational()?state.scores.find(x=>x.user_id===state.user?.id):null;
     $('tg19-remote-score').textContent=personal?'🏆 Sua última nota: '+personal.score+'/100 · A Diva avaliou sua participação':'🏆 Seu placar aparece depois de cantar';
     renderRemoteQueue();
-    renderRemoteMic();
+    const rank=$('tg04-remote-ranking');if(rank){const rows=getRankingRows();rank.textContent=rows.length?rows.slice(0,3).map((r,i)=>`${i+1}º ${memberName(r.uid)} · ${r.best}/100`).join(' • '):'Ainda não há notas nesta festa.';}
+    renderRemoteMic();if(!tg13Recreational())tg13ScorePrivacy();
   }
   function renderRemoteQueue(){
     const list=$('tg19-remote-queue-list');if(!list||state.role!=='remote')return;
@@ -156,11 +194,15 @@
     }catch(err){toast('Não foi possível alterar o apelido: '+humanError(err),true);}
   }
   async function remoteCommand(cmd,value,songId=null){
+    if(state.emergencyBlocked)return;
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
-    const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song'];
+    const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song','stage-theme','diva-preview-volume','pop-volume','stage-status'];
     if(!allowed.includes(cmd))return;
     if(callActive() && !['start','resend'].includes(cmd)){toast('Durante sua vez o controle fica protegido; use o painel do microfone.',true);return;}
-    if(cmd.endsWith('volume')&&Date.now()-state.remoteLastSent<280)return;
+    if(cmd==='stage-status'&&[...state.remotePending.values()].some(p=>p.cmd==='stage-status'))return;
+    const roomId=state.room.id,scope=tg07Scope();
+    if(cmd==='next'&&state.songs.some(s=>s.status==='playing')&&!await window.TG_UI.confirm('Pular a apresentação atual? Ela ficará sem nota.',{title:'Próxima música',confirmText:'Pular apresentação',danger:true}))return;
+    if(state.emergencyBlocked||!tg07Current(scope)||state.room?.id!==roomId||state.role!=='remote'||(callActive()&&!['start','resend'].includes(cmd)))return;
     state.remoteLastSent=Date.now();
     let id=null;
     try{
@@ -168,23 +210,25 @@
       state.remoteLatestCommandId=id;
       $('tg18-remote-feedback').textContent='◌ Enviando comando ao palco…';
       state.remotePending.set(id,{cmd,at:Date.now()});
-      await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'?value:null,songId:typeof songId==='string'?songId:null,at:Date.now(),id});
+      await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'||(cmd==='stage-theme'&&THEMES.includes(value))?value:null,songId:typeof songId==='string'?songId:null,at:Date.now(),id});
       // O ACK pode chegar pelo Realtime antes de o INSERT terminar.
+      if(state.emergencyBlocked||!tg07Current(scope))return;
       if(state.remotePending.has(id)&&state.remoteLatestCommandId===id){
         $('tg18-remote-feedback').textContent='◌ Comando registrado; aguardando resposta da TV…';
       }
       setTimeout(async()=>{
-        if(!state.remotePending.has(id))return;
+        if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
         // Reconcilia uma última vez com o banco, inclusive se o Realtime falhou.
         await fetchHostDeviceSignals();
         await state.signalChain;
-        if(!state.remotePending.has(id))return;
+        if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
         state.remotePending.delete(id);
         if(state.role==='remote'&&state.remoteLatestCommandId===id){
           $('tg18-remote-feedback').textContent='⚠ A TV não confirmou este comando. Confira a tela antes de tocar novamente; não repetimos ações automaticamente.';
         }
       },12000);
     }catch(err){
+      if(!tg07Current(scope)||state.emergencyBlocked)return;
       if(id)state.remotePending.delete(id); // Não apagar outros comandos pendentes.
       if(state.role==='remote'&&(!id||state.remoteLatestCommandId===id)){
         $('tg18-remote-feedback').textContent='⚠ Envio não concluído: '+humanError(err);
@@ -193,11 +237,12 @@
     }
   }
   async function handleRemoteCommand(data,recordCreatedAt){
-    if(state.role!=='host'||!state.room)return;
-    const cmd=data?.command;
+    if(state.emergencyBlocked)return;
+    if(state.role!=='host'||!state.room||state.room.status!=='open')return;
+    const scope=tg07Scope(),cmd=data?.command;
     const ack=async(ok,message)=>{
-      if(!data?.id)return;
-      await sendSignal(state.user.id,'host-remote-ack',{id:data.id,command:cmd,ok,message,at:Date.now()}).catch(err=>console.warn('Confirmação do controle remoto:',err));
+      if(state.emergencyBlocked||!tg07Current(scope)||!data?.id)return;
+      await sendSignal(state.user.id,'host-remote-ack',{id:data.id,command:cmd,ok,message,at:Date.now(),...(ok?{stage:{playback:state.playbackVolume,mics:Math.round(state.masterGain*100),diva:window.TG74_DIVA_STUDIO?.getVolume(),pop:window.TG74_DIVA_STUDIO?.getPopVolume?.(),theme:state.currentTheme}}:{})}).catch(err=>console.warn('Confirmação do controle remoto:',err));
     };
     // Usar o horário de gravação no Supabase evita descartar por relógio
     // incorreto do segundo aparelho. Nenhum comando expira sem resposta.
@@ -211,11 +256,13 @@
       if(cmd==='prepare-song'){
         let song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');
         if(!song){await fetchSongs();song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');}
+        if(state.emergencyBlocked||!tg07Current(scope))return;
         if(!song)throw new Error('Esta música não está mais disponível na fila.');
         await prepareSong(song);
         if(state.preflight?.song.id!==song.id)throw new Error('Não foi possível preparar a música.');
       }else if(cmd==='toggle'){await togglePlayback();}
       else if(cmd==='play'){
+        if(state.emergencyBlocked)return;
         if(state.currentSong)state.player?.playVideo();
         else if(state.preflight)await startPreparedSong();else await advanceSong();
       }else if(cmd==='pause'){if(!state.currentSong)throw new Error('Nenhuma música tocando.');state.player?.pauseVideo();}
@@ -226,12 +273,24 @@
       }else if(cmd==='resend'){
         if(!state.preflight)throw new Error('Ainda não há cantor chamado. Toque em Preparar na fila antes de reenviar a chamada.');
         await sendPreflightInvites(true);
+      }else if(cmd==='stage-theme'){
+        if(!canDirectDiva()||!THEMES.includes(data.value))throw new Error('Tema de palco inválido ou não autorizado.');
+        await setStageTheme(data.value);
+      }else if(cmd==='stage-status'){
+        // Leitura local do palco, devolvida no ACK.
+      }else if(cmd==='diva-preview-volume'){
+        if(typeof data.value!=='number'||!Number.isFinite(data.value)||data.value<0||data.value>75||!window.TG74_DIVA_STUDIO?.setVolume)throw new Error('Volume da prévia inválido ou estúdio indisponível.');
+        window.TG74_DIVA_STUDIO.setVolume(data.value);
+      }else if(cmd==='pop-volume'){
+        if(!window.TG74_DIVA_STUDIO?.setPopVolume)throw new Error('Controle POP indisponível.');
+        window.TG74_DIVA_STUDIO.setPopVolume(data.value);
       }else if(['playback-volume','mic-volume'].includes(cmd)){
-        const v=Number(data.value);
-        if(!Number.isFinite(v)||v<0||v>(cmd==='playback-volume'?100:200))throw new Error('Volume fora do intervalo permitido.');
+        const v=data.value;
+        if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>(cmd==='playback-volume'?100:200))throw new Error('Volume fora do intervalo permitido.');
         const id=cmd==='playback-volume'?'playback-volume-range':'volume-range';
         $(id).value=String(v);$(id).dispatchEvent(new Event('input',{bubbles:true}));
       }else throw new Error('Comando não reconhecido.');
+      if(state.emergencyBlocked||!tg07Current(scope))return;
       const playbackCmd=['toggle','play','pause'].includes(cmd);
       if(playbackCmd && !state.currentSong && !state.preflight)throw new Error('Não há apresentação para controlar.');
       if(playbackCmd && state.currentSong && !state.playerReady)throw new Error('O player ainda não está pronto para confirmar este comando.');
@@ -247,14 +306,19 @@
   // V18: microfone solo utiliza a captura local SEM enviar áudio para a própria saída,
   // evitando eco. A nota continua sendo atividade vocal, não afinação.
   async function toggleSoloMic(){
+    if(state.emergencyBlocked)return;
     if(state.role!=='host'||!state.room)return;
     if(state.soloMic){stopSoloMic();return;}
+    window.TG74_DIVA_STUDIO?.stop();
     if(!navigator.mediaDevices?.getUserMedia){toast('Microfone solo exige HTTPS e navegador compatível.',true);return;}
+    const scope=tg07Scope();let stream,ctx;
     try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,autoGainControl:false,noiseSuppression:true},video:false});
-      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,autoGainControl:false,noiseSuppression:true},video:false});
+      if(!tg07Current(scope)||state.emergencyBlocked){stream.getTracks().forEach(t=>t.stop());return;}
+      ctx=new (window.AudioContext||window.webkitAudioContext)();
       const analyser=ctx.createAnalyser();analyser.fftSize=2048;
       ctx.createMediaStreamSource(stream).connect(analyser);await ctx.resume();
+      if(!tg07Current(scope)||state.emergencyBlocked){stream.getTracks().forEach(t=>t.stop());await ctx.close().catch(()=>{});return;}
       state.soloMic={stream,ctx,analyser,samples:0,vocal:0,volume:0,last:0,songId:null};
       $('tg192-solo-dock').hidden=false;
       const soloLabel=document.querySelector('#tg192-solo-dock .tg192-solo-label');if(soloLabel)soloLabel.textContent='MIC SOLO ATIVO';
@@ -262,7 +326,7 @@
       $('tg18-solo-button').textContent='🎙️ Desligar microfone solo';
       $('tg18-solo-status').textContent='🟢 Mic ativo no celular · áudio não sai pelos alto-falantes para evitar eco';
       if(state.preflight&&isSinger(state.preflight.song,state.user.id))renderPreflightHost();
-    }catch(err){toast('Permissão de microfone negada: '+humanError(err),true);}
+    }catch(err){for(const t of stream?.getTracks()||[])t.stop();try{await ctx?.close();}catch{}if(tg07Current(scope))toast('Permissão de microfone negada: '+humanError(err),true);}
   }
   function stopSoloMic(){
     const m=state.soloMic;if(!m)return;state.soloMic=null;$('tg192-solo-dock').hidden=true;
@@ -277,9 +341,10 @@
     const bars=$('tg192-solo-meter').children;const count=Math.round(Math.min(1,rms/.13)*bars.length);Array.from(bars).forEach((bar,i)=>{bar.classList.toggle('lit',i<count);bar.style.height=(i<count?Math.min(95,25+rms*440+(i%3)*9):12)+'%';});
     const song=state.currentSong;
     if(!song||!state.isPlaying||!isSinger(song,state.user.id))return;
-    if(m.songId!==song.id){m.songId=song.id;m.samples=0;m.vocal=0;m.volume=0;m.last=0;}
+    if(m.songId!==song.id){m.songId=song.id;m.samples=0;m.vocal=0;m.volume=0;m.last=0;m.tg30Shadow=tg30ShadowFor(song.id);}
     const now=performance.now();if(now-m.last<250)return;
     m.last=now;m.samples++;
+    tg30CollectShadow(m.tg30Shadow,m.analyser,m.ctx?.sampleRate,now);
     if(rms>.012){m.vocal++;m.volume+=Math.min(1,(rms-.012)/.085);}
     const el=$('tg18-solo-status');if(el)el.textContent='🎙️ Captando atividade vocal • '+Math.round(Math.min(100,rms*750))+'%';
   }
@@ -313,10 +378,11 @@
   }
   async function showPersonalHistory(){
     if(!state.user)return;
-    const host=$('tg18-history-list');host.textContent='Buscando notas salvas…';$('tg18-history-dialog').showModal();
+    const historyUid=state.user.id;const host=$('tg18-history-list');host.textContent='Buscando notas salvas…';$('tg18-history-dialog').showModal();
     try{
       const {data,error}=await state.client.from('karaoke_scores').select('score,created_at,room_id,song_id').eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(100);
       if(error)throw error;
+      if(state.user?.id!==historyUid)return;
       const list=data||[];
       host.innerHTML='';
       if(!list.length){host.textContent='Nenhuma nota encontrada. Suas apresentações serão registradas quando o microfone conseguir enviar as medições.';return;}
@@ -343,6 +409,7 @@
     }catch(err){toast('Não foi possível ativar Push: '+humanError(err),true);}
   }
   async function dispatchPushForSong(song){
+    if(state.emergencyBlocked)return;
     if(state.role!=='host'||!song||!state.client||!cfg.VAPID_PUBLIC_KEY)return;
     try{const {error}=await state.client.functions.invoke('karaoke-push',{body:{song_id:song.id,room_id:state.room.id}});if(error)console.warn('Push não enviado:',error.message);}
     catch(err){console.warn('Push indisponível:',err);}
@@ -367,6 +434,42 @@
   // V17: Only TEXT signals reach the TV. No recording, no synthesized narration.
   // A local queue preserves guest recados until the interval; host reload clears this ephemeral buffer.
   const pendingGuestRecados=[];
+  const tg04SeenMessages=new Set();
+  let tg04MessageFetch=null,tg04HostSending=null,tg18GuestSending=null,tg18Recognition=null;
+  async function syncPartyMessages(){
+    if(state.emergencyBlocked)return;
+    if(state.role!=='host'||!state.room||tg04MessageFetch)return;
+    const roomId=state.room.id,scope=tg07Scope(),ticket={};tg04MessageFetch=ticket;
+    try{
+      const {data,error}=await state.client.from('tg_party_messages').select('id,author_id,body,created_at').eq('room_id',roomId).eq('status','sent').order('created_at',{ascending:true}).limit(12);
+      if(error)throw error;
+      if(!tg07Current(scope)||state.role!=='host')return;
+      for(const row of data||[]){
+        if(tg04SeenMessages.has(row.id)||pendingGuestRecados.length>=12)continue;
+        const host=row.author_id===state.room.owner_id;
+        const member=state.members.find(m=>m.user_id===row.author_id);
+        if(!host&&!member)continue;
+        const text=String(row.body||'').replace(/\s+/g,' ').trim();if(text.length<3||text.length>160)continue;
+        tg04SeenMessages.add(row.id);pendingGuestRecados.push({name:host?'Anfitrião':member.display_name,uid:row.author_id,text,messageId:row.id,host});
+      }
+      if(!state.currentSong&&!state.preflight&&!state.finishing&&$('final-overlay')?.hidden&&!recadoShowing)showNextGuestRecado();
+    }catch(e){if(tg07Current(scope))console.warn('Sincronia de recados:',e);}finally{if(tg04MessageFetch===ticket)tg04MessageFetch=null;}
+  }
+  async function sendHostRecado(inputId,buttonId){
+    if(state.emergencyBlocked)return;
+    if(!canDirectDiva()||callActive()&&state.role==='remote'||tg04HostSending)return;
+    const text=$(inputId).value.replace(/\s+/g,' ').trim();
+    if(text.length<3||text.length>160){toast('Escreva um recado de 3 a 160 caracteres.',true);return;}
+    if(Date.now()<nextGuestRecadoAt){toast('Espere alguns segundos antes de outro recado.',true);return;}
+    const scope=tg07Scope(),roomId=scope.room,uid=scope.uid,ticket={};tg04HostSending=ticket;setLoading($(buttonId),true,'Enviando…');
+    try{
+      const {error}=await state.client.from('tg_party_messages').insert({room_id:roomId,author_id:uid,nickname:'Anfitrião',body:text,status:'sent'});
+      if(error)throw error;
+      if(!tg07Current(scope))return;
+      $(inputId).value='';nextGuestRecadoAt=Date.now()+25000;
+      toast('Recado registrado. A TV o exibirá no intervalo.');if(state.role==='host')void syncPartyMessages();
+    }catch(e){if(tg07Current(scope))toast('Recado não registrado: '+humanError(e),true);}finally{if(tg04HostSending===ticket){tg04HostSending=null;if(tg07Current(scope))setLoading($(buttonId),false);}}
+  }
   const recadoFrequency=new Map();
   let nextGuestRecadoAt=0, recadoTimer=null, recadoShowing=false, recadoAfter=null;
   function hideGuestRecado(){
@@ -374,19 +477,23 @@
     const el=$('tg17-message-screen');if(el)el.hidden=true;
   }
   function showNextGuestRecado(after=null){
+    if(state.emergencyBlocked)return false;
     if(state.role!=='host'||state.currentSong||state.isPlaying||recadoShowing||!pendingGuestRecados.length)return false;
-    const msg=pendingGuestRecados.shift();const el=$('tg17-message-screen');
-    if(msg.messageId && state.client){void state.client.from('tg_party_messages').update({status:'displayed',displayed_at:new Date().toISOString()}).eq('id',msg.messageId).eq('room_id',state.room.id).then(({error})=>{if(error)console.warn('Auditoria de recados:',error.message);});}
+    const scope=tg07Scope(),msg=pendingGuestRecados.shift(),el=$('tg17-message-screen');if(!tg07Current(scope)||!el)return false;
+    if(msg.messageId && state.client){const roomId=state.room.id;void state.client.from('tg_party_messages').update({status:'displayed',displayed_at:new Date().toISOString()}).eq('id',msg.messageId).eq('room_id',roomId).eq('status','sent').then(({error})=>{if(error&&tg07Current(scope)){tg04SeenMessages.delete(msg.messageId);console.warn('Auditoria de recados:',error.message);}});}
     if(!el)return false;
     const key=String(state.room?.id||'')+':'+String(msg.uid||msg.name);
     const repeat=(recadoFrequency.get(key)||0)+1;recadoFrequency.set(key,repeat);
     const lines=repeat===1?[`Atenção, temos recado de ${msg.name}!`,`Produção, abre o correio! ${msg.name} mandou um recado!`]:[`Olha quem voltou: ${msg.name} tem mais um recado!`,`E lá vem outro babado de ${msg.name}!`];
-    const title=chooseDifferent(lines);
+    const title=msg.host?'Recado do anfitrião':chooseDifferent(lines);
     $('tg17-message-from').textContent=title;
     if(state.role==='host')showDivaBubble(title,'💌');
     $('tg17-message-text').textContent=msg.text; // Never render user text as HTML.
     el.hidden=false;recadoShowing=true;recadoAfter=after;
+    const studio=window.TG74_DIVA_STUDIO,roomId=state.room?.id,eventKey='recado:'+roomId+':'+(msg.messageId||key+':'+repeat);
+    if(studio)void (async()=>{const spoken=await studio.announce('recado',eventKey);if(!spoken&&tg07Current(scope)&&recadoShowing)await studio.pop('recado',eventKey);})();
     recadoTimer=setTimeout(()=>{
+      if(!tg07Current(scope))return;
       const fn=recadoAfter;recadoAfter=null;hideGuestRecado();
       if(fn)void fn();
       else if(!state.currentSong&&!state.preflight&&pendingGuestRecados.length)showNextGuestRecado();
@@ -394,42 +501,47 @@
     return true;
   }
   async function sendGuestRecado(){
+    if(state.emergencyBlocked)return;
     if(state.role!=='guest'||!state.room||!state.user){toast('Entre numa festa para enviar recados.',true);return;}
     const text=($('tg17-message-input')?.value||'').replace(/\s+/g,' ').trim();
     if(text.length<3||text.length>160){toast('Escreva um recado de 3 a 160 caracteres.',true);return;}
     if(Date.now()<nextGuestRecadoAt){toast('Espere alguns segundos para mandar outro recado.',true);return;}
-    const btn=$('tg17-send-message');setLoading(btn,true,'Enviando…');
+    if(tg18GuestSending)return;const scope=tg07Scope(),owner=state.room.owner_id,ticket={};tg18GuestSending=ticket;const btn=$('tg17-send-message');setLoading(btn,true,'Enviando…');
     try{
-      let auditedId=null;
-      try{const myName=state.members.find(m=>m.user_id===state.user.id)?.display_name||'Cantor(a)';
-        const saved=await state.client.from('tg_party_messages').insert({room_id:state.room.id,author_id:state.user.id,nickname:myName,body:text}).select('id').single();
-        if(saved.error)throw saved.error;auditedId=saved.data.id;
-      }catch(auditError){console.warn('Auditoria de recados não disponível:',auditError);
-        toast('Auditoria indisponível: o recado será enviado sem registro persistente. Avise a equipe.',true);}
-      await sendSignal(state.room.owner_id,'stage-recado',{text,sentAt:Date.now(),messageId:auditedId});
+      const myName=memberName(state.user.id);
+      const saved=await state.client.from('tg_party_messages').insert({room_id:state.room.id,author_id:state.user.id,nickname:myName,body:text,status:'sent'}).select('id').single();
+      if(saved.error)throw saved.error;
+      // A gravação é a fonte de verdade; o sinal é só uma notificação opcional.
+      if(!tg07Current(scope))return;
+      await sendSignal(owner,'stage-recado',{messageId:saved.data.id}).catch(console.warn);
+      if(!tg07Current(scope))return;
       nextGuestRecadoAt=Date.now()+25000;
       $('tg17-message-input').value='';
-      toast('💌 Recado entregue ao host! Ele aparecerá entre as apresentações.');
-    }catch(err){toast('Não foi possível enviar: '+humanError(err),true);}
-    finally{setLoading(btn,false);}
+      toast('💌 Recado registrado! A TV sincroniza os recados no intervalo.');
+    }catch(err){if(tg07Current(scope))toast('Não foi possível enviar: '+humanError(err),true);}
+    finally{if(tg18GuestSending===ticket){tg18GuestSending=null;if(tg07Current(scope))setLoading(btn,false);}}
   }
+  function tg18AbortDictation(){const old=tg18Recognition;tg18Recognition=null;try{old?.abort();}catch{}const btn=$('tg17-dictate');if(btn){btn.disabled=false;btn.textContent='🎙️ Ditar recado';}}
   function dictateGuestRecado(){
-    if(isMyTurn()){toast('Durante sua música, prefira digitar o recado para não interferir no microfone.',true);return;}
+    if(state.emergencyBlocked)return;
+    if(state.role!=='guest'||!state.room||!state.user)return;
+    if(isMyTurn()||state.localStream||callActive()){toast('Durante sua música ou preparação, prefira digitar o recado para não interferir no microfone.',true);return;}
     const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SpeechRecognition){toast('Este celular não oferece ditado no navegador. Escreva seu recado normalmente.',true);return;}
-    const btn=$('tg17-dictate');let recognition;
+    if(tg18Recognition)return;const scope=tg07Scope(),btn=$('tg17-dictate');let recognition;
     try{
-      recognition=new SpeechRecognition();recognition.lang='pt-BR';recognition.interimResults=false;recognition.maxAlternatives=1;
+      recognition=new SpeechRecognition();tg18Recognition=recognition;recognition.lang='pt-BR';recognition.interimResults=false;recognition.maxAlternatives=1;
       btn.disabled=true;btn.textContent='🎙️ Ouvindo…';
       recognition.onresult=e=>{
+        if(tg18Recognition!==recognition||!tg07Current(scope)||isMyTurn())return;
         const words=String(e.results?.[0]?.[0]?.transcript||'').trim();
         $('tg17-message-input').value=words.slice(0,160);
         toast('Texto transcrito. Confira antes de enviar!');
       };
-      recognition.onerror=()=>toast('Ditado indisponível. Digite seu recado.',true);
-      recognition.onend=()=>{btn.disabled=false;btn.textContent='🎙️ Ditar recado';};
+      recognition.onerror=()=>{if(tg18Recognition===recognition&&tg07Current(scope))toast('Ditado indisponível. Digite seu recado.',true);};
+      recognition.onend=()=>{if(tg18Recognition===recognition){tg18Recognition=null;if(tg07Current(scope)){btn.disabled=false;btn.textContent='🎙️ Ditar recado';}}};
       recognition.start();
-    }catch(e){btn.disabled=false;btn.textContent='🎙️ Ditar recado';toast('Não foi possível iniciar o ditado.',true);}
+    }catch(e){if(tg18Recognition===recognition)tg18Recognition=null;btn.disabled=false;btn.textContent='🎙️ Ditar recado';toast('Não foi possível iniciar o ditado.',true);}
   }
   function showHostCommand(){
     if(state.role!=='host'||!state.room)return;
@@ -517,11 +629,12 @@
     }
   }
   async function prepareSong(song){
-    window.TG74_DIVA_STUDIO?.stop(); // não sobrepor convocação da Diva ou microfones
-
+    if(state.emergencyBlocked)return;
     if(state.role!=='host'||!song||state.finishing)return;
+    if(recadoShowing){toast('Aguarde o recado do intervalo terminar.',true);return;}
     if(state.currentSong){toast('Finalize ou pule a música atual antes de preparar a próxima.',true);return;}
     if(state.preflight?.song.id===song.id){renderPreflightHost();return;}
+    window.TG74_DIVA_STUDIO?.stop(); // não sobrepor convocação da Diva ou microfones
     clearHostPreflight();
     state.preflight={song,token:typeof crypto.randomUUID==='function'?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join(''),statuses:new Map(),starting:false};
     $('now-title').textContent='A seguir: '+song.title;
@@ -530,19 +643,23 @@
     $('video-placeholder').hidden=false;setDivaStageState('preflight');
     renderPreflightHost();updateVoxLine('preflight');void dispatchPushForSong(song);
     await sendPreflightInvites(true);
+    if(state.emergencyBlocked||state.preflight?.song.id!==song.id)return;
     clearInterval(state.preflightTimer);
     state.preflightTimer=setInterval(()=>{if(state.preflight)void sendPreflightInvites(false);},12000);
   }
   async function startPreparedSong(override=false){
-    const pre=state.preflight;if(!pre||pre.starting)return;
+    if(state.emergencyBlocked)return;
+    const pre=state.preflight,scope=tg07Scope();if(!pre||pre.starting)return;
     const singers=songSingers(pre.song);
     const ready=singers.every(uid=>{const s=pre.statuses.get(uid);return s?.ready&&s?.mic&&Date.now()-s.at<25000;});
     if(!ready&&!override){toast('Aguarde o microfone e a confirmação de todas as pessoas.',true);return;}
     if(!ready&&override&&!await window.TG_UI.confirm('Iniciar sem todos prontos? As pessoas sem microfone podem ficar sem voz ou nota.',{title:'Liberar apresentação',confirmText:'Iniciar mesmo assim'}))return;
+    if(state.emergencyBlocked||!tg07Current(scope)||state.preflight!==pre)return;
     pre.starting=true;renderPreflightHost();
     const song=pre.song;
     // startSong retorna erro tratado internamente; confira no estado antes de encerrar o preparo.
     await startSong(song);
+    if(state.emergencyBlocked||!tg07Current(scope)||state.preflight!==pre)return;
     if(state.currentSong?.id===song.id){
       for(const uid of singers)void sendSignal(uid,'stage-prepare-cancel',{songId:song.id,token:pre.token,started:true}).catch(console.warn);
       clearHostPreflight(false);
@@ -572,8 +689,11 @@
   }
   function humanError(err) {
     const msg = String(err?.message || err || 'Ocorreu um erro inesperado.');
+    if (/TG30_MODE_PROGRAMMED_(classic|solo|battle)/.test(msg)) return 'Este modo está em manutenção programada. Novas festas estão pausadas; consulte seu histórico para continuar uma festa aberta.';
     if (/invalid login credentials/i.test(msg)) return 'E-mail ou senha incorretos.';
-    if (/email not confirmed/i.test(msg)) return 'Confirme seu e-mail antes de entrar.';
+    if (err?.code==='email_not_confirmed'||/email not confirmed/i.test(msg)) return 'Confirme seu e-mail antes de entrar. Use Reenviar e-mail de confirmação se necessário.';
+    if (err?.code==='email_address_not_authorized'||/email address not authorized/i.test(msg)) return 'O serviço de e-mail ainda não permite este endereço. Fale com o suporte.';
+    if (err?.code==='over_email_send_rate_limit'||/email rate limit/i.test(msg)) return 'Limite de envio de e-mails atingido. Aguarde e tente mais tarde.';
     if (/user already registered/i.test(msg)) return 'Esse e-mail já está cadastrado. Tente entrar.';
     if (/password should be at least/i.test(msg)) return 'Escolha uma senha com pelo menos 6 caracteres.';
     if (/rate limit|too many requests/i.test(msg)) return 'Muitas tentativas. Aguarde e tente novamente.';
@@ -593,7 +713,10 @@
     return msg;
   }
   function escapeHTML(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function show(id) { document.body.dataset.currentView=id; document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== id); window.scrollTo({top:0}); tg193ScheduleTour(id); window.dispatchEvent(new CustomEvent('temgogo:view',{detail:{view:id}})); }
+  function show(id) { const isStage=id==='stage'&&state.role==='host'&&state.room&&state.room.owner_id===state.user?.id;
+    let chosen='glam';try{chosen=(isStage?localStorage.getItem('tg30-stage-theme:'+state.room.id):null)||localStorage.getItem('tem-gogo-theme')||'glam';}catch{}
+    applyTheme(chosen,false,isStage?'stage':'render');
+    document.body.dataset.currentView=id; document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== id); window.scrollTo({top:0}); tg193ScheduleTour(id); window.dispatchEvent(new CustomEvent('temgogo:view',{detail:{view:id}})); }
   function configured() { return !!(cfg.SUPABASE_URL?.startsWith('https://') && cfg.SUPABASE_ANON_KEY?.length > 25); }
   function formatTime(sec) { sec = Math.max(0, Math.floor(Number(sec) || 0)); return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`; }
   function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -614,8 +737,8 @@
     return null;
   }
   function currentURL(code) { const url = new URL('./',location.href); url.searchParams.set('room', code); return url.href; }
-  const THEMES = ['baile','diva','boteco','glam'];
-  const THEME_LABELS = {baile:'💚 Baile Neon',diva:'💖 Diva Pop',boteco:'🍊 Boteco Superstar',glam:'🪩 Glam Futurista'};
+  const THEMES = ['glam','crystal','midnight','brasil'];
+  const THEME_LABELS = {glam:'Glam Pop Futurista',crystal:'Crystal Pop',midnight:'Midnight Club',brasil:'Brasil em Canto'};
   const voxMoments = {
     opening: [
       'Eu sou a Diva Gogó, meu amor! Trago brilho, microfone e um leve histórico de escândalos musicais!',
@@ -702,16 +825,31 @@
       if(moment!=='singing')showDivaBubble(text,emojis[moment]||'💅');
     }
   }
-  function applyTheme(theme,announce=false){
-    state.currentTheme=THEMES.includes(theme)?theme:'baile';
+  function applyTheme(theme,announce=false,scope=null){
+    state.currentTheme=THEMES.includes(theme)?theme:'glam';
     document.body.dataset.theme=state.currentTheme;
-    localStorage.setItem('tem-gogo-theme',state.currentTheme);
+    document.documentElement.dataset.tgTheme=state.currentTheme;
+    const isStage=scope==='stage'||(scope===null&&state.role==='host'&&state.room);
+    if(isStage&&state.room&&state.room.owner_id===state.user?.id){try{localStorage.setItem('tg30-stage-theme:'+state.room.id,state.currentTheme);}catch{}}
+    else if(scope!=='render'){try{localStorage.setItem('tem-gogo-theme',state.currentTheme);}catch{}}
+    const hint=$('tg30-theme-scope');if(hint)hint.textContent=isStage?'Tema compartilhado do palco. Os celulares dos convidados não mudam.':'Tema pessoal deste aparelho.';
     document.querySelectorAll('[data-theme-choice]').forEach(btn=>{const selected=btn.dataset.themeChoice===state.currentTheme;btn.classList.toggle('chosen',selected);btn.setAttribute('aria-pressed',String(selected));});
     if(announce)toast(THEME_LABELS[state.currentTheme]+' ativado!');
   }
-  function themeCycle() {applyTheme(THEMES[(THEMES.indexOf(state.currentTheme)+1)%THEMES.length],true);}
+  async function setStageTheme(theme){
+    if(!canDirectDiva()||state.role!=='host'||!THEMES.includes(theme))throw new Error('Tema de palco inválido ou não autorizado.');
+    const roomId=state.room.id;
+    await callRPC('tg30_set_stage_theme',{p_room:roomId,p_theme:theme});
+    if(state.room?.id!==roomId||state.role!=='host')throw new Error('A sala mudou. Confira o tema ao retornar.');
+    applyTheme(theme,false,'stage');
+  }
+  async function chooseTheme(theme){
+    if(state.role==='host'&&state.room){try{await setStageTheme(theme);toast(THEME_LABELS[theme]+' salvo no palco!');}catch(e){toast('Tema não salvo: '+humanError(e),true);}}
+    else applyTheme(theme,true,'personal');
+  }
+  function themeCycle() {void chooseTheme(THEMES[(THEMES.indexOf(state.currentTheme)+1)%THEMES.length]);}
   function loadPreferences(){
-    applyTheme(localStorage.getItem('tem-gogo-theme')||'baile');
+    applyTheme(localStorage.getItem('tem-gogo-theme')||'glam',false,'personal');
     state.playbackVolume=Math.min(100,Math.max(0,Number(localStorage.getItem('tem-gogo-playback-volume')??80)));
     state.guestMicGain=Math.min(1.5,Math.max(0,Number(localStorage.getItem('tem-gogo-mic-send-volume')??100)/100));
     $('playback-volume-range').value=String(state.playbackVolume);$('playback-volume-label').textContent=state.playbackVolume+'%';
@@ -829,7 +967,7 @@
   async function tryResumeMembership(code){
     if(!state.client||!state.user||!code)return false;
     try{
-      const own=await state.client.from('karaoke_rooms').select('id,code,title,owner_id')
+      const own=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,room_mode')
         .eq('code',code).eq('owner_id',state.user.id).eq('status','open').gt('expires_at',new Date().toISOString()).maybeSingle();
       if(own.data){if(new URLSearchParams(location.search).get('remote')==='1')await enterRoomAsRemote(own.data);else await enterRoomAsHost(own.data);return true;}
       const rows=await callRPC('karaoke_resume_room',{p_code:code});
@@ -881,7 +1019,7 @@
   async function resumeRemoteAfterLogin(){
     const roomCode=normalizeRoom(new URL(location.href).searchParams.get('room')||localStorage.getItem('tem-gogo-pending-remote'));
     if(!roomCode||!state.user||isAnonymous(state.user))return false;
-    const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id').eq('code',roomCode).eq('owner_id',state.user.id)
+    const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,room_mode').eq('code',roomCode).eq('owner_id',state.user.id)
       .eq('status','open').gt('expires_at',new Date().toISOString()).maybeSingle();
     if(error)throw error;
     if(!data){$('auth-state').textContent='Este QR é exclusivo do anfitrião. Entre na conta que criou a festa na TV.';return false;}
@@ -1012,7 +1150,7 @@
   }
   async function init() {
     initPWA();loadPreferences();renderAvatarOptions();
-    document.getElementById('tg-beta-external-go')?.addEventListener('click',()=>{document.getElementById('catalog-dialog')?.close();document.getElementById('youtube-search')?.focus({preventScroll:false});});
+    document.getElementById('tg-beta-external-go')?.addEventListener('click',()=>{const input=$('tg07-external-query');input.value=$('catalog-search').value.trim();input.focus();if(input.value.length>=2)void searchYoutube(state.role==='host',true,true);});
     $('video-frame').appendChild($('stage-preflight'));
     setupHostCockpit();
     attachEvents();tg193AttachEvents();
@@ -1032,6 +1170,7 @@
     state.client=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     // IMPORTANTE: receber PASSWORD_RECOVERY antes de ler/restaurar convites ou abrir o lobby.
     state.client.auth.onAuthStateChange((event,session)=>{
+      if(state.user?.id!==session?.user?.id){tg15ClearRecap();++tg15RoomsSerial;$('existing-rooms')?.replaceChildren();$('tg123-active-controls')?.replaceChildren();}
       state.user=session?.user||null;
       if(event==='PASSWORD_RECOVERY'){
         state.recoveryVerified=true;state.recoveryIntent=true;
@@ -1099,6 +1238,19 @@
     $('guest-code').value=normalizeRoom(roomCode);
     $('guest-name').value=localStorage.getItem('tem-gogo-display-name')||'';
   }
+  let tg12AvailabilityEpoch=0;
+  async function tg12ModeAvailability(){
+    const uid=state.user?.id, gen=++tg12AvailabilityEpoch;
+    if(!uid||!state.client)return;
+    const entries=[['classic','tg70-go-classic','Criar festa · convidados, QR e fila de músicas'],['solo','tg70-go-solo','Cante no mesmo aparelho · sem QR de convidados']];
+    const current=()=>gen===tg12AvailabilityEpoch&&uid===state.user?.id&&!state.room;
+    try{
+      const {data,error}=await state.client.rpc('tg30_mode_availability');
+      if(error||!data?.modes)throw Error('indisponível');
+      if(!current())return;
+      for(const [mode,id,normal] of entries){const button=$(id),status=data.modes[mode]?.status;if(!button)continue;const blocked=status==='maintenance'||status==='safety_hold';const label=button.querySelector('small');if(label)label.textContent=status==='safety_hold'?'Bloqueio de segurança · aguarde validação':blocked?'Manutenção programada · festas abertas no histórico':status==='available'?normal:'Disponibilidade não verificada';button.disabled=blocked;button.setAttribute('aria-disabled',String(blocked));}
+    }catch{if(!current())return;for(const [,id] of entries){const b=$(id);if(b){b.disabled=false;b.setAttribute('aria-disabled','false');const label=b.querySelector('small');if(label)label.textContent='Disponibilidade não verificada · servidor confirma ao criar';}}}
+  }
   async function openLobby() {
     document.body.classList.remove('invite-active','entry-active','tg95-join-signed-in');
     show('lobby');
@@ -1109,22 +1261,26 @@
     const historySection=$('tg93-history-panel');if(historySection)historySection.hidden=true;
     const modeTrigger=$('tg92-hub-create');if(modeTrigger)modeTrigger.setAttribute('aria-expanded','false');
     $('tg92-hub-history')?.setAttribute('aria-expanded','false');
+    void tg12ModeAvailability();
     await loadMyRooms();
   }
+  let tg15RoomsSerial=0;
   async function loadMyRooms() {
+    const serial=++tg15RoomsSerial,uid=state.user?.id,epoch=tg07SessionEpoch;
+    const current=()=>!!uid&&state.user?.id===uid&&epoch===tg07SessionEpoch&&serial===tg15RoomsSerial;
     const container=$('existing-rooms');
     container.replaceChildren();
     if(!state.client||!state.user)return;
     try {
       // RLS: a consulta só mostra salas que o usuário possui ou das quais é membro.
       const {data,error}=await state.client.from('karaoke_rooms')
-        .select('id,title,code,status,expires_at,created_at,owner_id')
+        .select('id,title,code,status,expires_at,created_at,owner_id,room_mode,tg30_battle_reserved')
         .order('created_at',{ascending:false}).limit(60);
-      if(error)throw error;
+      if(!current())return;if(error)throw error;
       const rooms=(data||[]).filter(r=>r.status==='closed'||(r.status==='open'&&new Date(r.expires_at).getTime()>Date.now()));
       const membership=await state.client.from('karaoke_members')
-        .select('room_id,display_name').eq('user_id',state.user.id).limit(60);
-      if(membership.error)throw membership.error;
+        .select('room_id,display_name').eq('user_id',uid).limit(60);
+      if(!current())return;if(membership.error)throw membership.error;
       const names=new Map((membership.data||[]).map(m=>[m.room_id,m.display_name]));
       const heading=document.createElement('h3');heading.className='my-rooms-heading';heading.textContent='🎟️ Minhas festas ('+rooms.length+')';container.append(heading);
       // Beta 1.2.3: atalho proprietário independente do QR de convidados.
@@ -1139,10 +1295,10 @@
             const row=document.createElement('div');row.className='tg123-hub-room';
             const label=document.createElement('span');label.textContent=active.title;
             const control=document.createElement('button');control.type='button';control.className='button button-primary';control.textContent='Controlar minha festa';
-            control.addEventListener('click',()=>void enterRoomAsRemote(active));
+            control.addEventListener('click',()=>{if(current())void enterRoomAsRemote(active);});
             const stage=document.createElement('button');stage.type='button';stage.className='button button-outline';stage.textContent='Abrir palco';
-            stage.addEventListener('click',()=>void enterRoomAsHost(active));
-            row.append(label,control,stage);controls.append(row);
+            stage.addEventListener('click',()=>{if(current())void enterRoomAsHost(active);});
+            row.append(label);if(active.room_mode!=='solo')row.append(control);row.append(stage);controls.append(row);
           }
         }
       }
@@ -1150,12 +1306,15 @@
       for(const room of rooms){
         const host=room.owner_id===state.user.id;
         const card=document.createElement('button');card.type='button';card.className='hub-room-card'+(room.status==='closed'?' hub-room-closed':'');
-        const finished=room.status==='closed';const description=finished?'🏆 Festa encerrada • Ver placar':host?'👑 Você apresenta':'🎤 Você participa';
+        const finished=room.status==='closed';const description=finished?(room.tg30_battle_reserved?'🏆 Palco competitivo encerrado • Meus festivais':'🏆 Festa encerrada • Ver placar'):room.tg30_battle_reserved?'🏆 Palco competitivo':host?'👑 Você apresenta':'🎤 Você participa';
         card.innerHTML='<span class="hub-room-icon">'+(host?'📺':'🎙️')+'</span><span class="hub-room-info"><strong>'+escapeHTML(room.title)+'</strong><small>'+description+' · '+escapeHTML(room.code)+'</small></span><span class="hub-room-arrow">↗</span>';
         card.addEventListener('click',async()=>{
-          if(finished){try{showPartyRecap(await callRPC('karaoke_get_party_recap',{p_room:room.id}));}catch(error){toast(humanError(error),true);}return;}
-          if(host && matchMedia('(max-width: 750px)').matches){
+          if(!current())return;
+          if(finished&&room.tg30_battle_reserved!==false){if(room.tg30_battle_reserved===true&&window.TEM_GOGO_CONFIG?.BATTLE_API_RELEASE_ALLOWED===true)void window.TG75_BATTLE_PANEL?.open();else toast('O placar recreativo não está disponível para este palco.');return;}
+          if(finished){try{await tg15LoadRecap(room.id);}catch(error){toast(humanError(error),true);}return;}
+          if(host && room.room_mode!=='solo' && matchMedia('(max-width: 750px)').matches){
             const choice=await window.TG_UI.choose({title:'Como vai usar este aparelho?',message:'A TV pode continuar no palco enquanto você controla a festa ou canta pelo celular.',choices:[{label:'🎛️ Controle no celular',value:'remote',primary:true},{label:'📺 Abrir palco aqui',value:'stage'}]});
+            if(!current())return;
             if(choice==='remote')await enterRoomAsRemote(room);else if(choice==='stage')await enterRoomAsHost(room);
           }else if(host)await enterRoomAsHost(room);
           else await enterRoomAsGuest(room,names.get(room.id)||localStorage.getItem('tem-gogo-display-name')||'Estrela');
@@ -1163,6 +1322,7 @@
         container.append(card);
       }
     }catch(err){
+      if(!current())return;
       const p=document.createElement('p');p.className='hub-empty';p.textContent='Não consegui carregar suas festas: '+humanError(err);container.append(p);
     }
   }
@@ -1193,9 +1353,28 @@
       await openLobby();
     }catch(err){$('auth-state').textContent=humanError(err);toast(humanError(err),true);}finally{setLoading(button,false);}
   }
+  // Reenvio de confirmação: sem senha, sem criar outra conta, sem revelar existência de cadastro.
+  let tg30ResendUntil=0, tg30Resending=false;
+  async function tg30ResendConfirmation(source){
+    if(!checkBackend()||tg30Resending)return;
+    const emailInput=$(source==='signup'?'signup-email':'auth-email');
+    const output=$(source==='signup'?'signup-feedback':'auth-state');
+    const email=emailInput.value.trim().toLowerCase();
+    if(!email||!emailInput.checkValidity()){output.textContent='Informe um e-mail válido para solicitar a confirmação.';emailInput.focus();return;}
+    if(Date.now()<tg30ResendUntil){output.textContent='Aguarde '+Math.ceil((tg30ResendUntil-Date.now())/1000)+' segundos antes de pedir outro e-mail.';return;}
+    const buttons=[$('auth-resend-confirmation'),$('signup-resend-confirmation')];
+    tg30Resending=true;tg30ResendUntil=Date.now()+60000;buttons.forEach(b=>b.disabled=true);
+    output.textContent='Solicitando novo e-mail…';
+    try{
+      const {error}=await state.client.auth.resend({type:'signup',email,options:{emailRedirectTo:new URL('./',location.href).href}});
+      if(error){if(error.status===429||Number(error.status)>=500||['over_email_send_rate_limit','email_address_not_authorized','over_request_rate_limit'].includes(error.code)||/rate limit|email address not authorized|network|failed to fetch/i.test(error.message||''))throw error;}
+      output.textContent='Se houver uma confirmação pendente, você poderá receber um novo link. Confira a caixa de entrada e o spam; se já confirmou, tente entrar.';
+    }catch(error){output.textContent=humanError(error);}
+    finally{tg30Resending=false;buttons.forEach(b=>b.disabled=false);}
+  }
   function openSignup() {
     $('signup-feedback').textContent='';
-    $('signup-form').reset();
+    $('signup-form').reset();['signup-password','signup-confirm'].forEach(id=>$(id).type='password');
     $('signup-email').value=$('auth-email').value.trim();
     $('signup-dialog').showModal();
     $('signup-name').focus();
@@ -1219,7 +1398,7 @@
     try{
       const {data,error}=await state.client.auth.signUp({
         email,password,
-        options:{ data:{display_name:name}, emailRedirectTo:new URL('./',location.href).href }
+        options:{ data:{display_name:name,tg_voice_profile:window.TG30VoiceUI?.signup()||null}, emailRedirectTo:new URL('./',location.href).href }
       });
       if(error)throw error;
       $('auth-email').value=email;
@@ -1236,7 +1415,7 @@
       else {
         // O Supabase pode não revelar quando um endereço já existe. Não prometer conta nova.
         feedback.textContent='📬 Se o cadastro puder ser concluído, você receberá um e-mail de confirmação. Confira também o spam; depois entre com sua senha.';
-        $('signup-form').querySelectorAll('input[type=password]').forEach(i=>i.value='');
+        ['signup-password','signup-confirm'].forEach(id=>{$(id).value='';$(id).type='password';});$('signup-show-password').checked=false;tg30ResendUntil=Date.now()+60000;
       }
     }catch(err){feedback.textContent=humanError(err);toast(humanError(err),true);}
     finally{setLoading(button,false);}
@@ -1245,9 +1424,9 @@
     event.preventDefault();if(!checkBackend())return;
     const button=event.target.querySelector('[type=submit]');setLoading(button,true,'Montando seu palco…');
     try {
-      const data=await callRPC('karaoke_create_room',{p_title:$('room-title').value.trim()});
+      const data=await callRPC('karaoke_create_room_mode',{p_title:$('room-title').value.trim(),p_mode:'classic'});
       if(!data?.length)throw new Error('Não foi possível criar a festa.');
-      const room={id:data[0].room_id,code:data[0].room_code,title:data[0].room_title,owner_id:state.user.id};
+      const room={id:data[0].room_id,code:data[0].room_code,title:data[0].room_title,owner_id:state.user.id,room_mode:'classic'};
       state.readyRoom={room};
       $('ready-code').textContent=room.code;
       $('room-ready-dialog').showModal();
@@ -1297,17 +1476,17 @@
 
   async function enterRoomAsHost(room) {
     await stopSession();
-    state.room=room;state.role='host';setSyncStatus('sync');$('stage-room-title').textContent=room.title;
+    state.room=room;state.role='host';if($('tg30-control-qr-details'))$('tg30-control-qr-details').open=false;tg100SyncRoomMode();setSyncStatus('sync');$('stage-room-title').textContent=room.title;
     $('room-code').textContent=room.code;show('stage');setDivaStageState('idle');drawQR();
-    try{await hydrateRoom();await subscribeRoom();startTicker();
+    try{const scope=tg07Scope();await hydrateRoom();if(state.emergencyBlocked||!tg07Current(scope))return;await subscribeRoom();if(state.emergencyBlocked||!tg07Current(scope))return;startTicker();
       void loadCatalog(true);
-      try{await loadYouTubeAPI();if(state.room?.current_song_id)await resumeExistingSong();}
+      try{if(!state.emergencyBlocked){await loadYouTubeAPI();if(state.room?.current_song_id)await resumeExistingSong();}}
       catch(err){toast(humanError(err),true);}
       await unlockWakeLock();
       updateVoxLine('opening');
       clearInterval(state.voxTimer);
-      state.voxTimer=setInterval(()=>{if(state.role==='host'&&!state.isPlaying&&!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden)updateVoxLine('opening');},14000);
-      toast('Diva Gogó NO AR! Mostre o QR: ele já dá acesso direto à festa. 🎉');
+      state.voxTimer=setInterval(()=>{if(!state.emergencyBlocked&&state.role==='host'&&!state.isPlaying&&!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden)updateVoxLine('opening');},14000);
+      toast(state.room?.room_mode==='solo'?'Seu palco solo está pronto! 🎤':'Diva Gogó NO AR! Mostre o QR: ele já dá acesso direto à festa. 🎉');
     }catch(err){toast(humanError(err),true);}
   }
   async function enterRoomAsGuest(room,name) {
@@ -1319,26 +1498,28 @@
     history.pushState({temGogo:true,view:'guest',tab:'queue'},'',currentURL(room.code));
     localStorage.setItem('tem-gogo-pending-room',room.code);
     state.mobileTab=null;switchMobileTab('queue',false);updateAccountCTA();
-    try{await hydrateRoom();void loadCatalog(true);await subscribeRoom();startTicker();startMemberVerifier();await sendProfileToHost();toast('Entrou! 🎉 Escolha um hit para sua fila.');}
+    try{const scope=tg07Scope();await hydrateRoom();if(state.emergencyBlocked||!tg07Current(scope))return;void loadCatalog(true);await subscribeRoom();if(state.emergencyBlocked||!tg07Current(scope))return;startTicker();startMemberVerifier();await sendProfileToHost();toast('Entrou! 🎉 Escolha um hit para sua fila.');}
     catch(err){toast(humanError(err),true);}
   }
   function startMemberVerifier(){
     clearInterval(state.memberVerifier);
     state.memberVerifier=setInterval(async()=>{
       if(state.role!=='guest'||!state.room||!state.client||!navigator.onLine)return;
-      const code=state.room.code;
+      const code=state.room.code,scope=tg07Scope();
       try{
         const entries=await callRPC('karaoke_resume_room',{p_code:code});
-        if(entries?.length)return;
+        if(!tg07Current(scope)||entries?.length)return;
         const lastRoom=state.room?.id;
         let recap=null;
-        try{recap=await callRPC('karaoke_get_party_recap',{p_room:lastRoom});}catch{}
-        if(!state.room || state.room.id!==lastRoom)return;
-        await stopSession();
+        try{if(tg13Recreational())recap=await callRPC('karaoke_get_party_recap',{p_room:lastRoom});}catch{}
+        if(!tg07Current(scope))return;
+        const avatars=new Map(state.avatars),nextEpoch=tg07SessionEpoch+1;await stopSession();
+        if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;
+        state.recapAvatars=avatars;
         if(recap){
           localStorage.removeItem('tem-gogo-pending-room');
           history.replaceState(null,'',new URL('./',location.href).href);
-          show('landing');showPartyRecap(recap);
+          show('landing');showPartyRecap(recap,lastRoom);
         } else {
           forgetInvitation(code);
           showGuestEntry('');
@@ -1353,17 +1534,18 @@
       const el=$(id); if(!el)continue;el.textContent=label;el.dataset.status=mode;
     }
   }
-  async function hydrateRoom() {await fetchRoom();if(!state.room)return;await fetchSongs();await fetchMembers();await fetchScores();renderAll();void fetchRoomHumor();}
+  async function hydrateRoom() {const scope=tg07Scope();await fetchRoom();if(!tg07Current(scope))return;await tg23Start();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;renderAll();void fetchRoomHumor();if(state.role==='host')void syncPartyMessages();}
   async function refreshRoomSnapshot(){
     if(Date.now()-state.catalogFetchedAt>45000)void loadCatalog();
+    if(state.emergencyBlocked)return;
     if(!state.room||state.syncRunning){state.syncQueued=true;return;}
-    state.syncRunning=true;const roomId=state.room.id;
+    state.syncRunning=true;const roomId=state.room.id,scope=tg07Scope();
     try{
-      await fetchRoom();if(state.room?.id!==roomId)return;
-      await fetchSongs();if(state.room?.id!==roomId)return;
-      await fetchMembers();if(state.room?.id!==roomId)return;
-      await fetchScores();if(state.room?.id!==roomId)return;
-      renderAll();if(state.role==='host'||state.role==='remote')void fetchRoomHumor();setSyncStatus(navigator.onLine?(state.realtimeOk?'live':'fallback'):'offline');
+      await fetchRoom();if(!tg07Current(scope)||state.emergencyBlocked)return;
+      await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;
+      await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;
+      await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;
+      renderAll();if(state.role==='host')void syncPartyMessages();if(state.role==='host'||state.role==='remote')void fetchRoomHumor();setSyncStatus(navigator.onLine?(state.realtimeOk?'live':'fallback'):'offline');
     }catch(err){console.warn('Falha ao sincronizar sala:',err);setSyncStatus('offline');}
     finally{state.syncRunning=false;if(state.syncQueued){state.syncQueued=false;if(state.room?.id===roomId)queueChanged();}}
   }
@@ -1378,55 +1560,61 @@
   }
 
   async function fetchRoom() {
-    if(!state.room)return;const requestedRoom=state.room.id;
-    const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,status,current_song_id,expires_at')
+    if(!state.room)return;const requestedRoom=state.room.id,scope=tg07Scope();
+    const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,status,current_song_id,expires_at,room_mode,tg30_battle_reserved')
       .eq('id',requestedRoom).single();
-    if(state.room?.id!==requestedRoom)return;
+    if(!tg07Current(scope))return;
     if(error)throw error;
     state.room={...state.room,...data};
-    if(isPhoneSingerRole() && (data.status!=='open'||new Date(data.expires_at)<new Date())) {
+    tg13ScorePrivacy();
+    if(state.role==='host')tg100SyncRoomMode();
+    if((isPhoneSingerRole()||state.role==='host')&&!state.finishing&&(data.status!=='open'||new Date(data.expires_at)<new Date())) {
       let recap=null;
-      try{recap=await callRPC('karaoke_get_party_recap',{p_room:requestedRoom});}catch(e){console.warn('Recap convidado:',e);}
+      try{if(tg13Recreational())recap=await callRPC('karaoke_get_party_recap',{p_room:requestedRoom});}catch(e){console.warn('Recap convidado:',e);}
       // Não apagar a associação: os participantes podem rever o placar enquanto autorizados.
-      await stopSession();localStorage.removeItem('tem-gogo-pending-room');
+      if(!tg07Current(scope))return;const avatars=new Map(state.avatars),nextEpoch=tg07SessionEpoch+1;
+      await stopSession();if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;state.recapAvatars=avatars;localStorage.removeItem('tem-gogo-pending-room');
       history.replaceState(null,'',new URL('./',location.href).href);
-      show('landing'); if(recap)showPartyRecap(recap);else toast('A festa terminou. Até o próximo show! 🎤');
+      show('landing'); if(recap)showPartyRecap(recap,requestedRoom);else toast('A festa terminou. Até o próximo show! 🎤');
       return;
     }
     const found=state.songs.find(s=>s.id===data.current_song_id);
     if(state.role==='guest') setGuestNowPlaying(found||null);
   }
   async function fetchSongs() {
-    if(!state.room)return;const requestedRoom=state.room.id;
+    if(!state.room||state.emergencyBlocked)return;const requestedRoom=state.room.id,scope=tg07Scope();
     const {data,error}=await state.client.from('karaoke_songs').select('*').eq('room_id',requestedRoom)
       .in('status',['queued','playing']).order('created_at',{ascending:true}).limit(150);
-    if(state.room?.id!==requestedRoom)return;
+    if(!tg07Current(scope)||state.emergencyBlocked)return;
     if(error)throw error;
     state.songs=data||[];if(state.role==='remote')renderRemote();
     if(state.role==='guest')setGuestNowPlaying(state.songs.find(s=>s.id===state.room?.current_song_id)||null);
   }
   async function fetchMembers() {
-    if(!state.room)return;const requestedRoom=state.room.id;
+    if(!state.room||state.emergencyBlocked)return;const requestedRoom=state.room.id,scope=tg07Scope();
     const {data,error}=await state.client.from('karaoke_members').select('user_id,display_name,joined_at')
       .eq('room_id',requestedRoom).order('joined_at',{ascending:true});
-    if(state.room?.id!==requestedRoom)return;if(error)throw error;
+    if(!tg07Current(scope)||state.emergencyBlocked)return;if(error)throw error;
     state.members=data||[];refreshDuetOptions();
   }
   async function fetchScores(){
     if(!state.room)return;
-    const roomId=state.room.id,all=[];
+    if(!tg13Recreational()){tg13ScorePrivacy();return;}
+    const roomId=state.room.id,all=[],scope=tg07Scope();
     for(let offset=0;offset<30000;offset+=500){
       const {data,error}=await state.client.from('karaoke_scores').select('*').eq('room_id',roomId).order('created_at',{ascending:false}).range(offset,offset+499);
-      if(state.room?.id!==roomId)return;
+      if(state.room?.id!==roomId||!tg13Recreational()||!tg07Current(scope))return;
       if(error)throw error;
       all.push(...(data||[]));if((data||[]).length<500)break;
     }
+    if(state.room?.id!==roomId||!tg13Recreational()||!tg07Current(scope))return;
     state.scores=all;
     // D014: metadados de músicas concluídas; a pontuação continua intocada.
     state.songTitleCache=state.songTitleCache||new Map();
     const ids=[...new Set(all.map(row=>row.song_id).filter(Boolean))].filter(id=>!state.songTitleCache.has(String(id)));
     for(let start=0;start<ids.length;start+=80){
       const {data,error}=await state.client.from('karaoke_songs').select('id,title').eq('room_id',roomId).in('id',ids.slice(start,start+80));
+      if(!tg07Current(scope)||!tg13Recreational())return;
       if(!error)(data||[]).forEach(song=>state.songTitleCache.set(String(song.id),String(song.title||'Música')));
     }
     if(state.role==='host')renderStageRanking();
@@ -1434,6 +1622,7 @@
     if(state.role==='remote')renderRemote();
   }
   function renderGuestScore(){
+    if(!tg13Recreational()){tg13ScorePrivacy();return;}
     const el=$('guest-latest-score');if(!el||!state.user)return;
     const last=state.scores.find(row=>row.user_id===state.user.id&&Number.isFinite(Number(row.score)));
     el.hidden=!last;if(!last)return;
@@ -1443,6 +1632,14 @@
     $('guest-latest-score-comment').textContent=value>=85?'Diva Gogó: meu amor, que estrela!':value>=65?'Diva Gogó: você entregou espetáculo!':value>=40?'Diva Gogó: foi intenso… o refrão pediu explicações!':'Diva Gogó: o microfone pediu férias; tenta de novo!';
   }
   function memberName(userId) {const member=state.members.find(m=>m.user_id===userId);if(member)return member.display_name;if(userId===state.room?.owner_id)return userId===state.user?.id?(localStorage.getItem('tem-gogo-display-name')||'Anfitrião'):'Anfitrião';return 'Artista';}
+  let tg07SessionEpoch=0;
+  const tg07Scope=()=>({epoch:tg07SessionEpoch,room:state.room?.id,uid:state.user?.id});
+  const tg07Current=x=>!!x.room&&!!x.uid&&x.epoch===tg07SessionEpoch&&x.room===state.room?.id&&x.uid===state.user?.id;
+  function tg07Partners(partners){
+    if(!Array.isArray(partners)||partners.length>3||new Set(partners).size!==partners.length||partners.some(id=>!id||id===state.user?.id||!state.members.some(m=>m.user_id===id)))throw new Error('Os participantes mudaram. Escolha novamente quem vai cantar.');
+    if(state.room?.room_mode==='solo'&&partners.length)throw new Error('Na Carreira Solo, cante sozinho neste aparelho.');
+    return partners;
+  }
   function songSingers(song){return [...new Set([song?.user_id,...(Array.isArray(song?.group_partner_ids)&&song.group_partner_ids.length?song.group_partner_ids:[song?.duet_partner_id])].filter(Boolean))].slice(0,4);}
   function songSingerLabel(song){return songSingers(song).map(memberName).join(' + ')||'Artista';}
   function isSinger(song,uid){return Boolean(uid&&songSingers(song).includes(uid));}
@@ -1480,7 +1677,7 @@
   function chosenSingers(host){
     const prefix=host?'host':'guest';
     const mode=document.querySelector('input[name="'+prefix+'-mode"]:checked')?.value||'solo';
-    if(mode==='solo')return [];
+    if(mode==='solo'||state.room?.room_mode==='solo')return [];
     if(mode==='duet')return [preferredPartner(host)];
     const root=$(prefix+'-group-members');
     const choices=[...root.querySelectorAll('input[type="checkbox"]:checked')].map(c=>c.value);
@@ -1521,16 +1718,20 @@
     });
   }
   async function enqueueSelectedVideo(video,title,host,cardMode=null,cardPartners=null){
+    if(state.emergencyBlocked)throw Error('Palco em pausa de segurança.');
     // When chosen from the catalogue, the SAME bottom sheet already contains mode
     // and participants. No second modal can hide the Add button or selections.
+    const scope=tg07Scope();if(!tg07Current(scope))throw new Error("Entre em uma festa primeiro.");
     const partners=Array.isArray(cardPartners)?cardPartners:
       (cardMode ? (cardMode==='solo'?[]:await chooseGuestSingers(title,cardMode)) : (host?chosenSingers(true):await chooseGuestSingers(title)));
     if(partners===null)throw new Error('Seleção cancelada. A música não foi adicionada.');
     // Guest already confirmed track, format and singers in the same modal.
     if(host&&!cardMode&&!await confirmMusicSelection(title,partners))throw new Error('Escolha cancelada.');
-    if(partners.length>=2)return callRPC('karaoke_enqueue_group',{p_room:state.room.id,p_video:video,p_title:title,p_partner_ids:partners});
-    if(partners.length===1)return callRPC('karaoke_enqueue_duet',{p_room:state.room.id,p_video:video,p_title:title,p_partner:partners[0]});
-    return callRPC('karaoke_enqueue',{p_room:state.room.id,p_video:video,p_title:title});
+    if(!tg07Current(scope))throw new Error('A sala mudou. Escolha a música novamente.');
+    tg07Partners(partners);
+    if(partners.length>=2)return callRPC('karaoke_enqueue_group',{p_room:scope.room,p_video:video,p_title:title,p_partner_ids:partners});
+    if(partners.length===1)return callRPC('karaoke_enqueue_duet',{p_room:scope.room,p_video:video,p_title:title,p_partner:partners[0]});
+    return callRPC('karaoke_enqueue',{p_room:scope.room,p_video:video,p_title:title});
   }
   function renderAll(){renderQueue();renderMembers();if(state.role==='host'){renderMics();renderStageRanking();renderLiveScore();renderPreflightHost();}}
   function renderMembers(){if(state.role==='host')$('stage-count').textContent=`👥 ${state.members.length+(state.members.some(m=>m.user_id===state.room?.owner_id)?0:1)} na festa`;}
@@ -1562,6 +1763,7 @@
   }
   function isMyTurn(){return isPhoneSingerRole()&&Boolean(state.user?.id)&&state.songs.some(song=>song.status==='playing'&&isSinger(song,state.user.id));}
   function syncGuestTurn(playing){
+    if(state.emergencyBlocked)return;
     if(!isPhoneSingerRole())return;
     const mine=Boolean(playing&&isSinger(playing,state.user?.id));
     document.body.classList.toggle('tg18-singing',mine);state.guestMicLock=mine||Boolean(state.guestPreflightSong);if(mine)closeGuestCall();
@@ -1592,6 +1794,7 @@
   function drawQR() {
     const holder=$('stage-qr');holder.replaceChildren();
     const hostHolder=$('stage-host-qr');if(hostHolder)hostHolder.replaceChildren();
+    if(state.room?.room_mode==='solo')return;
     if(window.QRCode){
       new window.QRCode(holder,{text:currentURL(state.room.code),width:176,height:176,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});
       if(hostHolder){const controlUrl=new URL(currentURL(state.room.code));controlUrl.searchParams.set('remote','1');new window.QRCode(hostHolder,{text:controlUrl.href,width:176,height:176,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});}
@@ -1601,22 +1804,24 @@
   function queueChanged(){clearTimeout(state.roomReloadTimer);state.roomReloadTimer=setTimeout(()=>{void refreshRoomSnapshot();},180);}
   async function subscribeRoom(){
     if(!state.room)return;
-    const uid=state.user.id;
-    state.channel=state.client.channel(`tem-gogo-db-${state.room.id}-${uid}`);
-    state.channel
-      .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_songs',filter:`room_id=eq.${state.room.id}`},queueChanged)
-      .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_members',filter:`room_id=eq.${state.room.id}`},queueChanged)
-      .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_rooms',filter:`id=eq.${state.room.id}`},queueChanged)
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_scores',filter:`room_id=eq.${state.room.id}`},queueChanged)
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_signals',filter:`receiver_id=eq.${uid}`},payload=>receiveSignal(payload.new))
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_host_device_signals',filter:`owner_id=eq.${uid}`},payload=>receiveHostDeviceSignal(payload.new));
+    const uid=state.user.id,scope=tg07Scope();
+    const channel=state.client.channel(`tem-gogo-db-${state.room.id}-${uid}`);state.channel=channel;
+    const live=()=>tg07Current(scope)&&state.channel===channel&&!state.emergencyBlocked;
+    const onQueue=()=>{if(live())queueChanged();};
+    channel
+      .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_songs',filter:`room_id=eq.${state.room.id}`},onQueue)
+      .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_members',filter:`room_id=eq.${state.room.id}`},onQueue)
+      .on('postgres_changes',{event:'*',schema:'public',table:'karaoke_rooms',filter:`id=eq.${state.room.id}`},onQueue)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_scores',filter:`room_id=eq.${state.room.id}`},onQueue)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_signals',filter:`receiver_id=eq.${uid}`},payload=>{if(live())receiveSignal(payload.new);})
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'karaoke_host_device_signals',filter:`owner_id=eq.${uid}`},payload=>{if(live())receiveHostDeviceSignal(payload.new);});
     startSyncFallback();setSyncStatus('fallback');
     await new Promise(resolve=>{
       let resolved=false;
       const done=()=>{if(!resolved){resolved=true;resolve();}};
-      const timeout=setTimeout(()=>{state.realtimeOk=false;setSyncStatus('fallback');done();},9000);
-      state.channel.subscribe(status=>{
-        if(state.channel===null)return;
+      const timeout=setTimeout(()=>{if(live()){state.realtimeOk=false;setSyncStatus('fallback');}done();},9000);
+      channel.subscribe(status=>{
+        if(!live()){clearTimeout(timeout);done();return;}
         if(status==='SUBSCRIBED'){
           clearTimeout(timeout);state.realtimeOk=true;setSyncStatus('live');done();
           void refreshRoomSnapshot();void fetchRecentSignals();
@@ -1625,17 +1830,19 @@
         }
       });
     });
-    await fetchRecentSignals();
-    await fetchHostDeviceSignals();
+    if(!live())return;await fetchRecentSignals();
+    if(!live())return;await fetchHostDeviceSignals();
+    if(!live())return;
     if(state.role==='host'){
       state.signalCleaner=setInterval(()=>{callRPC('karaoke_clean_signals',{p_room:state.room?.id}).catch(console.warn);},180000);
     }
   }
   async function fetchRecentSignals(){
-    if(!state.room)return;
+    if(!state.room||state.emergencyBlocked)return;const scope=tg07Scope();
     const since=new Date(Date.now()-90000).toISOString();
     const {data,error}=await state.client.from('karaoke_signals').select('*').eq('receiver_id',state.user.id)
       .eq('room_id',state.room.id).gte('created_at',since).order('id',{ascending:true}).limit(70);
+    if(!tg07Current(scope)||state.emergencyBlocked)return;
     if(error){console.warn('Inbox:',error);return;}
     (data||[]).forEach(receiveSignal);
   }
@@ -1647,26 +1854,37 @@
     receiveSignal(signal);
   }
   async function fetchHostDeviceSignals(){
-    if(!state.room||!['host','remote'].includes(state.role)||state.room.owner_id!==state.user?.id)return;
+    if(state.emergencyBlocked||!state.room||!['host','remote'].includes(state.role)||state.room.owner_id!==state.user?.id)return;
+    const scope=tg07Scope();
     try{
       const {data,error}=await state.client.from('karaoke_host_device_signals').select('*')
         .eq('room_id',state.room.id).eq('owner_id',state.user.id).eq('receiver_role',state.role)
         .gte('created_at',new Date(Date.now()-95000).toISOString()).order('created_at',{ascending:true}).limit(120);
+      if(!tg07Current(scope)||state.emergencyBlocked)return;
       if(error)throw error;
       for(const item of data||[])receiveHostDeviceSignal(item);
     }catch(err){
       if(Date.now()-state.lastDevicePoll>15000){state.lastDevicePoll=Date.now();console.warn('Sincronia host/celular: ',err.message);}
     }
   }
+  // C24: a geração é escolhida pelo servidor, nunca pelo relógio do aparelho.
+  const tg24GenerationValid=g=>g===null||typeof g==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(g);
+  function tg24AcceptSignal(signal){
+    return (signal?.payload?._tg30Generation??null)===(state.emergencyGeneration??null);
+  }
   function receiveSignal(signal) {
+    if(state.emergencyBlocked||!tg24AcceptSignal(signal))return;
     if(!state.room||signal.room_id!==state.room.id)return;
     if(state.processedSignals.has(signal.id))return;
     state.processedSignals.add(signal.id);
     if(state.processedSignals.size>800) state.processedSignals.clear();
-    state.signalChain=state.signalChain.then(()=>handleSignal(signal)).catch(err=>console.warn('Sinalização:',err));
+    const scope=tg07Scope();state.signalChain=state.signalChain.then(()=>{if(tg07Current(scope)&&!state.emergencyBlocked&&tg24AcceptSignal(signal))return handleSignal(signal);}).catch(err=>console.warn('Sinalização:',err));
   }
   async function sendSignal(to,kind,payload={}) {
+    if(state.emergencyBlocked)return;
     if(!state.room||!state.user)return;
+    payload={...payload};delete payload._tg30Generation;
+    if(state.emergencyGeneration)payload._tg30Generation=state.emergencyGeneration;
     // Conta do host em TV e celular tem o MESMO UID. O banco antigo de sinais
     // não permite (ou distingue) envio para si próprio. Canal dedicado + RLS.
     if(to===state.user.id&&state.room.owner_id===state.user.id&&['host','remote'].includes(state.role)){
@@ -1685,15 +1903,18 @@
   // ----- Audio real-time: cada telefone cria uma conexão ponto a ponto com o anfitrião. -----
   function makePeer(peerId,hostSide=false) {
     const pc=new RTCPeerConnection({iceServers:cfg.ICE_SERVERS||[{urls:'stun:stun.l.google.com:19302'}]});
-    pc.onicecandidate=ev=>{if(ev.candidate)sendSignal(peerId,'candidate',ev.candidate.toJSON()).catch(console.warn);};
+    const scope=tg07Scope();
+    const current=()=>tg07Current(scope)&&!state.emergencyBlocked&&(hostSide?state.peers.get(peerId)?.pc===pc:state.localPeer===pc);
+    pc.onicecandidate=ev=>{if(current()&&ev.candidate)sendSignal(peerId,'candidate',ev.candidate.toJSON()).catch(console.warn);};
     pc.onconnectionstatechange=()=>{
+      if(!current())return;
       if(hostSide){const item=state.peers.get(peerId);if(item){item.connection=pc.connectionState;renderMics();}}
       else {updateGuestMicState(pc.connectionState);renderRemoteMic();if(['failed','closed'].includes(pc.connectionState)){state.localPeer=null;}}
     };
     if(hostSide) {
       const record={pc,analyser:null,source:null,gain:null,stream:null,connection:'connecting',level:0};
       state.peers.set(peerId,record);
-      pc.ontrack=event=>{if(event.track.kind==='audio')connectIncomingAudio(peerId,event.streams[0]||new MediaStream([event.track]));};
+      pc.ontrack=event=>{if(current()&&event.track.kind==='audio')connectIncomingAudio(peerId,event.streams[0]||new MediaStream([event.track]));};
     }
     return pc;
   }
@@ -1702,6 +1923,8 @@
     return state.context;
   }
   async function unlockSound() {
+    if(state.emergencyBlocked)return;
+    window.TG74_DIVA_STUDIO?.unlock();
     try {
       const ctx=await ensureOutputContext();await ctx.resume();
       $('start-audio').textContent='🔊 Som ativo';
@@ -1709,10 +1932,12 @@
     }catch(err){toast('O navegador bloqueou a saída de som: '+humanError(err),true);}
   }
   async function connectIncomingAudio(uid,stream) {
+    if(state.emergencyBlocked)return;
     if(state.role!=='host')return;
     const entry=state.peers.get(uid);if(!entry)return;
     try{
       const ctx=await ensureOutputContext();
+      if(state.emergencyBlocked||state.peers.get(uid)!==entry)return;
       if(entry.source){try{entry.source.disconnect();entry.analyser.disconnect();entry.gain.disconnect();}catch{}}
       const source=ctx.createMediaStreamSource(stream);
       const analyser=ctx.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=.58;
@@ -1724,24 +1949,12 @@
     }catch(err){console.error(err);toast('Não foi possível preparar o áudio remoto.',true);}
   }
   async function handleSignal(signal) {
+    if(state.emergencyBlocked)return;
     if(!state.room)return;
-    const from=signal.sender_id,data=signal.payload||{};
+    const scope=tg07Scope(),from=signal.sender_id,data=signal.payload||{};
     if(state.role==='host'){
       if(signal.kind==='host-remote'){if(from===state.room.owner_id&&signal._ownerDevice===true)await handleRemoteCommand(data,signal.created_at);return;}
-      if(signal.kind==='stage-recado'){
-        const text=typeof data.text==='string'?data.text.replace(/\s+/g,' ').trim():'';
-        const member=state.members.find(m=>m.user_id===from);
-        if(!member){try{await fetchMembers();}catch(err){console.warn('Atualização de participantes:',err);}}
-        const verifiedMember=state.members.find(m=>m.user_id===from);
-        if(!verifiedMember||text.length<3||text.length>160)return; // Only room members; never trust sender-provided names.
-        const sentAt=Number(data.sentAt)||0;
-        if(!Number.isFinite(sentAt)||Math.abs(Date.now()-sentAt)>180000)return;
-        if(pendingGuestRecados.length>=12)pendingGuestRecados.shift();
-        pendingGuestRecados.push({name:verifiedMember.display_name||'Convidado',uid:verifiedMember.user_id,text,messageId:typeof data.messageId==='string'?data.messageId:null});
-        toast('💌 Novo recado da plateia, reservado para o intervalo.');
-        if(!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden&&!recadoShowing)showNextGuestRecado();
-        return;
-      }
+      if(signal.kind==='stage-recado'){await syncPartyMessages();return;}
       if(signal.kind==='stage-profile'&&AVATARS[data.avatar]){state.avatars.set(from,data.avatar);showHostCommand();renderPreflightHost();return;}
       if(signal.kind==='stage-ready-status'&&state.preflight?.song.id===data.songId&&state.preflight.token===data.token&&isSinger(state.preflight.song,from)){
         if(AVATARS[data.avatar])state.avatars.set(from,data.avatar);
@@ -1758,6 +1971,7 @@
         await pc.setRemoteDescription(new RTCSessionDescription(data));
         await flushCandidates(from,pc);
         const answer=await pc.createAnswer();await pc.setLocalDescription(answer);
+        if(state.emergencyBlocked||!tg07Current(scope)||state.peers.get(from)?.pc!==pc){pc.close();return;}
         await sendSignal(from,'answer',pc.localDescription.toJSON());renderMics();
       } else if(signal.kind==='candidate') {
         const pc=state.peers.get(from)?.pc;
@@ -1771,10 +1985,17 @@
       } else if(signal.kind==='bye')closePeer(from);
     }else if(isPhoneSingerRole()&&from===state.room.owner_id){
       if(signal.kind==='host-remote-ack'&&state.role==='remote'){
-        if(data.id&&(state.remotePending.has(data.id)||state.remoteLatestCommandId===data.id)){
+        if(signal._ownerDevice!==true)return;
+        if(data.id&&state.remotePending.has(data.id)){
           state.remotePending.delete(data.id);
           if(state.remoteLatestCommandId===data.id){
-            $('tg18-remote-feedback').textContent=data.ok===true?'✅ TV confirmou: '+String(data.command||'comando'):'⚠ TV respondeu: '+String(data.message||'Não foi possível executar');
+            $('tg18-remote-feedback').textContent=data.ok===true?'✅ TV confirmou: '+String(data.message||'comando'):'⚠ TV respondeu: '+String(data.message||'Não foi possível executar');
+            if(data.ok===true&&data.stage){
+              for(const [id,value,max] of [['tg18-remote-playback',data.stage.playback,100],['tg18-remote-mics',data.stage.mics,200],['tg04-remote-diva',data.stage.diva,75],['tg05-remote-pop',data.stage.pop,75]]){
+                if(typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=max&&document.activeElement!==$(id))$(id).value=String(value);
+              }
+              if(THEMES.includes(data.stage.theme)&&document.activeElement!==$('tg30-remote-stage-theme'))$('tg30-remote-stage-theme').value=data.stage.theme;
+            }
           }
         }
         return;
@@ -1782,6 +2003,7 @@
       if(signal.kind==='stage-prepare'){
         if(Date.now()-Number(data.sentAt||0)>95000)return;
         if(!state.songs.some(s=>s.id===data.songId&&s.status==='queued'&&isSinger(s,state.user.id)))await fetchSongs();
+        if(state.emergencyBlocked||!tg07Current(scope))return;
         if(!state.songs.some(s=>s.id===data.songId&&s.status==='queued'&&isSinger(s,state.user.id)))return;
         if(state.guestPreflightSong?.token!==data.token)state.guestReady=false;
         state.guestPreflightSong={id:data.songId,token:data.token,title:data.title};
@@ -1802,6 +2024,7 @@
       else if(signal.kind==='score-flush'){
         // Host encerra: confirmar o último lote ANTES do placar final.
         if(state.micActivity?.songId===data.songId){
+          void tg30SendShadow(state.micActivity.tg30Shadow,true);
           await flushFinalMicReport();
           await sendSignal(state.room.owner_id,'score-ready',{
             songId:data.songId,samples:state.micActivity?.lastSentSamples||0
@@ -1823,6 +2046,7 @@
     state.peers.delete(uid);renderMics();
   }
   function openMicPermission(){
+    if(state.emergencyBlocked)return;
     if(!isPhoneSingerRole())return;
     if(!callActive()){toast('A Diva libera o microfone quando chegar sua chamada. Enquanto isso, escolha músicas!');return;}
     if(availableMic()){
@@ -1842,15 +2066,16 @@
     openMicPermission();
   }
   async function startMicrophone(){
+    if(state.emergencyBlocked)return;
     if(!state.room||!isPhoneSingerRole()||!callActive())return;
     if(!navigator.mediaDevices?.getUserMedia){toast('Microfone exige HTTPS (ou localhost) e navegador compatível.',true);return;}
-    const btn=$('mic-toggle');btn.disabled=true;
+    tg18AbortDictation();const scope=tg07Scope();const btn=$('mic-toggle');btn.disabled=true;
     try{
       // A permissão real do navegador só é solicitada após um clique explícito.
       const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false,channelCount:1},video:false});
-      if(!isPhoneSingerRole()||!state.room){stream.getTracks().forEach(t=>t.stop());return;}
+      if(state.emergencyBlocked||!tg07Current(scope)||!isPhoneSingerRole()||!callActive()||$('tg-beta-emergency')?.open){stream.getTracks().forEach(t=>t.stop());return;}
       state.localStream=stream;
-      stream.getAudioTracks().forEach(track=>track.onended=()=>{if(state.localStream)void stopMicrophone(true);});
+      stream.getAudioTracks().forEach(track=>track.onended=()=>{if(state.localStream===stream&&tg07Current(scope))void stopMicrophone(true);});
       const ctx=new (window.AudioContext||window.webkitAudioContext)();state.localAudioContext=ctx;
       const analyser=ctx.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=.65;
       const micSource=ctx.createMediaStreamSource(stream);
@@ -1861,6 +2086,7 @@
       micSource.connect(sendGain);sendGain.connect(sendDestination);
       state.micGainNode=sendGain;state.micSendStream=sendDestination.stream;
       await ctx.resume();
+      if(state.emergencyBlocked||!tg07Current(scope)||state.localStream!==stream||$('tg-beta-emergency')?.open)return;
       btn.classList.add('active');btn.setAttribute('aria-label','Desligar microfone');
       $('mic-headline').textContent=isMyTurn()?'A TV tá te esperando! 🎤':'Seu mic foi autorizado!';
       $('mic-description').textContent=isMyTurn()?'Seu som será enviado ao palco. Confira a conexão e cante!':'Teste o volume aqui. O áudio só será transmitido quando chegar sua música.';
@@ -1868,22 +2094,25 @@
       $('mic-capture-state').textContent='🎙️ Microfone ligado • fale ou cante para testar';
       $('mic-volume-title').textContent='NÍVEL DO SOM • CAPTAÇÃO LOCAL';
       if(isMyTurn()){const playing=state.songs.find(s=>s.status==='playing');if(playing)resetLocalMicActivity(playing.id);await connectMicToStage();}
+      if(!tg07Current(scope)||state.localStream!==stream)return;
       if(state.guestPreflightSong){state.guestReady=true;closeGuestCall();toast('✅ Microfone autorizado! A Diva avisou ao anfitrião que você está pronto(a).');}
       renderGuestPreflight();renderRemoteMic();void notifyPreflightGuest();
-    }catch(err){console.error(err);toast(humanError(err),true);await stopMicrophone(false);}finally{btn.disabled=false;}
+    }catch(err){if(tg07Current(scope)){console.error(err);toast(humanError(err),true);await stopMicrophone(false);}}finally{if(tg07Current(scope))btn.disabled=false;}
   }
   async function connectMicToStage(){
+    if(state.emergencyBlocked)return;
     if(!isMyTurn()||!state.localStream||state.localPeer||state.micConnecting)return;
-    state.micConnecting=true;
+    const scope=tg07Scope();state.micConnecting=true;
     try{
       updateGuestMicState('connecting');
       const pc=makePeer(state.room.owner_id,false);state.localPeer=pc;
       const output=state.micSendStream||state.localStream;
       output.getAudioTracks().forEach(track=>pc.addTrack(track,output));
       const offer=await pc.createOffer();await pc.setLocalDescription(offer);
+      if(state.emergencyBlocked||!tg07Current(scope)||state.localPeer!==pc){pc.close();return;}
       await sendSignal(state.room.owner_id,'offer',pc.localDescription.toJSON());
-    }catch(err){console.warn('Conexão de microfone:',err);try{state.localPeer?.close();}catch{}state.localPeer=null;updateGuestMicState('failed');toast('A TV não recebeu seu microfone. Verifique Wi-Fi/TURN e tente novamente.',true);}
-    finally{state.micConnecting=false;}
+    }catch(err){if(!tg07Current(scope)||state.emergencyBlocked)return;console.warn('Conexão de microfone:',err);try{state.localPeer?.close();}catch{}state.localPeer=null;updateGuestMicState('failed');toast('A TV não recebeu seu microfone. Verifique Wi-Fi/TURN e tente novamente.',true);}
+    finally{if(tg07Current(scope))state.micConnecting=false;}
   }
   function updateGuestMicState(connection){
     const badge=$('mic-status');if(!badge)return;
@@ -1904,7 +2133,8 @@
     }
   }
   async function stopMicrophone(notifyHost=true){
-    if(state.micActivity?.samples>state.micActivity?.lastSentSamples)void syncMicActivity(true);
+    if(!state.emergencyBlocked&&state.micActivity?.samples>state.micActivity?.lastSentSamples)void syncMicActivity(true);
+    if(!state.emergencyBlocked&&state.micActivity?.tg30Shadow)void tg30SendShadow(state.micActivity.tg30Shadow,true);
     if(notifyHost&&state.room&&state.user){sendSignal(state.room.owner_id,'bye').catch(console.warn);}
     try{state.localPeer?.close();}catch{}state.localPeer=null;
     state.localStream?.getTracks().forEach(track=>track.stop());state.localStream=null;
@@ -1962,10 +2192,10 @@
     }
     const audioCount=entries.filter(([_,m])=>m.connection==='connected').length;
     const cloudCount=entries.filter(([_,m])=>m.connection==='cloud').length;
-    $('active-mic-count').textContent=`${audioCount} voz(es) na TV • ${songSingers(state.currentSong).filter(id=>state.cloudMicStats.get(id)?.samples>=8).length} nota(s) sincronizada(s)`;
+    $('active-mic-count').textContent=tg13Recreational()?`${audioCount} voz(es) na TV • ${songSingers(state.currentSong).filter(id=>state.cloudMicStats.get(id)?.samples>=8).length} nota(s) sincronizada(s)`:`${audioCount} voz(es) na TV • avaliação reservada`;
     $('mic-list').innerHTML=entries.length?entries.map(([uid,record])=>{
-      const status=scoreForSinger(uid);const score=status?.score;
-      return `<div class="mic-person"><div class="mic-person-top"><span>🎙️ ${escapeHTML(memberName(uid))}</span><b>${score==null?'Aguardando sinal':score+' pts'}</b></div><div class="mic-level"><span id="meter-${uid}" style="width:${Math.min(100,record.level*800)}%"></span></div><small style="display:block;margin-top:7px;color:var(--muted);font-size:10px">${escapeHTML(record.connection==='connected'?'● Áudio ao vivo na TV':record.connection==='cloud'?'☁ Nota recebida do celular • áudio da TV sem conexão':record.connection==='failed'?'⚠ Áudio não chegou à TV':'○ Conectando...' )}</small></div>`;
+      const status=tg13Recreational()?scoreForSinger(uid):null;const score=status?.score;
+      return `<div class="mic-person"><div class="mic-person-top"><span>🎙️ ${escapeHTML(memberName(uid))}</span><b>${!tg13Recreational()?'Sinal do microfone':score==null?'Aguardando sinal':score+' pts'}</b></div><div class="mic-level"><span id="meter-${uid}" style="width:${Math.min(100,record.level*800)}%"></span></div><small style="display:block;margin-top:7px;color:var(--muted);font-size:10px">${escapeHTML(record.connection==='connected'?'● Áudio ao vivo na TV':record.connection==='cloud'?'☁ Sinal recebido do celular • áudio da TV sem conexão':record.connection==='failed'?'⚠ Áudio não chegou à TV':'○ Conectando...' )}</small></div>`;
     }).join(''):'<div class="mic-empty">Quando alguém ativar o microfone, aparece aqui. ✨</div>';
     renderLiveScore();showHostCommand();
   }
@@ -1985,9 +2215,35 @@
 
   // ---- Pontuação resiliente: relatório de atividade vocal do celular via Supabase.
   // O sinal local não substitui o som WebRTC na TV; é apenas um respaldo para a nota.
+  // Experimental profile is frozen in memory per room/song/cantor, including reconnects.
+  const tg30VoiceSnapshots=new Map();
+  function tg30ShadowFor(songId){
+    const key=[state.room?.id,state.user?.id,songId].join(':');
+    if(!tg30VoiceSnapshots.has(key)){
+      if(tg30VoiceSnapshots.size>=20)tg30VoiceSnapshots.delete(tg30VoiceSnapshots.keys().next().value);
+      const allowed=tg13Recreational()&&window.TG30VoiceUI?.enabled()&&['classic','solo'].includes(state.room?.room_mode)&&window.TG30VoiceShadow;
+      let a=null;
+      try{if(allowed&&typeof crypto.randomUUID==='function')a=window.TG30VoiceShadow.make(window.TG30VoiceUI.current(),crypto.randomUUID());}catch{/* Optional experiment never blocks official mic. */}
+      if(a){a.roomId=state.room.id;a.songId=songId;a.uid=state.user.id;}
+      tg30VoiceSnapshots.set(key,a);
+    }
+    return tg30VoiceSnapshots.get(key);
+  }
+  function tg30ShadowAllowed(a){return tg13Recreational()&&!!a&&!a.disabled&&window.TG30VoiceUI?.enabled()&&state.room?.id===a.roomId&&state.user?.id===a.uid;}
+  async function tg30SendShadow(a,force=false){
+    if(state.emergencyBlocked)return false;
+    if(!tg30ShadowAllowed(a))return false;
+    try{return await window.TG30VoiceShadow.sync(a,p=>callRPC('tg30_voice_shadow_report',{p_room:a.roomId,p_song:a.songId,...p}),performance.now(),force);}catch{return false;}
+  }
+  function tg30CollectShadow(a,analyser,rate,now){
+    if(!tg30ShadowAllowed(a))return;
+    try{if(window.TG30VoiceShadow.sample(a,analyser,rate,now))void tg30SendShadow(a);}catch{/* preserve V1 */}
+  }
+  function tg30RevokeShadow(){for(const a of tg30VoiceSnapshots.values())if(a)a.disabled=true;}
   function resetLocalMicActivity(songId){
     state.micActivity={songId, samples:0,vocalSamples:0,intensitySum:0,
-      lastSampleAt:0,lastSentSamples:0,lastSyncAt:0,lastAttemptAt:0};
+      lastSampleAt:0,lastSentSamples:0,lastSyncAt:0,lastAttemptAt:0,
+      tg30Shadow:tg30ShadowFor(songId)};
   }
   function collectLocalMicActivity(rms){
     if(!isPhoneSingerRole()||!state.localStream||!isMyTurn())return;
@@ -1997,25 +2253,25 @@
     if(now-a.lastSampleAt<250)return;
     a.lastSampleAt=now;
     a.samples++;
+    tg30CollectShadow(a.tg30Shadow,state.localAnalyzer,state.localAudioContext?.sampleRate,now);
     if(rms>.012){a.vocalSamples++;a.intensitySum+=Math.round(Math.min(1,(rms-.012)/.085)*1000);}
     if(now-a.lastAttemptAt>2300&&a.samples>a.lastSentSamples)void syncMicActivity();
   }
   async function syncMicActivity(force=false){
+    if(state.emergencyBlocked)return;
     const a=state.micActivity;
     if(!a||!state.room||!isPhoneSingerRole()||state.micActivitySyncing||a.samples<=a.lastSentSamples)return;
     const now=performance.now();if(!force&&now-a.lastAttemptAt<2100)return;
     a.lastAttemptAt=now;state.micActivitySyncing=true;
     try{
-      const saved=await callRPC('karaoke_report_mic_activity',{
-        p_room:state.room.id,p_song:a.songId,p_samples:a.samples,
-        p_vocal_samples:a.vocalSamples,p_intensity_sum:a.intensitySum
-      });
-      if(saved){a.lastSentSamples=a.samples;a.lastSyncAt=Date.now();
+      const sent={p_room:state.room.id,p_song:a.songId,p_samples:a.samples,p_vocal_samples:a.vocalSamples,p_intensity_sum:a.intensitySum};
+      const saved=await callRPC('karaoke_report_mic_activity',sent);
+      if(saved&&!state.emergencyBlocked&&state.micActivity===a){a.lastSentSamples=sent.p_samples;a.lastSyncAt=Date.now();
         const label=$('mic-score-sync');if(label)label.textContent='✅ Dados do microfone enviados • aguardando placar do palco';
       }
     }catch(err){
       console.warn('Não foi possível sincronizar os dados de pontuação:',err.message);
-      const label=$('mic-score-sync');if(label)label.textContent='⚠ Pontuação sem sincronização. Confira a internet ou atualize o banco.';
+      const label=$('mic-score-sync');if(!state.emergencyBlocked&&state.micActivity===a&&label)label.textContent='⚠ Pontuação sem sincronização. Confira a internet ou atualize o banco.';
     }finally{state.micActivitySyncing=false;}
   }
   async function flushFinalMicReport(){
@@ -2106,6 +2362,7 @@
     $('video-error-text').textContent=message;
     if(!$('video-error-dialog').open)$('video-error-dialog').showModal();
     toast('Vídeo bloqueado. Escolha outra versão ou pule sem pontuar.',true);
+    if(state.failedVideoSong?.id&&tg13Recreational())void window.TG74_DIVA_STUDIO?.announce('video_indisponivel','video:'+state.room.id+':'+state.failedVideoSong.id);
   }
   async function skipFailedVideo(){
     $('video-error-dialog').close();
@@ -2121,22 +2378,32 @@
     }
     state.failedVideoSong=null;
   }
-  async function ensurePlayer(id) {
-    await loadYouTubeAPI();
+  function tg25DiscardPlayer(){
+    const old=state.player;state.player=null;state.playerReady=false;state.playerSongId=null;
+    try{old?.mute();}catch{}try{old?.destroy();}catch{}
+    const frame=$('video-frame');if(frame){$('youtube-player')?.remove();const node=document.createElement('div');node.id='youtube-player';node.className='youtube-player';frame.prepend(node);}
+  }
+  async function ensurePlayer(id,songId) {
+    const scope=tg07Scope();await loadYouTubeAPI();
+    if(state.emergencyBlocked||!tg07Current(scope)||state.currentSong?.id!==songId)throw Error('Palco suspenso ou apresentação alterada.');
+    if(state.playerSongId!==songId)tg25DiscardPlayer();
+    state.playerSongId=songId;
     if(state.playerReady&&state.player)return state.player;
-    if(state.player)return new Promise(resolve=>{const it=setInterval(()=>{if(state.playerReady){clearInterval(it);resolve(state.player);}},50);});
+    if(state.player)return new Promise((resolve,reject)=>{const start=Date.now();const it=setInterval(()=>{if(state.emergencyBlocked||!tg07Current(scope)||state.currentSong?.id!==songId||state.playerSongId!==songId||Date.now()-start>14000){clearInterval(it);reject(Error('Player indisponível ou sessão alterada.'));}else if(state.playerReady){clearInterval(it);resolve(state.player);}},50);});
     return new Promise((resolve,reject)=>{
-      const timeout=setTimeout(()=>reject(new Error('O player de vídeo não carregou.')),14000);
+      const valid=e=>!state.emergencyBlocked&&tg07Current(scope)&&state.currentSong?.id===songId&&state.playerSongId===songId&&e.target===state.player;
+      const timeout=setTimeout(()=>{if(state.playerSongId===songId&&tg07Current(scope))tg25DiscardPlayer();reject(new Error('O player de vídeo não carregou.'));},14000);
       state.player=new window.YT.Player('youtube-player',{
         videoId:id,playerVars:{playsinline:1,controls:1,rel:0,origin:location.origin,cc_load_policy:0},
-        events:{onReady:e=>{clearTimeout(timeout);state.playerReady=true;try{e.target.setVolume(state.playbackVolume);}catch{}resolve(e.target);},onStateChange:onPlayerState,
-          onError:e=>{const codes={2:'Link inválido.',5:'Este vídeo não pôde ser reproduzido no player.',100:'Vídeo removido ou privado.',101:'O dono ou detentor dos direitos bloqueou a incorporação.',150:'O dono ou detentor dos direitos bloqueou a incorporação.'};showVideoError(codes[e.data]||'O YouTube recusou este vídeo.');},
-          onAutoplayBlocked:()=>toast('O navegador bloqueou o início automático. Clique em “Reproduzir”.')}
+        events:{onReady:e=>{clearTimeout(timeout);if(!valid(e)){try{e.target.mute();e.target.destroy();}catch{}reject(Error('Palco suspenso ou apresentação alterada.'));return;}state.playerReady=true;try{e.target.setVolume(state.playbackVolume);}catch{}resolve(e.target);},onStateChange:e=>{if(valid(e))onPlayerState(e);},
+          onError:e=>{if(!valid(e))return;const codes={2:'Link inválido.',5:'Este vídeo não pôde ser reproduzido no player.',100:'Vídeo removido ou privado.',101:'O dono ou detentor dos direitos bloqueou a incorporação.',150:'O dono ou detentor dos direitos bloqueou a incorporação.'};showVideoError(codes[e.data]||'O YouTube recusou este vídeo.');},
+          onAutoplayBlocked:e=>{if(valid(e))toast('O navegador bloqueou o início automático. Clique em “Reproduzir”.');}}
       });
     });
   }
   function onPlayerState(event) {
     if(state.role!=='host')return;
+    if(state.emergencyBlocked||event.target!==state.player||!state.currentSong||state.playerSongId!==state.currentSong.id){try{event.target?.mute();}catch{}return;}
     state.isPlaying=event.data===window.YT.PlayerState.PLAYING;
     if(!state.isPlaying && state.playMetrics){state.playMetrics.lastPosition=null;state.playMetrics.lastWall=0;}
     if(state.isPlaying && $('video-error-dialog').open)$('video-error-dialog').close();
@@ -2151,30 +2418,43 @@
     $('video-placeholder').hidden=!!song;setDivaStageState(song?'playing':(state.preflight?'preflight':'idle'));
   }
   async function startSong(song) {
-    window.TG74_DIVA_STUDIO?.stop();
-
+    if(state.emergencyBlocked)return;
     if(!song||state.role!=='host'||state.finishing)return;
+    const scope=tg07Scope(),generation=state.emergencyGeneration??null;
+    if(state.startingSong)return;
+    const startTicket={};state.startingSong=startTicket;window.TG74_DIVA_STUDIO?.stop();
     try {
       // Valide ANTES de remover a música anterior da tela ou marcar a nova como em reprodução.
       let playable=null;
       try{playable=await checkVideoAvailability(song.video_id);}
       catch(err){toast('Não foi possível pré-verificar o YouTube. Vou tentar reproduzir normalmente; se falhar, trocamos o vídeo.',true);}
+      if(state.emergencyBlocked||!tg07Current(scope))return;
       if(playable===false){showVideoError('Este vídeo não está liberado para reprodução incorporada no Brasil. Escolha outra versão.',song);return;}
-      if(state.currentSong)await finishSong(true,false);
-      await callRPC('karaoke_start_song',{p_room:state.room.id,p_song:song.id});
+      if(state.currentSong){await finishSong(true,false);if(state.currentSong||!tg07Current(scope)||state.emergencyBlocked)return;}
+      window.TG74_DIVA_STUDIO?.stop();
+      const startRoom=state.room?.id,startUid=state.user?.id;await fetchRoom();
+      if(state.emergencyBlocked||!tg07Current(scope))return;
+      if(!state.room||state.room.id!==startRoom||state.user?.id!==startUid||typeof state.room.tg30_battle_reserved!=='boolean')throw Error('Não foi possível confirmar a modalidade da sala.');
+      if(state.room.current_song_id)throw Error('Já existe uma apresentação ativa no servidor.');
+      await callRPC('tg30_start_song_bound',{p_room:scope.room,p_song:song.id,p_generation:generation});
+      if(state.emergencyBlocked||!tg07Current(scope))return;
+      window.TG74_DIVA_STUDIO?.stop();
       state.currentSong={...song,status:'playing'};state.room.current_song_id=song.id;
       hideGuestRecado();
       resetSongMetrics();state.playMetrics={songId:song.id, played:0, lastPosition:null, lastWall:0, duration:0, sent:false, sending:false};setNowPlaying(song);hideFinal();updateVoxLine('singing');
       if('speechSynthesis' in window)try{window.speechSynthesis.cancel();}catch{}
-      const player=await ensurePlayer(song.video_id);
+      const player=await ensurePlayer(song.video_id,song.id);
+      if(state.emergencyBlocked||!tg07Current(scope)||state.currentSong?.id!==song.id||state.player!==player)return;
       player.setVolume(state.playbackVolume);player.loadVideoById(song.video_id);renderMics();queueChanged();
-    }catch(err){toast('Não foi possível tocar: '+humanError(err),true);}
+    }catch(err){if(tg07Current(scope)&&!state.emergencyBlocked)toast('Não foi possível tocar: '+humanError(err),true);}
+    finally{if(state.startingSong===startTicket)state.startingSong=null;}
   }
   async function resumeExistingSong(){
+    if(state.emergencyBlocked)return;
     const song=state.songs.find(s=>s.id===state.room?.current_song_id);
     if(!song)return;
     state.currentSong=song;setNowPlaying(song);resetSongMetrics();state.playMetrics={songId:song.id,played:0,lastPosition:null,lastWall:0,duration:0,sent:false,sending:false};
-    try {const player=await ensurePlayer(song.video_id);player.cueVideoById(song.video_id);toast('Música recuperada. Clique em Reproduzir para continuar.');}
+    const scope=tg07Scope();try {const player=await ensurePlayer(song.video_id,song.id);if(state.emergencyBlocked||!tg07Current(scope)||state.currentSong?.id!==song.id||state.player!==player)return;player.cueVideoById(song.video_id);toast('Música recuperada. Clique em Reproduzir para continuar.');}
     catch(err){toast(humanError(err),true);}
   }
   function tgBetaStageAvatars(singers,mode){
@@ -2195,6 +2475,7 @@
     }).filter(Boolean);
   }
   function showPerformanceResults(results,singers){
+    if(!tg13Recreational()){tg13ScorePrivacy();return;}
     if(!results.length){
       clearGif();$('final-overlay').hidden=false;setDivaStageState('result');$('tg192-result-tier').textContent='SEM DADOS DE MICROFONE';$('final-overlay').dataset.verdict='missing';
       $('final-meme').textContent='';$('final-person').textContent=singers.map(memberName).join(' + ')||'Artista';
@@ -2297,6 +2578,7 @@
     }catch(err){console.warn('GIPHY indisponível; usando meme local:',err.message);}
   }
   function showFinal(result){
+    if(!tg13Recreational()){tg13ScorePrivacy();return;}
     const value=Math.max(0,Math.min(100,Math.round(Number(result?.score)||0)));
     const meme=selectedMeme(value);
     const verdict=value<40?'A DIVA NÃO PERDOOU':value<60?'A DIVA QUER BIS (COM ENSAIO)':value<80?'A DIVA APROVOU':value<95?'A DIVA APLAUDIU DE PÉ':'A DIVA COROOU';
@@ -2311,56 +2593,82 @@
     $('final-stars').setAttribute('aria-label',`${stars} de cinco estrelas`);
     $('final-caption').textContent=chooseDifferent((value<40?meme[state.humorMode]||meme.debochado:EXTRA_MEMES[state.humorMode]||meme[state.humorMode]||meme.debochado));
     $('final-overlay').hidden=false;setDivaStageState('result');
-    updateVoxLine('ending');
     if(value>=60)confetti();
     const token=state.reactionToken;
     void fetchReactionGIF(meme.query,token);
   }
   function hideFinal(){clearTimeout(state.scoreOverlayTimer);clearTimeout(window.__tg123PostScoreTimer);if($('tg123-post-score'))$('tg123-post-score').hidden=true;clearGif();$('final-overlay').hidden=true;}
   async function finishSong(skipped=false,showResults=true){
+    if(state.emergencyBlocked)return;
     if(!state.currentSong||state.finishing)return;
+    const completedRoom=state.room?.id,completedSong=state.currentSong.id,finishScope=tg07Scope(),generation=state.emergencyGeneration??null;
     state.finishing=true;
     try {
-      if(!skipped){showDivaBubble('Segura o glitter, que eu estou conferindo o placar desta cantoria!','🏆');await fetchMembers();await awaitSingersLastMicReport(state.currentSong);}
+      if(!skipped&&state.soloMic?.songId===completedSong)void tg30SendShadow(state.soloMic.tg30Shadow,true);
+      if(!skipped){showDivaBubble('Segura o glitter, que eu estou conferindo o placar desta cantoria!','🏆');await fetchMembers();if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;await awaitSingersLastMicReport(state.currentSong);}
+      if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
       const singers=songSingers(state.currentSong);
       const results=skipped?[]:getScoreResults();
-      await callRPC('karaoke_finish_song',{p_room:state.room.id,p_skipped:skipped,p_results:results});
-      state.isPlaying=false;
-      if(!skipped){try{await fetchScores();}catch(e){console.warn('Atualização do ranking:',e);}}
+      await callRPC('tg30_finish_song_bound',{p_room:completedRoom,p_song:completedSong,p_generation:generation,p_skipped:skipped,p_results:results});
+      if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
+      state.isPlaying=false;let verifiedScores=false;
+      if(!skipped){try{await fetchScores();verifiedScores=tg07Current(finishScope);}catch(e){console.warn('Atualização do ranking:',e);}}
+      if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
       if(skipped){try{state.player?.stopVideo();}catch{}}
       state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;
       // D001: pontuação registrada ANTES de liberar o microfone solo.
       if(state.soloMic)stopSoloMic();
       // Privacidade: feche os microfones ao fim do show.
       for(const uid of [...state.peers.keys()]){void sendSignal(uid,'bye').catch(console.warn);closePeer(uid);}
-      if(!skipped&&showResults){
+      if(!skipped&&showResults&&!tg13Recreational()){
+        tg13ScorePrivacy();setNowPlaying(null);showDivaBubble('Apresentação concluída. Consulte o festival para a apuração.','🎤');
+      }
+      if(!skipped&&showResults&&tg13Recreational()){
         // A tela cheia da central permanece: a pontuação faz parte da experiência completa.
+        updateVoxLine('ending');
+        const studio=window.TG74_DIVA_STUDIO;
+        const eventKey=completedRoom+':'+completedSong;
+        const decision=verifiedScores?window.TG30DivaResult?.decide(completedSong,singers,results,state.scores):null;
+        if(studio&&decision){
+          const spoken=await studio.announce(decision.event,'resultado:'+eventKey,completedSong);
+          if(!spoken&&decision.count&&tg07Current(finishScope)&&!state.emergencyBlocked&&!state.currentSong&&!state.preflight)await studio.pop('suspense','suspense:'+eventKey);
+        }
+        if(!tg07Current(finishScope)||state.emergencyBlocked||state.role!=='host'||!tg13Recreational()||state.currentSong||state.preflight)return;
         showPerformanceResults(results,singers);
+        if(decision?.count&&studio){
+          void (async()=>{const spoken=decision.praise&&await studio.announce('elogio','elogio:'+eventKey,completedSong);if(!spoken&&tg07Current(finishScope)&&!state.emergencyBlocked&&!state.currentSong&&!state.preflight)await studio.pop('palmas','palmas:'+eventKey);})();
+        }
         // Nota permanece visível; painel de próximas ações aparece depois, sem avançar sozinho.
         const nextMenu=$('tg123-post-score');if(nextMenu)nextMenu.hidden=true;
         state.scoreOverlayTimer=setTimeout(()=>{
-          if(state.role!=='host'||$('final-overlay')?.hidden)return;
+          if(!tg07Current(finishScope)||state.role!=='host'||$('final-overlay')?.hidden)return;
           hideFinal();setNowPlaying(null);if(nextMenu){nextMenu.hidden=false;clearTimeout(window.__tg123PostScoreTimer);window.__tg123PostScoreTimer=setTimeout(()=>{nextMenu.hidden=true;},12000);}
         },16500);
       }
       $('play-pause').textContent='▶ Reproduzir';queueChanged();
-    }catch(err){toast('Falha ao finalizar música: '+humanError(err),true);}
-    finally{state.finishing=false;}
+    }catch(err){if(tg07Current(finishScope))toast('Falha ao finalizar música: '+humanError(err),true);}
+    finally{if(tg07Current(finishScope))state.finishing=false;}
   }
   async function advanceSong(){
+    if(state.emergencyBlocked)return;
+    if(state.finishing){toast('A Diva está concluindo a apresentação.');return;}
+    const scope=tg07Scope();
+    window.TG74_DIVA_STUDIO?.stop();
     if(document.body.classList.contains('tg104-single-device') && state.currentSong && !await window.TG_UI.confirm('Pular esta apresentação? O microfone será desligado após finalizar o registro da música.',{title:'Pular música',confirmText:'Pular apresentação',danger:true}))return;
+    if(state.emergencyBlocked||!tg07Current(scope))return;
     if($('tg123-post-score'))$('tg123-post-score').hidden=true;
     hideFinal();
-    if(state.currentSong)await finishSong(true,false);
+    if(state.currentSong){await finishSong(true,false);if(state.currentSong||state.emergencyBlocked||!tg07Current(scope))return;}
     if(state.role==='host'&&pendingGuestRecados.length){
       if(showNextGuestRecado(()=>advanceSong()))return;
     }
-    await fetchSongs();renderQueue();
+    await fetchSongs();if(state.emergencyBlocked||!tg07Current(scope))return;renderQueue();
     const next=state.songs.find(s=>s.status==='queued');
     if(next){updateVoxLine('queue');await prepareSong(next);}
     else {setNowPlaying(null);toast('A fila acabou! Hora de escolher outro hit. 🎶');}
   }
   async function togglePlayback(){
+    if(state.emergencyBlocked)return;
     if(!state.currentSong){await advanceSong();return;}
     if(!state.playerReady){toast('O vídeo ainda está carregando.',true);return;}
     if(state.isPlaying)state.player.pauseVideo();else state.player.playVideo();
@@ -2368,6 +2676,7 @@
   // Biblioteca colaborativa: somente tempo REAL tocando. Saltos/seek, pausas e buffering
   // não aumentam o contador. Cada instância de música entra no histórico no máximo 1 vez.
   async function recordQualifyingPlayback(metrics){
+    if(state.emergencyBlocked)return;
     if(!state.room || !state.currentSong || state.currentSong.id!==metrics.songId || metrics.sent || metrics.sending)return;
     metrics.sending=true;
     try{
@@ -2408,18 +2717,22 @@
 
   // ----- Fila de músicas e busca opcional pela API oficial do YouTube. -----
   async function enqueue(form,host){
+    if(state.emergencyBlocked)return;
     if(!checkBackend()||!state.room)return;
     const input=$(host?'host-url':'guest-video-url');
     const title=$(host?'host-song-title':'guest-song-title');
+    const scope=tg07Scope();
     const video=youtubeId(input.value);
     if(!video){toast('Cole um link válido de vídeo do YouTube.',true);return;}
-    const button=form.querySelector('[type=submit]');setLoading(button,true,'Entrando na fila...');
+    const button=form.querySelector('[type=submit]');if(button.disabled)return;setLoading(button,true,'Entrando na fila...');
     try{
       let playable=null;
       try{playable=await checkVideoAvailability(video);}
       catch{toast('Não consegui verificar o link agora. Vou adicioná-lo, mas pode haver restrição de reprodução.',true);}
       if(playable===false)throw new Error('Este link não permite reprodução incorporada no Brasil. Procure outra versão.');
+      if(!tg07Current(scope))return;
       await enqueueSelectedVideo(video,title.value.trim(),host);
+      if(!tg07Current(scope))return;
       input.value='';title.value='';await fetchSongs();renderQueue();
       if(host && $('song-dialog').open)$('song-dialog').close();
       toast('Música adicionada! Agora é só ensaiar o refrão. 🎶');
@@ -2464,41 +2777,44 @@ function matchesMusic(item,query){
 }
 function catalogResults(query='',filter='all'){
   const records=state.catalog.filter(song=>(filter==='played'?Number(song.plays)>0:
-    filter==='suggested'?Number(song.plays)===0:true)&&matchesMusic(song,query));
+    filter==='suggested'?Number(song.plays)===0:filter.startsWith('genre:')?song.genre===filter.slice(6):true)&&matchesMusic(song,query));
   return records.sort((a,b)=>Number(b.plays)-Number(a.plays)||a.title.localeCompare(b.title,'pt-BR'));
 }
 async function loadCatalog(force=false){
   if(!state.client||!state.room)return [];
-  if(state.catalogLoading)return state.catalogLoading;
+  if(state.catalogLoading){try{return await state.catalogLoading;}catch{return state.catalog;}}
   if(!force&&Date.now()-state.catalogFetchedAt<180000)return state.catalog;
-  const roomId=state.room.id;
+  const scope=tg07Scope();
   const task=(async()=>{
-    const loaded=[],batch=200,maxRecords=5000;
+    const loaded=new Map(),batch=200,maxRecords=50000;let complete=false,genres=[],genreUnavailable=false;
     for(let offset=0;offset<maxRecords;offset+=batch){
       const {data,error}=await state.client.from('tg_official_catalog')
         .select('video_id,title,plays,last_qualified_play')
-        .order('plays',{ascending:false}).order('last_qualified_play',{ascending:false})
+        .order('plays',{ascending:false}).order('last_qualified_play',{ascending:false}).order('video_id',{ascending:true})
         .range(offset,offset+batch-1);
       if(error)throw error;
-      const rows=(data||[]).filter(x=>youtubeId(x.video_id));
-      loaded.push(...rows.filter(x=>x.approved!==false));
-      if((data||[]).length<batch)break;
+      if(!tg07Current(scope))return [];
+      let classified={};if(typeof state.client.rpc==='function'&&!genreUnavailable){try{const result=await state.client.rpc('tg30_music_genres',{p_ids:(data||[]).map(r=>r.video_id)});if(result.error||!Array.isArray(result.data?.genres))throw Error('Categorias indisponíveis');genres=result.data.genres;classified=result.data.classified||{};}catch{genreUnavailable=true;}}
+      if(!tg07Current(scope))return [];
+      for(const row of data||[]){const id=youtubeId(row.video_id);if(id&&row.approved!==false&&!loaded.has(id))loaded.set(id,{...row,genre:classified[id]||null});}
+      if((data||[]).length<batch){complete=true;break;}
     }
-    if(!state.room||state.room.id!==roomId)return [];
-    state.catalog=loaded;
+    if(!tg07Current(scope))return [];
+    state.catalog=[...loaded.values()];state.catalogIncomplete=!complete;state.catalogGenres=genreUnavailable?[]:genres;state.catalogGenreUnavailable=genreUnavailable;const genreFilter=$('catalog-filter');if(genreFilter){for(const opt of [...genreFilter.options])if(opt.value.startsWith('genre:'))opt.remove();for(const g of state.catalogGenres){const opt=document.createElement('option');opt.value='genre:'+g.code;opt.textContent=g.label;genreFilter.append(opt);}if([...genreFilter.options].some(o=>o.value===state.catalogFilter))genreFilter.value=state.catalogFilter;else{state.catalogFilter='all';genreFilter.value='all';}}
     state.catalogError=null;
     state.catalogFetchedAt=Date.now();
     renderCatalog();
     if($('catalog-dialog')?.open)renderFullCatalog();
-    return loaded;
+    return state.catalog;
   })();
   state.catalogLoading=task;
   try{return await task;}
   catch(err){
+    if(!tg07Current(scope))return [];
     state.catalogError=err;
     console.warn('Falha ao ler o catálogo do Supabase:',err.message);
     if(!state.catalog.length)document.querySelectorAll('.hit-library-list').forEach(el=>{
-      el.textContent='Biblioteca oficial indisponível. Verifique a migration 023 e a conexão.';
+      el.textContent='Biblioteca indisponível. Confira sua conexão e tente novamente.';
     });
     return state.catalog;
   }finally{if(state.catalogLoading===task)state.catalogLoading=null;}
@@ -2506,9 +2822,10 @@ async function loadCatalog(force=false){
 async function queryLocalCatalog(query){
   await loadCatalog();
   if(state.catalog.length||!state.catalogError)return catalogResults(query).slice(0,40);
-  throw new Error('A Biblioteca oficial não está disponível. Confira a migration 023.');
+  throw new Error('A biblioteca está indisponível. Tente novamente.');
 }
 function catalogCard(item,host){
+  const scope=tg07Scope();
   const videoId=youtubeId(item.video_id);
   if(!videoId)return null;
   const card=document.createElement('article');card.className='history-song-card tg123-track';
@@ -2516,7 +2833,7 @@ function catalogCard(item,host){
   const info=document.createElement('div');info.className='history-song-info';
   const title=document.createElement('strong');title.textContent=item.title;
   const tiny=document.createElement('small');tiny.textContent=item.source_kind==='external'?'🔎 Sugestão externa · reprodução sujeita ao YouTube':Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões)`:'📚 Música do catálogo';
-  info.append(title,tiny);
+  info.append(title,tiny);const genre=(state.catalogGenres||[]).find(g=>g.code===item.genre);if(genre){const label=document.createElement('small');label.textContent='Gênero: '+genre.label;info.append(label);}if(item.source_kind!=='external'&&state.user&&!isAnonymous(state.user)&&(state.catalogGenres||[]).length){const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Sugerir gênero musical';const select=document.createElement('select');select.setAttribute('aria-label','Gênero musical sugerido');for(const g of state.catalogGenres){const opt=document.createElement('option');opt.value=g.code;opt.textContent=g.label;select.append(opt);}const send=document.createElement('button');send.type='button';send.textContent='Enviar à curadoria';send.className='tg124-suggest';send.addEventListener('click',async()=>{if(send.disabled||!tg07Current(scope))return;send.disabled=true;try{const {data,error}=await state.client.rpc('tg30_music_suggest',{p_video:videoId,p_genre:select.value});if(error||data!==true)throw error||Error('Não confirmado');if(tg07Current(scope))toast('Sugestão de gênero enviada à Central.');}catch{if(tg07Current(scope))toast('Não foi possível enviar. Aguarde alguns segundos e tente novamente.',true);}finally{send.disabled=false;}});details.append(summary,select,send);info.append(details);}
   if(item.source_kind!=='external'){const suggest=document.createElement('button');suggest.type='button';suggest.className='tg124-suggest';suggest.textContent='✎ Sugerir título';suggest.dataset.tg124Suggest=videoId;suggest.dataset.originalTitle=item.title;info.append(suggest);}
   const toggle=document.createElement('button');toggle.type='button';toggle.className='tg123-track-toggle';
   toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent='+ FILA';
@@ -2541,7 +2858,8 @@ function catalogCard(item,host){
       const title=document.createElement('span');title.textContent=member.display_name||'Participante';label.append(input,photo,title);people.append(label);
     }
   }
-  for(const [mode,label] of [['solo','🎤 Solo'],['duet','🎤🎤 Dueto'],['group','👥 Grupo']]){
+  const formats=state.room?.room_mode==='solo'?[['solo','🎤 Solo']]:[['solo','🎤 Solo'],['duet','🎤🎤 Dueto'],['group','👥 Grupo']];
+  for(const [mode,label] of formats){
     const option=document.createElement('button');option.type='button';option.className='tg123-mode';option.textContent=label;option.dataset.mode=mode;option.setAttribute('aria-pressed',String(mode==='solo'));
     option.addEventListener('click',()=>{chosen=mode;
       for(const b of modes.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b===option));
@@ -2553,6 +2871,7 @@ function catalogCard(item,host){
   const add=document.createElement('button');add.type='button';add.className='button button-primary tg123-track-add';add.textContent='Confirmar solo na fila';
   add.setAttribute('aria-label','Confirmar '+item.title+' na fila');
   add.addEventListener('click',()=>{
+    if(!tg07Current(scope)){toast('A sala mudou. Abra o catálogo novamente.',true);return;}
     const selected=Array.from(people.querySelectorAll('input:checked')).map(i=>i.value);
     if(chosen==='duet'&&selected.length!==1){toast('Selecione uma pessoa para o dueto.',true);return;}
     if(chosen==='group'&&(selected.length<2||selected.length>3)){toast('Escolha 2 ou 3 pessoas além de você para o grupo.',true);return;}
@@ -2561,6 +2880,7 @@ function catalogCard(item,host){
   });
   expanded.append(hint,modes,partnerBox,add);
   toggle.addEventListener('click',()=>{
+    if(!tg07Current(scope)){toast('A sala mudou. Abra o catálogo novamente.',true);return;}
     const opening=expanded.hidden;
     document.querySelectorAll('.tg123-track-choice:not([hidden])').forEach(el=>{if(el!==expanded){el.hidden=true;el.closest('.tg123-track')?.querySelector('.tg123-track-toggle')?.setAttribute('aria-expanded','false');}});
     expanded.hidden=!opening;toggle.setAttribute('aria-expanded',String(opening));
@@ -2583,7 +2903,7 @@ function renderCatalog(){
   for(const [id,host] of groups){
     const holder=$(id);if(!holder)continue;
     holder.replaceChildren();
-    if(!state.catalog.length){holder.textContent='Catálogo ainda vazio. O primeiro hit pode ser seu! 🎤';continue;}
+    if(!state.catalog.length){holder.textContent=state.catalogError?'Catálogo indisponível. Abra o catálogo para tentar novamente.':'Catálogo ainda vazio. O primeiro hit pode ser seu! 🎤';continue;}
     state.catalog.slice(0,host?4:6).forEach(item=>{const card=catalogCard(item,host);if(card)holder.append(card);});
   }
   document.querySelectorAll('[data-catalog-open]').forEach(btn=>{
@@ -2595,16 +2915,17 @@ async function openFullCatalog(){
   if($('song-dialog')?.open)$('song-dialog').close();
   state.catalogPage=1;state.catalogQuery='';state.catalogFilter='all';
   $('catalog-search').value='';$('catalog-filter').value='all';
+  $('tg07-external-query').value='';$('tg07-external-results').replaceChildren();$('tg07-link').value='';$('tg07-link-title').value='';
   $('catalog-dialog').showModal();
   $('catalog-list').textContent='Abrindo a biblioteca do povo... 🎶';
-  await loadCatalog();renderFullCatalog();
+  const scope=tg07Scope();await loadCatalog();if(!tg07Current(scope)||!$('catalog-dialog').open)return;renderFullCatalog();
   $('catalog-search').focus({preventScroll:true});
 }
 function renderFullCatalog(){
   if(!$('catalog-dialog')?.open)return;
   const items=catalogResults(state.catalogQuery,state.catalogFilter);
   const total=state.catalog.length;
-  $('catalog-total').textContent=`${items.length} de ${total} música(s) do acervo${state.catalogQuery?' para sua busca':''}`;
+  $('catalog-total').textContent=`${items.length} de ${total} música(s) do acervo${state.catalogQuery?' para sua busca':''}${state.catalogGenreUnavailable?' · classificação musical indisponível':state.catalogError?' · última consulta falhou; dados anteriores':state.catalogIncomplete?' · limite de leitura atingido; acervo parcial':''}`;
   const list=$('catalog-list');list.replaceChildren();
   if(!items.length){
     const note=document.createElement('p');note.className='catalog-no-results';
@@ -2648,13 +2969,17 @@ function renderFullCatalog(){
     tg123SuccessTimer=setTimeout(hide,4800);
   }
   async function addSearchedVideo(item,host,button,results,cardMode=null,cardPartners=null) {
+    if(button.disabled)return;
+    const scope=tg07Scope();
     if(!state.room || !state.client){toast('Entre numa festa antes de adicionar músicas.',true);return;}
     if(!youtubeId(item.id)){toast('Vídeo indisponível. Escolha outro.',true);return;}
     setLoading(button,true,'Entrando na fila...');
     try {
       await enqueueSelectedVideo(item.id,item.title.slice(0,120),host,cardMode,cardPartners);
+      if(!tg07Current(scope))return;
       // Confirmação de sucesso apenas depois do RPC; falha de refresh não desfaz a gravação.
       try{await fetchSongs();renderQueue();}catch(err){console.warn('Fila salva; atualização visual pendente:',err);}
+      if(!tg07Current(scope))return;
       showEnqueueSuccess(item.title,cardMode);
       if($('tg124-choice-dialog')?.open)$('tg124-choice-dialog').close();
       if($('catalog-dialog')?.open)$('catalog-dialog').close();
@@ -2700,6 +3025,7 @@ function renderFullCatalog(){
   }
 
   function showExternalFallback(results,host,query,reason){
+    if(results.id==='tg07-external-results'){makeSearchMessage(results,'Busca externa indisponível. Use o acervo acima ou cole um link abaixo.','error');return;}
     results.replaceChildren();
     const box=document.createElement('div');box.className='quota-fallback';
     const heading=document.createElement('h3');heading.textContent='🚫 Busca externa temporariamente pausada';
@@ -2725,55 +3051,61 @@ function renderFullCatalog(){
     });
     actions.append(history,direct);box.append(heading,expl,actions);results.append(box);
   }
-  async function searchYoutube(host,forceExternal=false) {
-    const search=$(host?'host-search':'youtube-search');
-    const results=$(host?'host-results':'search-results');
-    const button=$(host?'host-search-button':'search-youtube');
+  async function searchYoutube(host,forceExternal=false,inCatalog=false) {
+    const search=$(inCatalog?'tg07-external-query':host?'host-search':'youtube-search');
+    const results=$(inCatalog?'tg07-external-results':host?'host-results':'search-results');
+    const button=$(inCatalog?'tg07-external-search':host?'host-search-button':'search-youtube');
     const query=search.value.trim().replace(/\s+/g,' ');
+    if(button.disabled)return;
+    const scope=tg07Scope();const current=()=>tg07Current(scope)&&(!inCatalog||$('catalog-dialog').open)&&search.value.trim().replace(/\s+/g,' ')===query;
     if(query.length<2){makeSearchMessage(results,'Escreva o nome da música ou artista para buscar.');search.focus();return;}
     if(!state.client||!state.room){makeSearchMessage(results,'Entre numa festa antes de buscar músicas.','error');return;}
     if(!forceExternal){
       setLoading(button,true,'Consultando nosso acervo...');
       try{
         const found=await queryLocalCatalog(query);
+        if(!current())return;
         results.replaceChildren();
         const label=document.createElement('div');label.className='search-count';
-        label.textContent=found.length?`💚 ${found.length} hit(s) do acervo — não consomem buscas!`:'O acervo ainda não tem essa música. 💅';
+        label.textContent=(found.length?`💚 ${found.length} hit(s) do acervo — não consomem buscas!`:'Nenhuma música encontrada nesta consulta.')+(state.catalogError?' · consulta anterior; atualize o acervo.':state.catalogIncomplete?' · acervo parcial.':'');
         results.append(label);
         found.forEach(item=>{const card=catalogCard(item,host);if(card)results.append(card);});
         showMoreExternal(results,host,query);
         return;
       }catch(err){
-        makeSearchMessage(results,'Acervo ainda não instalado no banco. Você pode buscar externamente.');
+        if(!current())return;
+        makeSearchMessage(results,'Acervo indisponível agora. Você pode buscar externamente.');
         showMoreExternal(results,host,query);
         return;
       }finally{setLoading(button,false);}
     }
     if(state.externalSearchBlocked){showExternalFallback(results,host,query,'O servidor indicou que a cota não está disponível.');return;}
-    const key=query.toLocaleLowerCase('pt-BR');
+    const key=scope.uid+'|'+scope.room+'|'+query.toLocaleLowerCase('pt-BR');
     const cached=searchMemory.get(key);
     if(cached&&Date.now()-cached.date<5*60*1000){renderYoutubeResults(cached.items,results,host);return;}
     setLoading(button,true,'Buscando...');
     makeSearchMessage(results,'🔎 Procurando o hino perfeito no YouTube...');
     try {
       const {data,error}=await state.client.functions.invoke('youtube-search',{
-        body:{ query,roomId:state.room.id,roomCode:state.room.code }
+        body:{ query,roomId:scope.room,roomCode:state.room.code }
       });
+      if(!current())return;
       if(error){
-        let detail='Não consegui consultar a SerpApi. Confira a Edge Function youtube-search no Supabase.';
+        let detail='Não consegui consultar a busca externa. Tente novamente ou use o catálogo.';
         let code='';
         try{
           const response=error.context;
           if(response?.json){const j=await response.clone().json();detail=j.error||j.message||detail;code=j.code||'';}
           if(response?.status===429&&code==='')code='RATE_LIMIT';
         }catch{}
+        if(!current())return;
         if(code==='QUOTA_EXHAUSTED'||code==='QUOTA_UNAVAILABLE'){
           state.externalSearchBlocked=true;
           showExternalFallback(results,host,query,detail);
           return;
         }
         if(code==='ROOM_REFERENCE_INVALID'||/Identificador da sala inválido/i.test(detail))
-          throw new Error('A função de busca ainda usa a validação antiga de sala. Publique a nova youtube-search v9.2 no Supabase.');
+          throw new Error('Não foi possível confirmar a sala na busca externa. Tente entrar novamente.');
         throw new Error(detail);
       }
       if(data?.code==='QUOTA_EXHAUSTED'||data?.code==='QUOTA_UNAVAILABLE'){
@@ -2788,10 +3120,12 @@ function renderFullCatalog(){
       if(searchMemory.size>30)searchMemory.delete(searchMemory.keys().next().value);
       renderYoutubeResults(hits,results,host);
     }catch(err){
+      if(!current())return;
       makeSearchMessage(results,humanError(err)+' Você ainda pode usar a opção “Tenho um link” abaixo.','error');
     }finally{setLoading(button,false);}
   }
   function getRankingRows(){
+    if(!tg13Recreational())return [];
     const rows=new Map();
     const titles=new Map(state.songTitleCache||[]);(state.songs||[]).forEach(song=>titles.set(String(song.id),String(song.title||'Música')));
     for(const row of state.scores){
@@ -2806,6 +3140,7 @@ function renderFullCatalog(){
   }
   function renderStageRanking(){
     const list=$('stage-rank-list');if(!list)return;
+    if(!tg13Recreational()){tg13ScorePrivacy();return;}
     const rows=getRankingRows();
     if(!rows.length){list.innerHTML='<p class="rank-empty">Ainda não saiu a primeira nota. A Diva já está preparando a coroa! 👑</p>';return;}
     list.innerHTML=rows.slice(0,5).map((d,i)=>`<div class="mini-rank-item"><span class="rank-medal">${['🥇','🥈','🥉'][i]||i+1+'º'}</span><span class="mini-rank-name">${escapeHTML(memberName(d.uid))}<small>${escapeHTML(d.title)} · ${d.count} tentativa(s)</small></span><strong>${d.best}<small>/100</small></strong></div>`).join('');
@@ -2813,6 +3148,7 @@ function renderFullCatalog(){
   }
   function renderLiveScore(){
     const holder=$('live-score-list');if(!holder||state.role!=='host')return;
+    if(!tg13Recreational()){holder.textContent='Avaliação técnica reservada.';return;}
     const song=state.currentSong;
     if(!song){holder.textContent='Quando começar uma música, a nota de cada celular aparece aqui. 🎙️';return;}
     const singers=songSingers(song);
@@ -2824,6 +3160,7 @@ function renderFullCatalog(){
     }).join('');
   }
   function openScoreboard(){
+    if(!tg13Recreational()){tg13ScorePrivacy();toast('Placar recreativo indisponível nesta sala.');return;}
     const sorted=getRankingRows();
     $('score-list').innerHTML=sorted.length?sorted.map((d,i)=>`<details class="tg124-rank-entry"><summary class="score-row"><span class="score-rank">${['🥇','🥈','🥉'][i]||i+1+'º'}</span><div class="score-detail"><strong>${escapeHTML(memberName(d.uid))}</strong><small>${escapeHTML(d.title)} · ${d.count} tentativa(s) · melhor nota ${d.best}</small></div><strong class="score-value">${d.best}/100</strong></summary><div class="tg124-attempts">${d.attempts.map((a,n)=>`<p>${n+1}ª tentativa · ${Math.round(a.score)}/100 ${Math.round(a.score)===d.best?'🏆':''}</p>`).join('')}</div></details>`).join(''):'<p class="subtle">O ranking começa depois da primeira apresentação avaliada. 🎤</p>';
     $('score-dialog').showModal();
@@ -2836,7 +3173,9 @@ function renderFullCatalog(){
   function startTicker(){
     clearInterval(state.ticker);let cycles=0;
     state.ticker=setInterval(()=>{
-      if(!state.room)return;
+      if(!state.room||state.emergencyBlocked)return;
+      if(tg18Recognition&&(isMyTurn()||callActive()))tg18AbortDictation();
+      window.TG74_DIVA_STUDIO?.guard();
       sampleAudio();cycles++;
       if(cycles%72===0&&isPhoneSingerRole()&&state.guestPreflightSong)void notifyPreflightGuest();
       if(cycles%36===0&&state.role==='host'&&state.preflight)renderPreflightHost();
@@ -2845,7 +3184,11 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
-    window.TG74_DIVA_STUDIO?.stop();
+    ++tg07SessionEpoch;state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
+    for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
+    searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
+    for(const id of ['host-results','search-results','tg07-external-results'])$(id)?.replaceChildren();
+    window.TG74_DIVA_STUDIO?.reset();
 
     if('speechSynthesis' in window)try{window.speechSynthesis.cancel();}catch{}
     clearTimeout(state.divaSpeakingTimer);document.body.classList.remove('diva-talking');
@@ -2868,11 +3211,13 @@ function renderFullCatalog(){
       const frame=$('video-frame');const old=$('youtube-player');if(old)old.remove();
       const el=document.createElement('div');el.id='youtube-player';el.className='youtube-player';frame.prepend(el);
     }
-    state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();
-    hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;recadoFrequency.clear();nextGuestRecadoAt=0;
-    state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
+    state.peers.clear();state.candidateBuffer.clear();state.processedSignals.clear();state.signalChain=Promise.resolve();
+    hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;recadoFrequency.clear();tg04SeenMessages.clear();nextGuestRecadoAt=0;tg04MessageFetch=null;tg04HostSending=null;tg18GuestSending=null;
+    for(const id of ['tg17-send-message','tg04-stage-send','tg04-remote-send'])if($(id))setLoading($(id),false);
+    if($('mic-toggle'))$('mic-toggle').disabled=false;
+    tg30VoiceSnapshots.clear();state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogGenres=[];state.catalogGenreUnavailable=false;state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
     state.remotePending.clear();state.remoteLatestCommandId=null;state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
-    hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
+    tg23Reset();hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
   async function leaveGuest(){
     if(state.role!=='guest')return;
@@ -2893,8 +3238,59 @@ function renderFullCatalog(){
       (flop?`🫠 Perrengue da noite: ${flop.name} — ${flop.score}/100\n`:'')+
       'Nota divertida de participação e volume no microfone do celular; não mede afinação.';
   }
-  function showPartyRecap(data){
-    state.latestRecap=data;
+  let tg30FeedbackContext=null,tg30FeedbackSerial=0;
+  let tg15RecapContext=null,tg15RecapSerial=0;
+  function tg15RecapScope(){return {uid:state.user?.id,epoch:tg07SessionEpoch,serial:++tg15RecapSerial};}
+  function tg15RecapCurrent(scope){return !!scope?.uid&&scope.uid===state.user?.id&&scope.epoch===tg07SessionEpoch&&scope.serial===tg15RecapSerial;}
+  function tg15ClearRecap(){
+    ++tg15RecapSerial;++tg30FeedbackSerial;tg15RecapContext=null;tg30FeedbackContext=null;state.latestRecap=null;state.recapAvatars=null;
+    const dlg=$('party-recap-dialog');if(dlg?.open)dlg.close();
+    for(const id of ['recap-room-title','recap-total','recap-scored','recap-duets','recap-flop-name','recap-flop-score','tg30-feedback-status'])if($(id))$(id).textContent='';
+    $('recap-podium')?.replaceChildren();if($('recap-flop'))$('recap-flop').hidden=true;if($('tg124-flop-avatar')){$('tg124-flop-avatar').hidden=true;$('tg124-flop-avatar').removeAttribute('src');}
+    if($('tg30-feedback-card'))$('tg30-feedback-card').hidden=true;$('tg30-feedback-form')?.reset();if($('tg15-share-flop'))$('tg15-share-flop').checked=false;
+  }
+  function tg15RememberRecap(roomId,uid){if(!roomId||!uid)return;try{localStorage.setItem('tem-gogo-last-recap-room:'+uid,roomId);}catch{}}
+  function tg15RecapToken(){const x=tg15RecapContext;return x&&tg15RecapCurrent(x)&&$('party-recap-dialog')?.open?x:null;}
+  // The sharing module receives only a short-lived context, never a credential.
+  window.TG15_RECAP_CONTEXT=tg15RecapToken;
+  async function tg15LoadRecap(roomId){
+    tg15ClearRecap();const scope=tg15RecapScope();const data=await callRPC('karaoke_get_party_recap',{p_room:roomId});
+    if(!tg15RecapCurrent(scope))return false;
+    if(!data)throw new Error('Este placar não está disponível.');
+    showPartyRecap(data,roomId,scope);return true;
+  }
+  async function tg30OfferFeedback(roomId){
+    const serial=++tg30FeedbackSerial;const card=$('tg30-feedback-card'),form=$('tg30-feedback-form');
+    tg30FeedbackContext=null;card.hidden=true;form.reset();form.hidden=false;$('tg30-feedback-status').textContent='';
+    $('tg30-feedback-send').disabled=false;
+    if(!roomId||!state.user?.id||!state.client)return;
+    const userId=state.user.id;
+    try{
+      const info=await callRPC('tg30_party_feedback_status',{p_room:roomId});
+      if(serial!==tg30FeedbackSerial||state.user?.id!==userId||!$('party-recap-dialog').open)return;
+      if(info?.eligible!==true||info?.submitted===true)return;
+      tg30FeedbackContext={roomId,userId,serial};card.hidden=false;
+    }catch{/* avaliação indisponível não impede o placar nem o encerramento */}
+  }
+  async function tg30SubmitFeedback(event){
+    event.preventDefault();const ctx=tg30FeedbackContext,button=$('tg30-feedback-send'),out=$('tg30-feedback-status');
+    if(!ctx||state.user?.id!==ctx.userId||button.disabled)return;
+    const rating=Number(new FormData(event.target).get('rating'));
+    if(!Number.isInteger(rating)||rating<1||rating>5)return;
+    button.disabled=true;out.textContent='Enviando sua avaliação…';
+    try{
+      const result=await callRPC('tg30_party_feedback_submit',{p_room:ctx.roomId,p_rating:rating,p_topic:$('tg30-feedback-topic').value||null});
+      if(tg30FeedbackContext!==ctx||state.user?.id!==ctx.userId)return;
+      if(!result?.submitted)throw Error('Avaliação não confirmada');
+      event.target.hidden=true;out.textContent='Obrigada pelo close, estrela! Sua avaliação foi registrada. 💜';
+    }catch{if(tg30FeedbackContext===ctx)out.textContent='Não consegui confirmar a avaliação. Tente novamente ou feche a cerimônia.';}
+    finally{if(tg30FeedbackContext===ctx)button.disabled=false;}
+  }
+  function showPartyRecap(data,roomId,scope=tg15RecapScope()){
+    if(!data||!tg15RecapCurrent(scope))return;
+    tg15RecapContext=Object.freeze({...scope,roomId});
+    tg15RememberRecap(roomId,scope.uid);state.latestRecap=data;
+    $('tg15-share-flop').checked=false;
     $('recap-room-title').textContent=data?.room_title||'A festa de milhões';
     $('recap-total').textContent=String(Number(data?.songs_completed)||0);
     $('recap-scored').textContent=String(Number(data?.songs_scored)||0);
@@ -2909,16 +3305,15 @@ function renderFullCatalog(){
     $('recap-flop').hidden=!flop;
     if(flop){$('recap-flop-name').textContent=flop.name||'Estrela';$('recap-flop-score').textContent=(Number(flop.score)||0)+'/100';const known=state.recapAvatars?.get(flop.user_id)||state.avatars.get(flop.user_id)||flop.avatar;const img=$('tg124-flop-avatar');if(img){img.hidden=!AVATARS[known];if(AVATARS[known])img.src=avatarSrc(known);}}
     const dlg=$('party-recap-dialog');if(!dlg.open)dlg.showModal();
+    void tg30OfferFeedback(roomId);
     if(ranked.length)confetti();
   }
   async function reopenLastRecap(){
     if(!state.client || !state.user){toast('Faça login para rever o placar.',true);return;}
-    const roomId=localStorage.getItem('tem-gogo-last-recap-room');
+    let roomId;try{roomId=localStorage.getItem('tem-gogo-last-recap-room:'+state.user.id);}catch{}
     if(!roomId){toast('Ainda não há festa encerrada neste aparelho.',true);return;}
     try{
-      const data=await callRPC('karaoke_get_party_recap',{p_room:roomId});
-      if(!data)throw new Error('Este placar não está disponível.');
-      showPartyRecap(data);
+      await tg15LoadRecap(roomId);
     }catch(error){toast(humanError(error),true);}
   }
   // O encerramento é uma operação de banco; nunca confundir recusa de autorização
@@ -2938,12 +3333,16 @@ function renderFullCatalog(){
     return 'Não foi possível confirmar o encerramento no Supabase'+reference+'. '+humanError(error);
   }
   async function exitStage(){
-    if(state.role!=='host'||!state.room)return;
+    if(state.emergencyBlocked)return;
+    if(!canDirectDiva()||!state.room)return;
+    if(!tg13Recreational()){toast('Use a aba Prêmios do festival para encerrar o palco competitivo após o resultado oficial.',true);return;}
+    if(state.role==='remote'&&callActive()){toast('Finalize sua participação antes de encerrar a festa.',true);return;}
+    const initialRoom=state.room.id;
     if(state.finishing){toast('Concluindo a música atual. Aguarde um instante para encerrar a festa.');return;}
     if(!await window.TG_UI.confirm('Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:'Finalizar a festa',confirmText:'Encerrar festa',danger:true}))return;
-    if(state.role!=='host'||!state.room||state.finishing)return;
-    const id=state.room.id;
-    const button=$('stage-exit');
+    if(!canDirectDiva()||state.room?.id!==initialRoom||state.finishing||(state.role==='remote'&&callActive()))return;
+    const id=state.room.id,scope=tg07Scope();
+    const button=$(state.role==='remote'?'tg04-remote-end':'stage-exit');
     state.finishing=true;
     if(button)button.disabled=true;
     try{
@@ -2959,12 +3358,14 @@ function renderFullCatalog(){
         return;
       }
       // Depois do sucesso no banco, nenhuma falha de limpeza pode esconder o placar.
-      try{localStorage.setItem('tem-gogo-last-recap-room',id);}catch(error){console.warn('Não foi possível guardar o atalho local do placar',error);}
+      if(!tg07Current(scope))return;tg15RememberRecap(id,scope.uid);
       try{state.player?.stopVideo();}catch(error){console.warn('Falha ao parar vídeo já encerrado',error);}
-      state.recapAvatars=new Map(state.avatars);
+      const avatars=new Map(state.avatars),nextEpoch=tg07SessionEpoch+1;
       try{await stopSession();}catch(error){console.error('Festa encerrada no banco; falha ao limpar recursos locais',error);}
+      if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;
       try{await openLobby();}catch(error){console.error('Festa encerrada no banco; falha ao atualizar Minhas festas',error);show('lobby');}
-      try{showPartyRecap(recap);}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
+      if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;state.recapAvatars=avatars;
+      try{showPartyRecap(recap,id);}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
     }finally{
       state.finishing=false;
       if(button)button.disabled=false;
@@ -2996,8 +3397,13 @@ function renderFullCatalog(){
   }
   async function fetchRoomHumor(){
     if(!state.room || !state.client)return;
-    const {data,error}=await state.client.from('tg_room_settings').select('humor_mode').eq('room_id',state.room.id).maybeSingle();
-    if(error||!data)return;
+    const roomId=state.room.id;
+    const {data,error}=await state.client.from('tg_room_settings').select('humor_mode,stage_theme').eq('room_id',roomId).maybeSingle();
+    if(error||!data||state.room?.id!==roomId)return;
+    if(THEMES.includes(data.stage_theme)){
+      if(state.role==='host'&&data.stage_theme!==state.currentTheme)applyTheme(data.stage_theme,false,'stage');
+      const sel=$('tg30-remote-stage-theme');if(state.role==='remote'&&sel&&document.activeElement!==sel&&!state.remotePending.size)sel.value=data.stage_theme;
+    }
     if(['familia','debochado','caos','lgbt','reality','bafao'].includes(data.humor_mode) && data.humor_mode!==state.humorMode){
       state.humorMode=data.humor_mode;
       const select=$('humor-mode');if(select)select.value=state.humorMode;
@@ -3055,7 +3461,7 @@ function renderFullCatalog(){
   }
   function setupProfileQuickMenu(){
     const dlg=$('tg124-profile-menu');if(!dlg)return;
-    document.querySelectorAll('[data-tg124-profile]').forEach(button=>button.addEventListener('click',()=>dlg.showModal()));
+    document.querySelectorAll('[data-tg124-profile]').forEach(button=>{button.addEventListener('click',()=>{if(!dlg.open)dlg.showModal();});if(button.tagName!=='BUTTON'&&button.getAttribute('role')==='button')button.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();button.click();}});});
     $('tg124-profile-close')?.addEventListener('click',()=>dlg.close());
     dlg.querySelectorAll('[data-tg124-action]').forEach(button=>button.addEventListener('click',async()=>{
       const action=button.dataset.tg124Action;dlg.close();
@@ -3072,20 +3478,28 @@ function renderFullCatalog(){
   }
   async function sendTitleSuggestion(videoId,currentTitle){
     if(!state.user||!state.room){toast('Entre na festa para sugerir uma correção.',true);return;}
+    const scope=tg07Scope();
     const suggestion=await window.TG_UI.prompt('Sugira o nome completo desta música. Sua sugestão será analisada pela Central; nada será alterado agora.',currentTitle,'Sugerir correção de título');
-    if(!suggestion||suggestion.trim()===currentTitle)return;
+    if(!tg07Current(scope)||!suggestion||suggestion.trim()===currentTitle)return;
     const title=suggestion.trim();if(title.length<4||title.length>160){toast('O título deve conter de 4 a 160 caracteres.',true);return;}
     const {error}=await state.client.from('tg_title_suggestions').insert({video_id:videoId,original_title:currentTitle,proposed_title:title,author_id:state.user.id,room_id:state.room.id});
-    toast(error?'Não foi possível enviar. Confira a migration 023 e sua participação na sala.':'Sugestão enviada! A Central decidirá se será publicada.',Boolean(error));
+    toast(error?'Não foi possível enviar. Confira sua conexão e sua participação na sala.':'Sugestão enviada! A Central decidirá se será publicada.',Boolean(error));
   }
   function setupCatalogSuggestions(){
-    for(const holder of ['catalog-list','guest-library','stage-library'])$(holder)?.addEventListener('click',event=>{
+    for(const holder of ['catalog-list','guest-library','stage-library','search-results','host-results'])$(holder)?.addEventListener('click',event=>{
       const btn=event.target.closest('[data-tg124-suggest]');if(!btn)return;
       void sendTitleSuggestion(btn.dataset.tg124Suggest,btn.dataset.originalTitle);
     });
   }
   function attachEvents(){
     setupProfileQuickMenu();setupCatalogSuggestions();
+    window.TG30VoiceUI?.install({user:()=>state.user,notify:(text)=>toast(text,true),compare:()=>callRPC('tg30_voice_shadow_history',{}),erase:async()=>{tg30RevokeShadow();return callRPC('tg30_voice_shadow_erase',{});},revoke:tg30RevokeShadow,save:async(profile,uid)=>{
+      if(!state.user||state.user.id!==uid)throw Error('Sessão alterada');
+      if(isAnonymous(state.user)){sessionStorage.setItem('tg30-voice:'+uid,JSON.stringify(profile));return;}
+      const {data,error}=await state.client.auth.updateUser({data:{tg_voice_profile:profile}});
+      if(error||data?.user?.id!==uid||state.user?.id!==uid)throw error||Error('Sessão alterada');
+      state.user=data.user;
+    }});
     $('tg124-choice-close')?.addEventListener('click',()=>$('tg124-choice-dialog')?.close());
     document.querySelectorAll('[data-scan-qr]').forEach(b=>b.addEventListener('click',startQrScan));
     $('tg16-scan-close').addEventListener('click',closeQrScan);$('tg16-scan-manual').addEventListener('click',closeQrScan);
@@ -3140,6 +3554,7 @@ function renderFullCatalog(){
     $('video-skip').addEventListener('click',skipFailedVideo);
     $('video-retry').addEventListener('click',()=>{
       $('video-error-dialog').close();
+      if(state.emergencyBlocked)return;
       if(state.currentSong?.video_id&&state.playerReady)state.player.loadVideoById(state.currentSong.video_id);
       else if(state.failedVideoSong)startSong(state.failedVideoSong);
     });
@@ -3152,18 +3567,28 @@ function renderFullCatalog(){
     $('tab-guest').addEventListener('click',()=>openGuestEntry($('guest-code').value));
     $('auth-form').addEventListener('submit',login);
     $('signup-button').addEventListener('click',openSignup);
+    $('auth-resend-confirmation').addEventListener('click',()=>void tg30ResendConfirmation('login'));
+    $('signup-resend-confirmation').addEventListener('click',()=>void tg30ResendConfirmation('signup'));
+    $('tg30-feedback-form').addEventListener('submit',tg30SubmitFeedback);
+    $('tg30-feedback-skip').addEventListener('click',()=>{$('tg30-feedback-card').hidden=true;});
     $('signup-form').addEventListener('submit',signup);
     $('signup-close').addEventListener('click',closeSignup);
     $('signup-back-login').addEventListener('click',()=>{closeSignup();$('auth-email').focus();});
     $('signup-show-password').addEventListener('change',event=>{
       ['signup-password','signup-confirm'].forEach(id=>$(id).type=event.target.checked?'text':'password');
     });
+    $('tg92-hub-create')?.addEventListener('click',()=>void tg12ModeAvailability());
     $('guest-entry-form').addEventListener('submit',joinParty);$('create-room-form').addEventListener('submit',makeRoom);
     document.querySelectorAll('.duet-choice').forEach(group=>{
       group.addEventListener('change',()=>updateGroupChoice(group.id.startsWith('host')));
     });
     $('logout-button').addEventListener('click',logout);
     $('stage-exit').addEventListener('click',exitStage);
+    $('tg04-remote-end').addEventListener('click',exitStage);
+    $('tg04-remote-rank').addEventListener('click',openScoreboard);
+    $('tg04-remote-status').addEventListener('click',()=>void remoteCommand('stage-status'));
+    $('tg04-remote-invite').addEventListener('click',()=>{if(state.role==='remote'&&state.room)void window.TG_UI.shareLink('Venha cantar no Tem Gogó!',currentURL(state.room.code));});
+    for(const [input,button] of [['tg04-remote-message','tg04-remote-send'],['tg04-stage-message','tg04-stage-send']])$(button).addEventListener('click',()=>void sendHostRecado(input,button));
     $('start-audio').addEventListener('click',unlockSound);
     $('play-pause').addEventListener('click',togglePlayback);
     $('skip-track').addEventListener('click',advanceSong);
@@ -3171,7 +3596,7 @@ function renderFullCatalog(){
     document.querySelectorAll('.open-settings').forEach(button=>button.addEventListener('click',()=>{syncPrivateControls();$('settings-dialog').showModal();}));
     $('settings-close').addEventListener('click',()=>$('settings-dialog').close());
     $('settings-done').addEventListener('click',()=>{$('settings-dialog').close();toast('Tá TUDO, Brasil! Seu Tem Gogó tá pronto. 💅');});
-    document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>applyTheme(button.dataset.themeChoice,true)));
+    document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>void chooseTheme(button.dataset.themeChoice)));
     $('humor-mode').addEventListener('change',e=>{if(!canDirectDiva())return;state.humorMode=e.target.value;syncPrivateControls();updateVoxLine('opening');void persistRoomHumor(state.humorMode);});
     $('gifs-enabled').addEventListener('change',e=>{state.gifsEnabled=e.target.checked;localStorage.setItem('tem-gogo-gifs',String(state.gifsEnabled));});
     $('effects-enabled').addEventListener('change',e=>{state.effectsEnabled=e.target.checked;localStorage.setItem('tem-gogo-effects',String(state.effectsEnabled));document.body.classList.toggle('effects-off',!state.effectsEnabled);});
@@ -3201,7 +3626,8 @@ function renderFullCatalog(){
     $('tg18-remote-mic-toggle').addEventListener('click',()=>void toggleMic());
     $('tg18-remote-mic-ready').addEventListener('click',openMicPermission);
     document.querySelectorAll('[data-tg18-command]').forEach(b=>b.addEventListener('click',()=>void remoteCommand(b.dataset.tg18Command)));
-    for(const [id,cmd] of [['tg18-remote-playback','playback-volume'],['tg18-remote-mics','mic-volume']])$(id).addEventListener('change',e=>void remoteCommand(cmd,Number(e.target.value)));
+    $('tg30-remote-stage-theme-send')?.addEventListener('click',()=>void remoteCommand('stage-theme',$('tg30-remote-stage-theme').value));
+    for(const [id,cmd] of [['tg18-remote-playback','playback-volume'],['tg18-remote-mics','mic-volume'],['tg04-remote-diva','diva-preview-volume'],['tg05-remote-pop','pop-volume']])$(id).addEventListener('change',e=>void remoteCommand(cmd,Number(e.target.value)));
     $('tg19-remote-vocal-gain').addEventListener('input',event=>{const value=Number(event.target.value);$('guest-mic-gain').value=String(value);$('guest-mic-gain').dispatchEvent(new Event('input',{bubbles:true}));});
     $('tg18-turn-mic').addEventListener('click',()=>{if(state.role==='guest')switchMobileTab('mic');openMicPermission();});
     $('tg18-turn-ready').addEventListener('click',openMicPermission);
@@ -3255,8 +3681,9 @@ function renderFullCatalog(){
     $('playlist-import-submit').addEventListener('click',importPlaylistManual);
     $('open-scoreboard').addEventListener('click',openScoreboard);
     $('reopen-recap').addEventListener('click',reopenLastRecap);
-    $('recap-copy').addEventListener('click',async()=>{const content=recapText(state.latestRecap);try{await navigator.clipboard.writeText(content);toast('Placar copiado! Compartilha com o povo! 🏆');}catch{toast('Não foi possível copiar automaticamente.',true);}});
+    $('recap-copy').addEventListener('click',async()=>{if(!tg15RecapToken())return;const content=recapText(state.latestRecap);try{await navigator.clipboard.writeText(content);toast('Placar copiado! Compartilha com o povo! 🏆');}catch{toast('Não foi possível copiar automaticamente.',true);}});
     $('recap-done').addEventListener('click',()=>$('party-recap-dialog').close());
+    $('party-recap-dialog').addEventListener('close',()=>{if(!$('party-recap-dialog').open&&tg15RecapContext)tg15ClearRecap();});
     document.querySelectorAll('[data-close-score]').forEach(btn=>btn.addEventListener('click',()=>$('score-dialog').close()));
     $('host-song-form').addEventListener('submit',e=>{e.preventDefault();enqueue(e.target,true);});
     $('guest-song-form').addEventListener('submit',e=>{e.preventDefault();enqueue(e.target,false);});
@@ -3272,6 +3699,10 @@ function renderFullCatalog(){
       state.catalogFilter=e.target.value;state.catalogPage=1;renderFullCatalog();
     });
     $('catalog-more').addEventListener('click',()=>{state.catalogPage++;renderFullCatalog();});
+    $('tg07-external-search').addEventListener('click',()=>void searchYoutube(state.role==='host',true,true));
+    $('tg07-external-query').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void searchYoutube(state.role==='host',true,true);}});
+    $('tg07-link-form').addEventListener('submit',async e=>{e.preventDefault();const scope=tg07Scope(),btn=$('tg07-link-check'),id=youtubeId($('tg07-link').value),title=$('tg07-link-title').value.trim();if(btn.disabled)return;if(!tg07Current(scope)||!id||!title){toast('Informe um link do YouTube e o título.',true);return;}setLoading(btn,true,'Verificando…');try{let playable=null;try{playable=await checkVideoAvailability(id);}catch{}if(!tg07Current(scope)||!$('catalog-dialog').open)return;if(playable===false){toast('Este vídeo não permite reprodução incorporada. Escolha outra versão.',true);return;}const holder=$('tg07-external-results');holder.replaceChildren();const note=document.createElement('p');note.textContent=playable===true?'Vídeo verificado; escolha quem vai cantar.':'Disponibilidade não confirmada. O vídeo ainda pode ser bloqueado pelo YouTube.';holder.append(note);const card=catalogCard({video_id:id,title,plays:0,source_kind:'external'},state.role==='host');if(card)holder.append(card);}finally{setLoading(btn,false);}});
+    $('tg07-catalog-refresh').addEventListener('click',async e=>{const btn=e.currentTarget;if(btn.disabled)return;setLoading(btn,true,'Atualizando…');try{await loadCatalog(true);renderFullCatalog();}finally{setLoading(btn,false);}});
     $('search-youtube').addEventListener('click',()=>searchYoutube(false));
     $('host-search-button').addEventListener('click',()=>searchYoutube(true));
     $('youtube-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchYoutube(false);}});
@@ -3325,9 +3756,9 @@ function renderFullCatalog(){
     });
     $('qr-bubble').addEventListener('click',()=> $('qr-bubble').classList.toggle('qr-expanded'));
     $('qr-bubble').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('qr-bubble').classList.toggle('qr-expanded');}});
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(state.role==='host'&&!state.wakeLock)unlockWakeLock();void refreshRoomSnapshot();}});
-    window.addEventListener('online',()=>{toast('Internet conectada novamente. ✅');void refreshRoomSnapshot();void fetchRecentSignals();});
-    window.addEventListener('offline',()=>{setSyncStatus('offline');toast('Sem internet: o palco e a fila podem parar.',true);});
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){void tg23Poll();if(state.role==='host'&&!state.wakeLock)unlockWakeLock();void refreshRoomSnapshot();}});
+    window.addEventListener('online',()=>{void tg23Poll();toast('Internet conectada novamente. ✅');void refreshRoomSnapshot();void fetchRecentSignals();});
+    window.addEventListener('offline',()=>{if(state.room)tg23Suspend('Conexão interrompida. Não foi possível confirmar a segurança do palco.');setSyncStatus('offline');toast('Sem internet: o palco e a fila podem parar.',true);});
     window.addEventListener('popstate',event=>{
       if(state.role==='guest'&&state.room){
         if(event.state?.view==='guest'&&['mic','queue'].includes(event.state.tab)){switchMobileTab(event.state.tab,false);return;}
@@ -3341,54 +3772,34 @@ function renderFullCatalog(){
   function setupHostCockpit(){
     const stage=$('stage'),layout=stage?.querySelector('.stage-layout'),main=stage?.querySelector('.stage-main');
     if(!layout||!main||$('tg104-cockpit'))return;
-    const cockpit=document.createElement('section');cockpit.id='tg104-cockpit';cockpit.className='tg104-cockpit';
-    cockpit.setAttribute('aria-label','Cockpit do anfitrião');
-    cockpit.innerHTML=`<header class="tg104-cockpit-header"><div><small>✦ CENTRAL DO SHOW · TEM GOGÓ</small><h2>Comande seu palco</h2><p>Vídeo e QR continuam no ar enquanto você organiza a festa.</p></div><span class="tg104-cockpit-live">● MESA DO HOST</span></header>
-    <nav class="tg104-cockpit-tabs" role="tablist" aria-label="Ferramentas do anfitrião">
-      <button type="button" class="active" data-tg104-tab="mesa" role="tab" aria-selected="true">🎛️ Mesa</button>
-      <button type="button" data-tg104-tab="fila" role="tab" aria-selected="false">🎶 Fila</button>
-      <button type="button" data-tg104-tab="catalogo" role="tab" aria-selected="false">📚 Catálogo</button>
-      <button type="button" data-tg104-tab="sala" role="tab" aria-selected="false">⚙️ Sala e controle</button>
-    </nav>
-    <div class="tg104-cockpit-panels">
-      <section data-tg104-panel="mesa" class="tg104-panel tg104-show-panel" role="tabpanel"><div class="tg104-live-controls"></div><aside class="tg104-live-side"></aside></section>
-      <section data-tg104-panel="fila" class="tg104-panel tg104-queue-panel" role="tabpanel" hidden></section>
-      <section data-tg104-panel="catalogo" class="tg104-panel tg104-catalog-panel" role="tabpanel" hidden></section>
-      <section data-tg104-panel="sala" class="tg104-panel tg104-room-panel" role="tabpanel" hidden></section>
-    </div>`;
-    main.append(cockpit);
-    // D009: mover nó original dos controles para após o vídeo; preservar listeners.
-    const bar=$('tg123-host-bar'),screen=main.querySelector('.screen-row');if(bar&&screen)screen.insertAdjacentElement('afterend',bar);
-    const footerEnd=$('stage-exit');if(footerEnd)bar.append(footerEnd);
-    const solo=$('tg18-solo-button');if(solo)main.querySelector('.stage-meta')?.insertAdjacentElement('afterend',solo);
-    const move=(selector,panel)=>{const element=stage.querySelector(selector),parent=cockpit.querySelector(panel);if(element&&parent)parent.append(element);};
-    move('#tg17-console','.tg104-live-controls');
-    move('.singer-strip','.tg104-live-side');
-    move('.stage-rank-panel','.tg104-live-side');
-    move('.stage-sidebar','.tg104-queue-panel');
-    move('.stage-hit-library','.tg104-catalog-panel');
-    move('.tg19-host-remote-card','.tg104-room-panel');
-    move('.tg19-stage-tool-grid','.tg104-room-panel');
-    move('.tg19-stage-footer > .tg193-help-tools','.tg104-room-panel');
-    move('.tg192-bora-ad','.tg104-room-panel');
-    const footer=layout.querySelector(':scope > .tg19-stage-footer');if(footer)footer.remove();
-    const swap=tab=>{
-      for(const button of cockpit.querySelectorAll('[data-tg104-tab]')){
-        const chosen=button.dataset.tg104Tab===tab;
-        button.classList.toggle('active',chosen);button.setAttribute('aria-selected',String(chosen));
-      }
-      for(const panel of cockpit.querySelectorAll('[data-tg104-panel]'))panel.hidden=panel.dataset.tg104Panel!==tab;
-    };
-    cockpit.querySelectorAll('[data-tg104-tab]').forEach(button=>button.addEventListener('click',()=>swap(button.dataset.tg104Tab)));
-    // Dê acesso rápido à fila sem criar um segundo sistema de gerenciamento.
-    stage.querySelector('.stage-command')?.addEventListener('click',e=>{
-      if(e.target.closest('button,a,input'))return;
-      if(!state.currentSong&&!state.preflight)swap('fila');
-    });
-    // O QR de controle é acessível pela aba Sala; o QR dos convidados fica na tela.
-    stage.classList.add('tg104-cockpit-ready');
+    const rail=stage.querySelector('.qr-rail'),remote=stage.querySelector('.tg19-host-remote-card'),queue=stage.querySelector('.stage-sidebar'),rank=stage.querySelector('.stage-rank-panel'),catalog=stage.querySelector('.stage-hit-library'),tools=stage.querySelector('.tg19-stage-tool-grid'),help=stage.querySelector('.tg19-stage-footer > .tg193-help-tools'),ad=stage.querySelector('.tg192-bora-ad'),consoleNode=$('tg17-console'),bar=$('tg123-host-bar'),post=$('tg123-post-score');
+    if(!rail||!remote||!queue||!rank||!consoleNode||!bar||!catalog||!tools)throw Error('Estrutura do palco incompatível.');
+    const element=(tag,cls,label)=>{const n=document.createElement(tag);n.className=cls;if(label)n.setAttribute('aria-label',label);return n;};
+    const side=element('section','tg100-side','Fila e placar');side.append(queue,rank);layout.append(side);
+    const invites=element('div','tg100-invites','QR dos convidados');invites.append(rail);const screen=main.querySelector('.screen-row');if(!screen)throw Error('Tela do vídeo ausente.');screen.append(invites);
+    const controls=element('section','tg100-controls','Mesa de controle do palco');controls.append(consoleNode,bar);if(post)controls.append(post);
+    const remoteDetails=document.createElement('details');remoteDetails.id='tg30-control-qr-details';remoteDetails.className='tg30-control-qr-details';
+    const remoteSummary=document.createElement('summary');remoteSummary.textContent='📱 QR do controle do anfitrião';remoteDetails.append(remoteSummary,remote);controls.append(remoteDetails);main.append(controls);
+    const exit=$('stage-exit');if(exit)bar.append(exit);
+    const solo=$('tg18-solo-button');if(solo)bar.append(solo);
+    const cockpit=element('section','tg100-secondary','Catálogo e configurações');cockpit.id='tg104-cockpit';
+    const disclosure=(label,cls)=>{const d=document.createElement('details'),s=document.createElement('summary'),v=element('div',cls);s.textContent=label;d.append(s,v);cockpit.append(d);return v;};
+    disclosure('♫ Catálogo e músicas mais tocadas','tg100-catalog-panel').append(catalog);
+    const room=disclosure('⚙ Configurações, Diva e ajuda','tg104-room-panel');room.append(tools);if(help)room.append(help);if(ad)room.append(ad);
+    const footer=layout.querySelector(':scope > .tg19-stage-footer');if(footer){if(footer.children.length)room.append(footer);else footer.remove();}
+    main.append(cockpit);stage.classList.add('tg100-stage-ready');
     window.dispatchEvent(new Event('temgogo:host-cockpit-ready'));
-
+  }
+  function tg100SyncRoomMode(){
+    if(state.role!=='host'||!state.room)return;
+    const solo=state.room.room_mode==='solo';document.body.classList.toggle('tg104-single-device',solo);
+    const stage=$('stage');if(!stage)return;
+    stage.dataset.tg100Mode=solo?'solo':'classic';
+    const title=stage.querySelector('.stage-sidebar .sidebar-top h2');if(title)title.textContent=solo?'SUAS MÚSICAS':'PRÓXIMOS A CANTAR';
+    const call=stage.querySelector('[data-tg123-host-command="call"]');if(call)call.textContent=solo?'🎤 Preparar música':'🎤 Chamar cantor';
+    const hint=stage.querySelector('.vox-idle-copy small');if(hint)hint.textContent=solo?'Escolha sua música pelo catálogo. A Drag Diva acompanha seu show!':'Escolha sua música pelo QR ou pelo catálogo. A Drag Diva tá de olho!';
+    const remoteDetails=$('tg30-control-qr-details');if(remoteDetails){remoteDetails.hidden=solo;if(solo)remoteDetails.open=false;}
+    if(solo){$('stage-qr')?.replaceChildren();$('stage-host-qr')?.replaceChildren();}
   }
 
   // Acesso seguro ao modo solo: não cria outro fluxo de música ou altera a pontuação.
@@ -3399,8 +3810,8 @@ function renderFullCatalog(){
     const button=$('tg103-solo-entry');button.disabled=true;
     try{
       const {data,error}=await state.client.from('karaoke_rooms')
-        .select('id,code,title,owner_id,status,expires_at,current_song_id')
-        .eq('owner_id',state.user.id).eq('status','open')
+        .select('id,code,title,owner_id,status,expires_at,current_song_id,room_mode')
+        .eq('owner_id',state.user.id).eq('room_mode','solo').eq('status','open')
         .gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).limit(1);
       if(error)throw error;
       if(data?.length){
@@ -3411,9 +3822,9 @@ function renderFullCatalog(){
         await enterRoomAsHost(data[0]);
       }
       else{
-        const results=await callRPC('karaoke_create_room',{p_title:'Meu show solo 🎤'});
+        const results=await callRPC('karaoke_create_room_mode',{p_title:'Meu show solo 🎤',p_mode:'solo'});
         if(!results?.[0]?.room_id)throw new Error('Não foi possível preparar sua sala solo.');
-        const x=results[0];await enterRoomAsHost({id:x.room_id,code:x.room_code,title:x.room_title,owner_id:state.user.id});
+        const x=results[0];await enterRoomAsHost({id:x.room_id,code:x.room_code,title:x.room_title,owner_id:state.user.id,room_mode:'solo'});
       }
       document.body.classList.add('tg104-single-device');
       $('tg192-solo-dock').hidden=false;
@@ -3436,8 +3847,81 @@ function renderFullCatalog(){
     if(push&&state.role==='guest'&&state.room&&before&&before!==tab)history.pushState({temGogo:true,view:'guest',tab},'',currentURL(state.room.code));
   }
 
+  // C23 — contenção seletiva (SQL22). A trava no servidor NÃO é ativada por este cliente.
+  // O estado desconhecido bloqueia o início de mídia; uma suspensão observada é terminal
+  // para esta sessão local. Não retomar nem finalizar uma música interrompida.
+  let tg23Pending=null,tg23Timer=null,tg23Leaving=false;
+  function tg23Dialog(message){
+    let d=$('tg23-emergency');
+    if(!d){d=document.createElement('dialog');d.id='tg23-emergency';d.className='tg103-emergency';d.setAttribute('aria-labelledby','tg23-emergency-title');
+      const panel=document.createElement('div');panel.className='tg103-emergency-inner';
+      const title=document.createElement('h2');title.id='tg23-emergency-title';title.textContent='Palco em pausa de segurança';
+      const text=document.createElement('p');text.id='tg23-emergency-message';text.setAttribute('role','status');
+      const help=document.createElement('small');help.textContent='O áudio foi interrompido neste aparelho. Não enviaremos notas finais nem retomaremos automaticamente.';
+      const exit=document.createElement('button');exit.type='button';exit.textContent='Sair do palco neste aparelho';exit.addEventListener('click',()=>void tg23ExitLocal());
+      panel.append(title,text,help,exit);d.append(panel);document.body.append(d);d.addEventListener('cancel',e=>e.preventDefault());}
+    $('tg23-emergency-message').textContent=message;
+    if(!d.open&&!$('tg-beta-emergency')?.open){try{d.showModal();}catch(e){console.warn('Diálogo de segurança:',e);}}
+  }
+  function tg23Suspend(message){
+    if(!state.room||state.emergencyClosing)return;
+    state.emergencyBlocked=true;
+    if(!state.emergencyLatch){
+      state.emergencyLatch=true;++tg07SessionEpoch;
+      // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
+      state.isPlaying=false;state.finishing=false;state.playMetrics=null;
+      tg18AbortDictation();window.TG74_DIVA_STUDIO?.reset();
+      try{window.speechSynthesis?.cancel();}catch{}
+      try{state.player?.mute();state.player?.stopVideo();}catch{}
+      try{state.player?.destroy();}catch{}state.player=null;state.playerReady=false;
+      const frame=$('video-frame');if(frame){$('youtube-player')?.remove();const node=document.createElement('div');node.id='youtube-player';node.className='youtube-player';frame.prepend(node);}
+      // Desvincular referências primeiro: callbacks de onended não podem iniciar envio.
+      const streams=[state.localStream,state.micSendStream,state.soloMic?.stream];
+      const contexts=[state.localAudioContext,state.context,state.soloMic?.ctx];
+      state.localStream=null;state.micSendStream=null;state.localAudioContext=null;state.localAnalyzer=null;state.micGainNode=null;state.context=null;state.soloMic=null;
+      for(const stream of streams)for(const track of stream?.getTracks()||[]){try{track.onended=null;track.stop();}catch{}}
+      for(const ctx of contexts)try{Promise.resolve(ctx?.close()).catch(()=>{});}catch{}
+      try{state.localPeer?.close();}catch{}state.localPeer=null;
+      for(const peer of state.peers.values()){try{peer.pc.ontrack=null;peer.pc.close();}catch{}for(const node of [peer.source,peer.analyser,peer.gain])try{node?.disconnect();}catch{}}
+      state.peers.clear();state.candidateBuffer.clear();state.remotePending.clear();state.remoteLatestCommandId=null;
+      state.micActivity=null;state.micActivitySyncing=false;state.micConnecting=false;tg30RevokeShadow();
+      clearHostPreflight(false);state.guestPreflightSong=null;state.guestReady=false;state.guestMicLock=false;closeGuestCall();
+      hideFinal();hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;
+      if($('mic-toggle'))$('mic-toggle').disabled=true;
+      if($('tg18-solo-status'))$('tg18-solo-status').textContent='Microfone interrompido por segurança.';
+      if($('tg18-remote-feedback'))$('tg18-remote-feedback').textContent='Comandos suspensos; não serão reenviados.';
+    }
+    tg23Dialog(message);
+  }
+  async function tg23Poll(){
+    if(!state.room||!state.user||tg23Leaving||state.emergencyClosing)return false;
+    if(tg23Pending)return tg23Pending.promise;
+    const scope=tg07Scope(),ticket={};tg23Pending=ticket;
+    ticket.promise=(async()=>{let timer;
+      try{
+        const response=await Promise.race([state.client.rpc('tg30_room_emergency_status',{p_room:scope.room}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),4500);})]);
+        if(!tg07Current(scope)||tg23Pending!==ticket)return false;
+        if(response?.error||typeof response?.data?.suspended!=='boolean')throw Error('Estado não confirmado');
+        if(response.data.suspended){tg23Suspend('A produção suspendeu esta modalidade. Seus registros confirmados continuam no servidor.');return false;}
+        if(state.emergencyLatch){tg23Dialog('O servidor não indica suspensão neste momento. Saia deste palco; não haverá retomada automática desta sessão.');return false;}
+        const generation=Object.hasOwn(response.data,'signal_generation')?response.data.signal_generation:null;
+        if(!tg24GenerationValid(generation))throw Error('Geração de segurança inválida');
+        if(state.emergencyGeneration!==undefined&&state.emergencyGeneration!==generation){
+          tg23Suspend('Houve uma mudança de segurança enquanto este aparelho estava conectado. Entre novamente no palco para receber somente os comandos atuais.');return false;
+        }
+        state.emergencyGeneration=generation;
+        state.emergencyBlocked=false;return true;
+      }catch{if(tg07Current(scope)&&tg23Pending===ticket)tg23Suspend('Não foi possível confirmar a segurança deste palco. Por precaução, interrompemos a sessão local.');return false;}
+      finally{clearTimeout(timer);if(tg23Pending===ticket)tg23Pending=null;}
+    })();return ticket.promise;
+  }
+  async function tg23Start(){clearInterval(tg23Timer);tg23Timer=setInterval(()=>{void tg23Poll();},4000);return tg23Poll();}
+  function tg23Reset(){clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;state.emergencyBlocked=true;state.emergencyLatch=false;state.emergencyGeneration=undefined;state.emergencyClosing=false;state.startingSong=null;state.playerSongId=null;if($('tg23-emergency')?.open)$('tg23-emergency').close();}
+  async function tg23ExitLocal(){if(tg23Leaving)return;tg23Leaving=true;try{await stopSession();history.replaceState(null,'',new URL('./',location.href).href);localStorage.removeItem('tem-gogo-pending-room');localStorage.removeItem('tem-gogo-pending-remote');if(state.user&&!isAnonymous(state.user))await openLobby();else showGuestEntry('');}finally{tg23Leaving=false;}}
   // Bloqueio administrativo – recursos locais param quando o estado chega ao navegador.
   window.TG_MAINTENANCE_STOP=async()=>{
+    if(state.room){tg23Suspend('Manutenção geral. O palco foi interrompido neste aparelho.');return;}
+    tg18AbortDictation();window.TG74_DIVA_STUDIO?.reset();
     try{if(state.player?.pauseVideo)state.player.pauseVideo();}catch(e){console.warn('Pausa por manutenção',e);}
     try{await stopMicrophone(false);}catch(e){console.warn('Fechamento do microfone',e);}
     try{if(state.soloMic)stopSoloMic();}catch(e){console.warn(e);}
@@ -3446,8 +3930,10 @@ function renderFullCatalog(){
   };
   // Beta 1.0: apenas a interface social usa este contexto; não expõe chaves administrativas.
   window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
-    members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,
-    canPreviewVoices:()=>state.role==='host'&&!state.currentSong&&!state.preflight&&!state.isPlaying,
+    members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,
+    campaignSafe:!state.emergencyBlocked&&!state.room?.current_song_id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.guestMicLock,
+    canAnnounceOpening:()=>!state.emergencyBlocked&&tg13Recreational()&&state.room?.room_mode==='classic'&&state.role==='host'&&!state.currentSong&&!state.preflight&&!state.songs.some(s=>s.status==='done'||s.status==='playing'||s.status==='skipped'),
+    canPreviewVoices:()=>!state.emergencyBlocked&&state.role==='host'&&state.room?.status==='open'&&state.room.owner_id===state.user?.id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size,
     setAvatar(key){if(!AVATARS[key])return;state.avatar=key;localStorage.setItem('tem-gogo-avatar',key);
       void sendProfileToHost().catch(()=>{});renderAvatarOptions();}});
   init().catch(err=>{console.error(err);toast(humanError(err),true);});

@@ -1,34 +1,35 @@
-/* Tem Gogó V7.5: única ponte do painel para a futura fachada RPC pública auditada.
- * ESCRITAS BLOQUEADAS: a config client e o gate do servidor devem concordar.
- * NUNCA acessa tg_battle_internal ou service_role do navegador.
- */
+/* C08 — fachada exclusivamente pública; nenhuma nota ou voto inventado no cliente. */
 (function(root,factory){'use strict';const x=factory();if(typeof module==='object'&&module.exports)module.exports=x;else root.TGBattleBridge=Object.freeze(x);})(typeof window==='object'?window:globalThis,function(){
 'use strict';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ACTIONS=new Set(['create','join','decide_member','open_registration','host_competes','lock_roster','freeze_seeds','freeze_bracket','prepare_stage','complete_stage','open_vote','cast_vote','extend_vote','close_vote','commit_result','nominate_delegate','accept_delegate','request_recovery','confirm_recovery','cancel_unstarted','heartbeat']);
-const FAILURE={ok:false,enabled:false,status:'aguardando_integracao',message:'A Batalha está em preparação. O karaokê Clássico e o Solo continuam disponíveis.'};
-function error(err){const code=String(err?.message||err||'');if(code.includes('BATTLE_'))return 'Não foi possível concluir esta ação da Batalha. Confira sua participação, o estado da etapa e tente novamente.';return 'Não foi possível comunicar com a Batalha. Verifique sua conexão e tente novamente.';}
-function createBridge({getClient=()=>null,getUser=()=>null,allowRelease=()=>false}={}){
- let status={...FAILURE};
- function client(){return getClient();}
- function user(){return getUser();}
- function checkAccess(){if(!status.enabled||!allowRelease())throw new Error('BATTLE_NOT_RELEASED');if(!client()||!user())throw new Error('BATTLE_AUTH_REQUIRED');}
- return Object.freeze({
-  current:()=>({...status}),
-  async capabilities(){
-   status={...FAILURE};
-   if(!allowRelease() || !client())return this.current();
-   try {const {data,error:err}=await client().rpc('tg_battle_v1_capabilities');
-    if(err)throw err;
-    if(data?.enabled===true&&data?.api_version===1){status={ok:true,enabled:true,status:'operacional',message:'Batalha disponível no ambiente autorizado.'};}
-    return this.current();
-   } catch {return this.current();}
-  },
-  async list(){checkAccess();const {data,error:err}=await client().rpc('tg_battle_v1_list');if(err)throw new Error(error(err));return Array.isArray(data)?data:[];},
-  async snapshot(festivalId){checkAccess();if(!UUID.test(String(festivalId)))throw new Error('Código de festival inválido');const {data,error:err}=await client().rpc('tg_battle_v1_snapshot',{p_festival:festivalId});if(err)throw new Error(error(err));return data;},
-  async execute(action,payload={}){checkAccess();if(!ACTIONS.has(action))throw new Error('Ação não autorizada');if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Dados inválidos');
-   const {data,error:err}=await client().rpc('tg_battle_v1_execute',{p_action:action,p_payload:payload});if(err)throw new Error(error(err));return data;}
- });
+const F='festival_id', M='match_id', W='window_id', B='binding_id', R='request_id', C='call_id', P='member_id';
+const rules=Object.freeze({create:['title'],join:[F,'name','role'],decide_member:[F,P,'approved'],open_registration:[F],host_competes:[F],lock_roster:[F],freeze_seeds:[F],freeze_bracket:[F],prepare_stage:[F,'stage_order'],complete_stage:[F,'stage_order'],bind_performance:[F,M,'room_id','song_id'],capture_performance:[B],invalidate_performance:[B,'reason'],retry_invalidated:[B],open_vote:[F,M],cast_vote:[W,'stars_a','stars_b'],extend_vote:[W],close_vote:[W],finalize_due:[W],commit_result:[W],start_rematch:[W],pause_vote:[W,'reason'],resume_vote:[W,'reason'],enter_technical:[F,'reason'],exit_technical:[F,'reason'],open_reentry:[F,'reason'],confirm_reentry:[C],verify_reentry:[C,P,'approved','reason'],close_reentry:[C,'reason'],nominate_delegate:[F,P],accept_delegate:[F],request_recovery:[F],confirm_recovery:[R,'approve'],owner_contest:[R,'reason'],owner_reject:[R,'reason'],expire_recovery:[R],request_exception:[F,'reason'],recovery_status:[R],complete_transfer:[R,'reason'],owner_reclaim:[R,'reason'],request_withdrawal:[M,'reason'],apply_walkover:[M,'loser_member_id','basis','evidence_id','reason','ack'],finalize_podium:[F,'ack'],close_no_champion:[F,'outcome','reason','ack'],battle_health:[F],authorize_full_revote:['case_id','reason'],cancel_unstarted:[F],heartbeat:[F]});
+const lifecycle=Object.freeze({save_battle:[F,R,'expected_version','reason','ack'],resume_battle:[F,R,'expected_version','reason','ack'],prepare_cancel:[F,R,'expected_version','reason'],cancel_battle:[F,R,'expected_version','confirmation_id','ack']});
+const INVALIDATION_REASONS=Object.freeze(['microphone_failure','playback_failure','connection_failure','skipped','technical_failure']);
+const MFA=new Set(['authorize_full_revote','complete_transfer','owner_reclaim','apply_walkover','finalize_podium','close_no_champion','cancel_unstarted','cancel_battle']);
+const ACK=Object.freeze({apply_walkover:'CONFIRMO_WO_SEM_FALHA_TECNICA',finalize_podium:'CONFIRMO_PODIO_COM_RESULTADOS_AUDITADOS',close_no_champion:'CONFIRMO_ENCERRAMENTO_SEM_TROFEUS',save_battle:'SALVAR_BATALHA',resume_battle:'RETOMAR_BATALHA',cancel_battle:'CONFIRMO_ENCERRAMENTO_DEFINITIVO_SEM_CONCLUSAO'});
+const FAILURE={ok:false,enabled:false,status:'aguardando_integracao',message:'A Batalha está em preparação. O Clássico e o Solo continuam disponíveis.'};
+function validate(action,payload,kind='execute'){
+ const schema=kind==='lifecycle'?lifecycle:rules;if(!Object.hasOwn(schema,action)||!payload||typeof payload!=='object'||Array.isArray(payload))throw Error('Ação ou dados inválidos');
+ const required=schema[action],extra=kind==='execute'?(action==='bind_performance'?['expected_attempt']:action==='open_vote'?['expected_attempt','expected_binding_id']:[]):[];const keys=[...required,...extra.filter(k=>Object.hasOwn(payload,k))];if(Object.keys(payload).some(k=>!keys.includes(k))||required.some(k=>!Object.hasOwn(payload,k)))throw Error('Campos incompatíveis com a ação');if(action==='open_vote'&&Object.hasOwn(payload,'expected_attempt')!==Object.hasOwn(payload,'expected_binding_id'))throw Error('Tentativa e vínculo devem ser informados juntos.');
+ const p={};for(const k of keys){let v=payload[k];
+  if(k.endsWith('_id')){if(typeof v!=='string'||!UUID.test(v))throw Error('Identificador inválido');}
+  else if(['approve','approved'].includes(k)){if(typeof v!=='boolean')throw Error('Confirmação inválida');}
+  else if(k.startsWith('stars_')){if(!(k==='stars_b'&&v===null)&&(!Number.isInteger(v)||v<1||v>5))throw Error('Escolha de 1 a 5 estrelas');}
+  else if(k==='stage_order'||k==='expected_version'||k==='expected_attempt'){if(!Number.isSafeInteger(v)||v<(k==='expected_version'?0:1)||(k==='expected_attempt'&&v>999999999))throw Error('Etapa ou versão inválida');}
+  else {if(typeof v!=='string')throw Error('Texto inválido');v=v.trim();if(k==='reason'){if(action==='invalidate_performance'){if(!INVALIDATION_REASONS.includes(v))throw Error('Selecione o motivo técnico da lista.');}else if(v.length<20||v.length>500)throw Error('Justificativa de 20 a 500 caracteres');}if(k==='title'&&(v.length<3||v.length>120))throw Error('Título inválido');if(k==='name'&&(v.length<1||v.length>70))throw Error('Nome inválido');if(k==='role'&&!['competitor','spectator','guest_voter'].includes(v))throw Error('Papel inválido');if(k==='basis'&&!['voluntary_withdrawal','verified_absence'].includes(v))throw Error('Evidência inválida');if(k==='outcome'&&!['cancelled','completed_no_champion'].includes(v))throw Error('Encerramento inválido');if(k==='ack'&&v!==ACK[action])throw Error('Confirmação explícita obrigatória');}
+  p[k]=v;
+ }return p;
 }
-return {createBridge, UUID, ACTIONS, FAILURE};
+function friendly(err){const code=String(err?.message||err||'');if(code.includes('AAL2')||code.includes('MFA'))return 'Confirme sua identidade por MFA antes desta ação.';if(/BATTLE|TG57|TG30/.test(code))return 'O servidor não autorizou a ação. Confira seu papel, o estado e as condições da etapa.';return 'Não foi possível comunicar com a Batalha. Atualize antes de tentar novamente.';}
+function createBridge({getClient=()=>null,getUser=()=>null,allowRelease=()=>false}={}){
+ let status={...FAILURE},subject=null,epoch=0;
+ function reset(){epoch++;subject=null;status={...FAILURE};}
+ function checkAccess(){if(!status.enabled||!allowRelease()||!getClient()||!getUser()?.id||getUser().id!==subject){reset();throw Error('Batalha indisponível ou sessão alterada');}}
+ async function rpc(name,args){const uid=subject,gen=epoch;const {data,error}=await getClient().rpc(name,args);if(uid!==getUser()?.id||gen!==epoch||!allowRelease())throw Error('Sessão alterada');if(error)throw Error(friendly(error));return data;}
+ async function assurance(){checkAccess();const stamp=epoch,actor=subject;const {data,error}=await getClient().auth.mfa.getAuthenticatorAssuranceLevel();if(error)throw Error(friendly(error));checkAccess();if(stamp!==epoch||actor!==subject)throw Error('Sessão alterada');return data?.currentLevel||null;}
+ async function action(kind,name,payload){checkAccess();const stamp=epoch,actor=subject;const p=validate(name,payload,kind);if(MFA.has(name)&&await assurance()!=='aal2')throw Error('Confirme sua identidade por MFA antes desta ação.');checkAccess();if(stamp!==epoch||actor!==subject)throw Error('Sessão alterada');return rpc(kind==='lifecycle'?'tg_battle_v1_lifecycle':'tg_battle_v1_execute',{p_action:name,p_payload:p});}
+ return Object.freeze({reset,current:()=>({...status}),async capabilities(){reset();if(!allowRelease()||!getClient()||!getUser()?.id)return {...status};const uid=getUser().id,gen=epoch;try{const {data,error}=await getClient().rpc('tg_battle_v1_capabilities');if(!error&&gen===epoch&&uid===getUser()?.id&&allowRelease()&&data?.enabled===true&&data?.api_version===1){subject=uid;status={ok:true,enabled:true,status:'operacional',message:'Batalha disponível no ambiente autorizado.'};}}catch{}return {...status};},async list(){checkAccess();const d=await rpc('tg_battle_v1_list');if(!Array.isArray(d))throw Error('Lista inválida');return d;},async snapshot(id){checkAccess();if(!UUID.test(id))throw Error('Festival inválido');const d=await rpc('tg30_battle_workspace',{p_festival:id});if(d?.festival?.id!==id||d?.workspace_version!==1)throw Error('Contrato do painel incompatível');return d;},async closeRoom(roomId,festivalId){checkAccess();const stamp=epoch,actor=subject;if(!UUID.test(roomId)||!UUID.test(festivalId))throw Error('Palco ou festival inválido');if(await assurance()!=='aal2')throw Error('Confirme sua identidade por MFA antes desta ação.');checkAccess();if(stamp!==epoch||actor!==subject)throw Error('Sessão alterada');const d=await rpc('tg30_close_battle_room',{p_room:roomId,p_festival:festivalId});if(d?.closed!==true||d.room_id!==roomId||d.festival_id!==festivalId)throw Error('Encerramento não confirmado. Atualize o palco.');return d;},execute:(n,p)=>action('execute',n,p),lifecycle:(n,p)=>action('lifecycle',n,p),assurance,async factors(){checkAccess();const stamp=epoch,actor=subject;const {data,error}=await getClient().auth.mfa.listFactors();if(error)throw Error(friendly(error));checkAccess();if(stamp!==epoch||actor!==subject)throw Error('Sessão alterada');return (data?.totp||[]).filter(f=>f.status==='verified');},async verify(factor,code){checkAccess();const stamp=epoch,actor=subject;if(!UUID.test(factor)||!/^\d{6}$/.test(code))throw Error('Código ou fator inválido');const {error}=await getClient().auth.mfa.challengeAndVerify({factorId:factor,code});if(error)throw Error('Código inválido ou expirado.');checkAccess();if(stamp!==epoch||actor!==subject)throw Error('Sessão alterada');return assurance();},async enroll(){checkAccess();const stamp=epoch,actor=subject;const {data,error}=await getClient().auth.mfa.enroll({factorType:'totp',friendlyName:'Tem Gogó'});if(error)throw Error('Não foi possível cadastrar o autenticador.');checkAccess();if(stamp!==epoch||actor!==subject)throw Error('Sessão alterada');if(!UUID.test(data?.id)||!data?.totp?.secret)throw Error('Fator inválido');return {id:data.id,secret:data.totp.secret};}});
+}
+return {createBridge,validate,UUID,INVALIDATION_REASONS,ACTIONS:new Set(Object.keys(rules)),MFA,ACK,FAILURE};
 });

@@ -1,0 +1,14 @@
+/* Candidata 03 - componentes funcionais. Nenhuma alteração no player ou QR. */
+.tg30-voice-field{border:1px solid var(--line);border-radius:16px;padding:12px;margin:14px 0;min-width:0}
+.tg30-voice-field legend{font-weight:750;padding:0 6px;color:var(--text)}
+.tg30-voice-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.tg30-voice-choices label,.tg30-voice-neutral{display:flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:8px 5px;border:1px solid var(--line);border-radius:12px;font-size:13px;cursor:pointer;color:var(--text);background:var(--surface)}
+.tg30-voice-choices label:has(input:checked),.tg30-voice-neutral:has(input:checked){border:2px solid var(--violet);background:var(--surface-2)}
+.tg30-voice-field input[type=radio]{width:16px;height:16px;flex:0 0 16px;accent-color:var(--violet);padding:0}
+.tg30-voice-neutral{margin-top:8px;justify-content:flex-start}
+.tg30-voice-range{padding:10px 0 0}.tg30-voice-range input[type=range]{width:100%;height:44px;padding:0;accent-color:var(--violet);background:transparent}
+.tg30-voice-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.tg30-voice-result{display:block;text-align:center;font-weight:700;margin:8px 0;color:var(--text)}
+.tg30-voice-field small{display:block;line-height:1.5;margin:8px 0;color:var(--muted)}
+.tg30-voice-open{white-space:normal;min-height:44px}
+@media(max-width:360px){.tg30-voice-choices{grid-template-columns:1fr}.tg30-voice-choices label{justify-content:flex-start}}
