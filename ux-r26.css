@@ -380,3 +380,12 @@ body.tg12-ready #landing .landing-footer{line-height:1.45;flex-wrap:wrap;gap:4px
  #tg193-tour-dialog .tg193-tour-diva{height:84px}
  #faq-dialog .modal-inner{padding:10px!important}
 }
+
+/* R32 — estúdio e pads de áudio: escuta e revisão local, sem dependências. */
+#tg74-voice-preview .tg26-trim{gap:6px;padding:10px}
+#tg74-voice-preview .tg26-trim input{font-size:16px;min-height:44px;box-sizing:border-box}
+#tg74-voice-preview #tg32-voice-position{font-variant-numeric:tabular-nums;margin:0;line-height:1.4}
+#tg74-voice-preview .tg74-studio-actions{display:flex;flex-wrap:wrap;gap:6px}
+#tg74-voice-preview .tg74-studio-actions button{flex:1 1 140px;min-width:0;min-height:44px;white-space:normal;line-height:1.25}
+#tg74-voice-preview :is(select,textarea){max-width:100%;min-width:0;width:100%;font-size:16px;box-sizing:border-box}
+#stage .tg26-effects button,#tg18-remote .tg26-effects button{min-height:48px;line-height:1.25}

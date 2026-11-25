@@ -347,7 +347,7 @@
         window.TG74_DIVA_STUDIO.setAuto(data.value===1);
       }else if(cmd==='pop-effect'){
         const effect=['palmas','fogos','vinheta','suspense'][data.value];
-        if(!canDirectDiva()||!tg13Recreational()||!Number.isInteger(data.value)||!effect||!data.id||!await window.TG74_DIVA_STUDIO?.pop(effect,'remote:'+data.id))throw Error('Efeito indisponível: aguarde o intervalo e ative o som na TV.');
+        if(!canDirectDiva()||!tg13Recreational()||!Number.isInteger(data.value)||!effect||!data.id||!await window.TG74_DIVA_STUDIO?.manualPop(effect,'remote:'+data.id))throw Error('Efeito indisponível: aguarde o intervalo e ative o som na TV.');
       }else if(cmd==='stage-status'){
         // Leitura local do palco, devolvida no ACK.
       }else if(cmd==='diva-preview-volume'){
@@ -4369,7 +4369,8 @@ function renderFullCatalog(){
     members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,
     campaignSafe:!state.emergencyBlocked&&!state.room?.current_song_id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.guestMicLock,
     canAnnounceOpening:()=>!state.emergencyBlocked&&tg13Recreational()&&state.room?.room_mode==='classic'&&state.role==='host'&&!state.currentSong&&!state.preflight&&!state.songs.some(s=>s.status==='done'||s.status==='playing'||s.status==='skipped'),
-    canPreviewVoices:()=>!state.emergencyBlocked&&tg13Recreational()&&state.role==='host'&&state.room?.status==='open'&&state.room.owner_id===state.user?.id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size,
+    canManualAudio:()=>!state.startingSong&&!state.finishing&&!recadoShowing&&!!$('final-overlay')?.hidden,
+    canPreviewVoices:()=>!state.startingSong&&!state.emergencyBlocked&&tg13Recreational()&&state.role==='host'&&state.room?.status==='open'&&state.room.owner_id===state.user?.id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size,
     setAvatar(key){if(!AVATARS[key])return;state.avatar=key;localStorage.setItem('tem-gogo-avatar',key);
       void sendProfileToHost().catch(()=>{});renderAvatarOptions();}});
   init().catch(err=>{console.error(err);toast(humanError(err),true);});
