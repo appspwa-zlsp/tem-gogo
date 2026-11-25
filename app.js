@@ -3310,7 +3310,7 @@ async function openFullCatalog(){
   $('catalog-dialog').showModal();
   $('catalog-list').textContent='Abrindo a biblioteca do povo... 🎶';
   const scope=tg07Scope();void tg26LoadFavorites(true);await loadCatalog();if(!tg07Current(scope)||!$('catalog-dialog').open)return;renderFullCatalog();
-  $('catalog-search').focus({preventScroll:true});
+  if(document.body.dataset.currentView!=='stage')$('catalog-search').focus({preventScroll:true});
 }
 function tg05RenderGenreNav(){
   const nav=$('tg05-genre-nav'),strip=$('tg05-genre-strip'),select=$('catalog-filter');if(!nav||!strip||!select)return;
@@ -3367,7 +3367,7 @@ function renderFullCatalog(){
     panel.hidden=false;
     const hide=()=>{panel.hidden=true;clearTimeout(tg123SuccessTimer);};
     $('tg123-success-close').onclick=hide;
-    $('tg123-success-another').onclick=()=>{hide();if($('catalog-dialog')?.open)$('catalog-search')?.focus({preventScroll:true});};
+    $('tg123-success-another').onclick=()=>{hide();if($('catalog-dialog')?.open)(document.body.dataset.currentView==='stage'?$('catalog-close'):$('catalog-search'))?.focus({preventScroll:true});};
     tg123SuccessTimer=setTimeout(hide,4800);
   }
   async function addSearchedVideo(item,host,button,results,cardMode=null,cardPartners=null) {

@@ -1,0 +1,28 @@
+/* R57 — primeiro bloco da integração visual, sobre a R39 real. */
+#settings-dialog .tg57-legacy-editor,#stage .tg26-effects,#stage #tg74-voice-preview{display:none!important}
+#stage .stage-actions #theme-cycle{display:inline-flex!important;align-items:center;gap:5px;min-height:44px;padding:6px 10px;border-radius:12px;white-space:nowrap;box-shadow:none!important}
+#stage .stage-actions #theme-cycle span{font-size:13px!important}
+#stage[data-tg26-ready] .tg26-room-actions button{min-height:44px;border-radius:12px}
+#stage[data-tg26-ready] #tg123-host-bar button:not(.tg26-legacy){border-radius:12px;box-shadow:none!important}
+body.tg57-dpad :is(#stage,#lobby,#landing,dialog[open]) :focus-visible{outline:3px solid var(--tg-focus,#f5ddff)!important;outline-offset:3px!important;box-shadow:0 0 0 5px #21152d!important}
+body.high-contrast.tg57-dpad :focus-visible{outline-color:#fff!important;box-shadow:0 0 0 5px #000!important}
+#catalog-dialog .catalog-toolbar{min-width:0;gap:8px}
+#catalog-dialog :is(#catalog-search,#catalog-filter){min-height:44px;font-size:16px;min-width:0;max-width:100%;box-sizing:border-box}
+#catalog-dialog .catalog-head .card-eyebrow,#catalog-dialog .catalog-head p{display:none!important}
+#catalog-dialog .catalog-head h2{font-size:clamp(20px,4vw,28px)!important;line-height:1.2;margin:0}
+#catalog-dialog .catalog-close{min-width:44px;min-height:44px}
+#catalog-dialog .catalog-list{gap:8px!important}
+#catalog-dialog .tg26-track-actions button{min-width:44px;min-height:44px;border-radius:10px}
+@media(max-width:680px){
+ #catalog-dialog{width:100%!important;max-width:100%!important;max-height:100dvh!important;height:100dvh!important;inset:0!important;margin:0!important;border-radius:0!important;overflow:auto!important}
+ #catalog-dialog .catalog-modal-shell{box-sizing:border-box;width:100%!important;max-width:none!important;min-width:0!important;padding:10px!important}
+ #catalog-dialog .catalog-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr)!important}
+ #catalog-dialog .catalog-list{grid-template-columns:minmax(0,1fr)!important}
+}
+.tg57-storage-notice{box-sizing:border-box;width:min(calc(100% - 24px),520px);margin:8px auto 16px;padding:14px;border:1px solid var(--tg-border,var(--line));border-radius:16px;background:var(--tg-surface,var(--surface));color:var(--tg-text,var(--text));box-shadow:none}
+.tg57-storage-notice[hidden]{display:none!important}
+.tg57-storage-notice h2{font:700 16px/1.3 system-ui;margin:0 0 6px}
+.tg57-storage-notice p{font-size:13px;line-height:1.5;margin:0 0 8px}
+.tg57-storage-actions{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tg57-storage-actions :is(button,a){min-height:44px;display:inline-flex;align-items:center}
+.tg57-storage-reopen{min-height:44px}

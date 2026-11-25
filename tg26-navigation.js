@@ -19,10 +19,10 @@
   const recado=q('.tg04-stage-recado',stage);if(recado)controls.append(recado);
   const tools=q('.tg19-stage-tool-grid',room);const help=q('.tg193-help-tools',room);
   const roomActions=el('section','tg26-room-actions');roomActions.append(el('h3','','Gerenciar festa'));
-  const switcher=$('stage-switch'),end=$('stage-exit');move(roomActions,switcher,el('small','','Minhas salas mantém a festa aberta.'),end,el('small','','Encerrar confirma o fim para todos e abre o placar.'));
+  const switcher=$('stage-switch'),end=$('stage-exit');if(switcher)switcher.textContent='Minhas salas';if(end)end.textContent='Encerrar festa';move(roomActions,switcher,el('small','','A festa permanece aberta.'),end,el('small','','Finaliza para todos, após confirmação.'));
   room.prepend(roomActions);
-  legacy($('theme-cycle'));legacy($('contrast-toggle'));legacy($('open-scoreboard'));
-  const settings=q('.open-settings',tools);if(settings){settings.textContent='🎨 Aparência, humor e acessibilidade';settings.classList.add('tg26-control-settings');controls.append(settings);}
+  const theme=$('theme-cycle');if(theme){theme.classList.remove('tg26-legacy');theme.setAttribute('aria-label','Trocar tema do palco');q('.stage-actions',stage)?.prepend(theme);}legacy($('contrast-toggle'));legacy($('open-scoreboard'));
+  const settings=q('.open-settings',tools);if(settings){settings.textContent='Ajustes e acessibilidade';roomActions.prepend(settings);}
   const faq=$('open-stage-faq');if(faq)faq.textContent='❔ Ajuda e dúvidas';
   if(help&&tools)move(tools,...help.children);if(help)help.remove();
   const footer=q('.tg19-stage-footer',room);if(footer&&!footer.children.length)footer.remove();
@@ -37,6 +37,7 @@
   const voice=q('.tg05-voice-controls',consoleNode);if(voice){const hint=el('p','tg26-note','Para ouvir a Drag Diva durante a festa, autorize as falas nesta sessão. O teste manual não ativa as falas; eventos automáticos exigem gravações publicadas pela Central.');voice.prepend(hint);}
   const empty=q('.tg19-stage-footer',room);if(empty){empty.classList.add('tg26-footer');}
   select('palco');
+  window.addEventListener('temgogo:r57-back',e=>{if(stage.hidden||stage.dataset.tg26Panel==='palco')return;e.preventDefault();select('palco');nav.querySelector('[data-tg26-key=palco]')?.focus({preventScroll:true});});
   window.addEventListener('temgogo:view',e=>{if(e.detail?.view==='stage')select('palco');});
  }
  function remoteNav(){
@@ -51,7 +52,7 @@
   const audio=q('.tg05-remote-audio',control);if(audio){audio.open=true;const summary=q('summary',audio);if(summary)summary.textContent='🎚 Mesa de áudio da TV';
    const effects=el('details','tg192-remote-advanced tg28-effects');effects.append(el('summary','','✦ Drag Diva e efeitos da TV'));const pads=el('section','tg26-effects');pads.append(el('p','tg26-note','A TV precisa estar com o som ativo. Falas exigem publicação pela Central; efeitos somente no intervalo.'));
    const send=(command,value)=>window.dispatchEvent(new CustomEvent('temgogo:remote-audio',{detail:{command,value}}));
-   for(const [cmd,value,label] of [['diva-auto',1,'🎙 Autorizar falas'],['diva-auto',0,'🔇 Desativar falas'],['pop-effect',0,'👏 Aplausos'],['pop-effect',1,'🎆 Fogos'],['pop-effect',2,'🎶 Vinheta'],['pop-effect',3,'✨ Suspense']])pads.append(button(label,()=>send(cmd,value)));
+   for(const [cmd,value,label] of [['diva-auto',1,'Autorizar falas'],['diva-auto',0,'Silenciar falas']])pads.append(button(label,()=>send(cmd,value)));
    const status=el('p','tg26-note','Consulte a TV para conferir as falas.');status.id='tg26-remote-audio-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');pads.append(status);effects.append(pads);audio.after(effects);
   }
   const recado=$('tg04-remote-send')?.closest('details');if(recado){const hint=el('p','tg26-note','O texto fica na fila de recados e aparece no intervalo da TV. Não é uma gravação de voz.');recado.insertBefore(hint,$('tg04-remote-send'));}
