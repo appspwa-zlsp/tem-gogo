@@ -52,3 +52,19 @@ body:not(.tg103-mic-focus):not(.tg18-singing) #guest #mobile-tab-score:not([hidd
 }
 body.tg18-singing #guest .mobile-switch,body.tg103-mic-focus #guest .mobile-switch{display:none!important}
 [hidden]{display:none!important}
+/* R05.1: ornamentos do passaporte não podem criar rolagem horizontal no mobile. */
+@media(max-width:680px){
+ #landing .access-card::before{right:4px;top:-24px;font-size:38px}
+ #landing .access-card::after{right:4px;bottom:8px;transform:rotate(-5deg)}
+ #landing .access-card{min-width:0;max-width:100%;box-sizing:border-box}
+ #landing .landing-main{min-width:0;max-width:100%}
+}
+@media(max-width:680px){#landing::before{width:min(100%,660px);height:auto;aspect-ratio:1;left:0;box-sizing:border-box}}
+/* R05.2: a prateleira é horizontal; flex-basis nunca deve virar altura da faixa. */
+#guest #guest-library.hit-library-list:has(.tg123-track){flex-direction:row!important;flex-wrap:nowrap!important;align-items:stretch!important;gap:10px!important}
+#guest #guest-library.hit-library-list>.tg123-track{height:auto!important;aspect-ratio:auto!important;max-width:100%!important;align-content:start!important}
+/* R05.3: ocupar a coluna inteira, não a antiga largura de 170px do QR. */
+@media(max-width:680px){
+ #stage.tg100-stage-ready .screen-row>.tg100-invites{width:100%!important;max-width:100%!important;justify-self:stretch;grid-column:1;min-width:0}
+ #stage .screen-row .qr-rail .qr-bubble:not(.qr-expanded) .qr-footer small{display:block;white-space:normal;overflow-wrap:normal;word-break:normal}
+}
