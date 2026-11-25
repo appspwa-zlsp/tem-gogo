@@ -198,6 +198,7 @@
       await fetchMembers();renderRemote();toast('Apelido atualizado no palco!');
     }catch(err){toast('Não foi possível alterar o apelido: '+humanError(err),true);}
   }
+  let tgR13NextConfirmation=null;
   async function remoteCommand(cmd,value,songId=null){
     if(state.emergencyBlocked)return;
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
@@ -206,7 +207,16 @@
     if(callActive() && !['start','resend'].includes(cmd)){toast('Durante sua vez o controle fica protegido; use o painel do microfone.',true);return;}
     if(cmd==='stage-status'&&[...state.remotePending.values()].some(p=>p.cmd==='stage-status'))return;
     const roomId=state.room.id,scope=tg07Scope();
-    if(cmd==='next'&&state.songs.some(s=>s.status==='playing')&&!await window.TG_UI.confirm('Pular a apresentação atual? Ela ficará sem nota.',{title:'Próxima música',confirmText:'Pular apresentação',danger:true}))return;
+    const playingId=()=>state.songs.find(s=>s.status==='playing')?.id??null;
+    const expectedSongId=playingId();
+    if(cmd==='prepare'&&expectedSongId){toast('Já existe uma música tocando. Use Próxima para pular.',true);return;}
+    if(cmd==='next'){
+      if((tgR13NextConfirmation&&tg07Current(tgR13NextConfirmation))||[...state.remotePending.values()].some(p=>p.cmd==='next')){toast('Aguarde a confirmação da próxima música.');return;}
+      const ticket=scope;tgR13NextConfirmation=ticket;
+      try{if(expectedSongId&&!await window.TG_UI.confirm('Pular a apresentação atual? Ela ficará sem nota.',{title:'Próxima música',confirmText:'Pular apresentação',danger:true}))return;}
+      finally{if(tgR13NextConfirmation===ticket)tgR13NextConfirmation=null;}
+      if(tg07Current(scope)&&playingId()!==expectedSongId){toast('A música mudou. Confira a fila antes de pular.',true);return;}
+    }
     if(state.emergencyBlocked||!tg07Current(scope)||state.room?.id!==roomId||state.role!=='remote'||(callActive()&&!['start','resend'].includes(cmd)))return;
     state.remoteLastSent=Date.now();
     let id=null;
@@ -215,7 +225,7 @@
       state.remoteLatestCommandId=id;
       $('tg18-remote-feedback').textContent='◌ Enviando comando ao palco…';
       state.remotePending.set(id,{cmd,at:Date.now()});
-      await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'||(cmd==='stage-theme'&&THEMES.includes(value))?value:null,songId:typeof songId==='string'?songId:null,at:Date.now(),id});
+      await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'||(cmd==='stage-theme'&&THEMES.includes(value))?value:null,songId:typeof songId==='string'?songId:null,...(cmd==='next'?{expectedSongId}:{}),at:Date.now(),id});
       // O ACK pode chegar pelo Realtime antes de o INSERT terminar.
       if(state.emergencyBlocked||!tg07Current(scope))return;
       if(state.remotePending.has(id)&&state.remoteLatestCommandId===id){
@@ -273,7 +283,12 @@
         if(state.currentSong)state.player?.playVideo();
         else if(state.preflight)await startPreparedSong();else await advanceSong();
       }else if(cmd==='pause'){if(!state.currentSong)throw new Error('Nenhuma música tocando.');state.player?.pauseVideo();}
-      else if(cmd==='next'||cmd==='prepare'){await advanceSong();}
+      else if(cmd==='next'||cmd==='prepare'){
+        const activeId=state.currentSong?.id??null;
+        if(cmd==='prepare'&&activeId)throw Error('Já existe uma música tocando. Use Próxima para pular.');
+        if(cmd==='next'&&(!Object.hasOwn(data,'expectedSongId')||data.expectedSongId!==activeId))throw Error('A música mudou ou o celular precisa ser atualizado. Confira a TV antes de pular.');
+        if(!await advanceSong({remoteConfirmed:cmd==='next',expectedSongId:activeId}))throw Error('A ação não foi concluída. Confira o palco.');
+      }
       else if(cmd==='start'){
         if(!state.preflight)throw new Error('Prepare uma música da fila primeiro.');
         const preparedSong=state.preflight.song.id;await startPreparedSong();if(state.currentSong?.id!==preparedSong)throw new Error('Aguardando prontidão dos cantores.');
@@ -646,8 +661,9 @@
     renderPreflightHost();
   }
   async function sendPreflightInvites(force=false){
-    const pre=state.preflight;if(!pre||!state.room)return;
+    const pre=state.preflight,scope=tg07Scope();if(!pre||!state.room)return;
     for(const uid of songSingers(pre.song)){
+      if(state.emergencyBlocked||!tg07Current(scope)||state.preflight!==pre)return;
       const status=pre.statuses.get(uid);
       if(!force&&status?.ready&&status.mic)continue;
       try{await sendSignal(uid,'stage-prepare',{songId:pre.song.id,token:pre.token,title:pre.song.title,sentAt:Date.now()});}
@@ -668,8 +684,9 @@
     $('song-pill').textContent='⏳ Aguardando confirmação';
     $('video-placeholder').hidden=false;setDivaStageState('preflight');
     renderPreflightHost();updateVoxLine('preflight');void dispatchPushForSong(song);
+    const prepared=state.preflight,scope=tg07Scope();
     await sendPreflightInvites(true);
-    if(state.emergencyBlocked||state.preflight?.song.id!==song.id)return;
+    if(state.emergencyBlocked||!tg07Current(scope)||state.preflight!==prepared)return;
     clearInterval(state.preflightTimer);
     state.preflightTimer=setInterval(()=>{if(state.preflight)void sendPreflightInvites(false);},12000);
   }
@@ -2696,23 +2713,30 @@
     }catch(err){if(tg07Current(finishScope))toast('Falha ao finalizar música: '+humanError(err),true);}
     finally{if(tg07Current(finishScope))state.finishing=false;}
   }
-  async function advanceSong(){
-    if(state.emergencyBlocked)return;
-    if(state.finishing){toast('A Diva está concluindo a apresentação.');return;}
-    const scope=tg07Scope();
+  let tgR13AdvanceConfirmation=null;
+  async function advanceSong(options={}){
+    if(state.emergencyBlocked||state.role!=='host')return false;
+    if(state.finishing||state.startingSong||state.preflight?.starting){toast('Aguarde a apresentação atual.');return false;}
+    const scope=tg07Scope(),expected=state.currentSong?.id??null;
+    if(Object.hasOwn(options,'expectedSongId')&&options.expectedSongId!==expected)return false;
+    if(expected&&!options.remoteConfirmed){
+      if(tgR13AdvanceConfirmation&&tg07Current(tgR13AdvanceConfirmation))return false;
+      tgR13AdvanceConfirmation=scope;
+      try{if(!await window.TG_UI.confirm('Pular esta apresentação? Ela será encerrada sem nota.',{title:'Pular música',confirmText:'Pular apresentação',danger:true}))return false;}
+      finally{if(tgR13AdvanceConfirmation===scope)tgR13AdvanceConfirmation=null;}
+    }
+    if(state.emergencyBlocked||!tg07Current(scope)||state.finishing||state.startingSong||state.preflight?.starting||(state.currentSong?.id??null)!==expected)return false;
     window.TG74_DIVA_STUDIO?.stop();
-    if(document.body.classList.contains('tg104-single-device') && state.currentSong && !await window.TG_UI.confirm('Pular esta apresentação? O microfone será desligado após finalizar o registro da música.',{title:'Pular música',confirmText:'Pular apresentação',danger:true}))return;
-    if(state.emergencyBlocked||!tg07Current(scope))return;
     if($('tg123-post-score'))$('tg123-post-score').hidden=true;
     hideFinal();
-    if(state.currentSong){await finishSong(true,false);if(state.currentSong||state.emergencyBlocked||!tg07Current(scope))return;}
+    if(state.currentSong){await finishSong(true,false);if(state.currentSong||state.emergencyBlocked||!tg07Current(scope))return false;}
     if(state.role==='host'&&pendingGuestRecados.length){
-      if(showNextGuestRecado(()=>advanceSong()))return;
+      if(showNextGuestRecado(()=>advanceSong()))return true;
     }
-    await fetchSongs();if(state.emergencyBlocked||!tg07Current(scope))return;renderQueue();
+    await fetchSongs();if(state.emergencyBlocked||!tg07Current(scope)||state.currentSong||state.startingSong||state.preflight?.starting)return false;renderQueue();
     const next=state.songs.find(s=>s.status==='queued');
-    if(next){updateVoxLine('queue');await prepareSong(next);}
-    else {setNowPlaying(null);toast('A fila acabou! Hora de escolher outro hit. 🎶');}
+    if(next){updateVoxLine('queue');await prepareSong(next);return tg07Current(scope)&&!state.emergencyBlocked&&state.preflight?.song.id===next.id;}
+    setNowPlaying(null);toast('A fila acabou! Hora de escolher outro hit. 🎶');return true;
   }
   async function togglePlayback(){
     if(state.emergencyBlocked)return;
@@ -3395,10 +3419,10 @@ function renderFullCatalog(){
     if(!canDirectDiva()||!state.room)return;
     if(!tg13Recreational()){toast('Use a aba Prêmios do festival para encerrar o palco competitivo após o resultado oficial.',true);return;}
     if(state.role==='remote'&&callActive()){toast('Finalize sua participação antes de encerrar a festa.',true);return;}
-    const initialRoom=state.room.id;
+    const initialRoom=state.room.id,initialScope=tg07Scope();
     if(state.finishing){toast('Concluindo a música atual. Aguarde um instante para encerrar a festa.');return;}
     if(!await window.TG_UI.confirm('Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:'Finalizar a festa',confirmText:'Encerrar festa',danger:true}))return;
-    if(!canDirectDiva()||state.room?.id!==initialRoom||state.finishing||(state.role==='remote'&&callActive()))return;
+    if(state.emergencyBlocked||!tg07Current(initialScope)||!canDirectDiva()||!tg13Recreational()||state.room?.id!==initialRoom||state.finishing||(state.role==='remote'&&callActive()))return;
     const id=state.room.id,scope=tg07Scope();
     const button=$(state.role==='remote'?'tg04-remote-end':'stage-exit');
     state.finishing=true;
@@ -3425,8 +3449,7 @@ function renderFullCatalog(){
       if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;state.recapAvatars=avatars;
       try{showPartyRecap(recap,id);}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
     }finally{
-      state.finishing=false;
-      if(button)button.disabled=false;
+      if(tg07Current(scope)||!state.room){state.finishing=false;if(button)button.disabled=false;}
     }
   }
   async function logout(){
