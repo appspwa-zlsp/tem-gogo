@@ -121,7 +121,19 @@ function initParticipant(){
  }
  const hero=guest.querySelector('.guest-hit-library');if(hero){const h=hero.querySelector('h2');if(h)h.textContent='Catálogo de músicas';}
  const bar=guest.querySelector('.mobile-switch');if(bar){bar.setAttribute('aria-label','Músicas, microfone quando chamado, placar e perfil');const songs=$('mobile-tab-queue');if(songs){songs.textContent='';songs.append(mk('span',{},'♫'),mk('span',{},'Catálogo'));}}
- // The original score remains available from the single Ranking area; no duplicate fixed button.
+ // R05: um destino por botão; mantém listeners originais e bloqueio do turno.
+ if(bar){
+   bar.setAttribute('aria-label','Navegação da festa');bar.removeAttribute('role');
+   const original=$('mobile-tab-queue'),score=$('mobile-tab-score');
+   const makeNav=(id,emoji,label,action)=>{const b=mk('button',{id,type:'button',class:'mobile-tab'});b.append(mk('span',{'aria-hidden':'true'},emoji),mk('span',{},label));b.addEventListener('click',()=>{if(document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg18-singing'))return;action();});return b;};
+   if(original&&!$('tg-r05-catalog-tab')){
+     const catalog=makeNav('tg-r05-catalog-tab','♫','Biblioteca',()=>guest.querySelector('.guest-hit-library [data-catalog-open]')?.click());
+     const queue=makeNav('tg-r05-queue-tab','☷','Fila',()=>{original.click();const panel=$('guest-queue-panel'),list=$('guest-queue-list');if(!panel?.hidden&&list){const card=list.closest('.mobile-card');const heading=card?.querySelector('.mini-label');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}card?.scrollIntoView({block:'start',behavior:'instant'});}});
+     original.before(catalog,queue);original.classList.add('tg-r05-legacy-tab');
+   }
+   if(score){score.replaceChildren(mk('span',{'aria-hidden':'true'},'🏆'),mk('span',{},'Placar'));score.classList.add('tg-r05-score-tab');}
+ }
+ // O botão de placar original conserva a verificação de privacidade do motor.
  const communication=guest.querySelector('.vox-guest-quip');if(communication){communication.setAttribute('aria-live','polite');let timeout;
  const showTemporary=()=>{if(document.body.dataset.currentView!=='guest')return;communication.classList.add('tg12-visible');clearTimeout(timeout);timeout=setTimeout(()=>communication.classList.remove('tg12-visible'),4600);};
  const old=$('vox-guest-line');if(old)new MutationObserver(showTemporary).observe(old,{childList:true,subtree:true,characterData:true});
