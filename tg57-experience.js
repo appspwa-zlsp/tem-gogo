@@ -14,7 +14,7 @@
   const active=document.activeElement,dialog=topDialog();
   if(['BrowserBack','GoBack'].includes(e.key)&&!editable(active)){
     if(dialog){e.preventDefault();if(typeof dialog.requestClose==='function')dialog.requestClose();else if(dialog.dispatchEvent(new Event('cancel',{cancelable:true})))dialog.close();return;}
-    if(view==='stage'){const ev=new Event('temgogo:r57-back',{cancelable:true});if(!window.dispatchEvent(ev))e.preventDefault();}return;
+    if(view==='stage'){e.preventDefault();const target=document.querySelector('#tg123-host-bar button:not([hidden]):not(.tg26-legacy):not(:disabled)');if(target&&visible(target))focus(target);}return;
   }
   const dir=dirs[e.key];if(!dir||editable(active)||active?.matches('[role=tab]'))return;
   const scope=dialog||document.getElementById(view);if(!scope||scope.hidden)return;
