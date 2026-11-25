@@ -7,9 +7,11 @@
  const $=id=>document.getElementById(id);
  const VOICE='tem-gogo-diva-preview-volume', POP='tem-gogo-pop-volume', REVIEW='tg05-voice-reviewed-v1';
  const events=Object.freeze({recado:['voz-32'],avaliacao:['voz-19'],sem_sinal:['voz-34'],video_indisponivel:['voz-36'],abertura_classico:['voz-11'],elogio:['voz-13','voz-18','voz-33']});
- const effects=Object.freeze({suspense:'./pop-suspense.wav',palmas:'./pop-palmas.wav',recado:'./pop-recado.wav'});
+ const effects=Object.freeze({suspense:'./pop-suspense.wav',palmas:'./pop-palmas.wav',recado:'./pop-recado.wav',fogos:'./pop-fogos.wav',vinheta:'./pop-vinheta.wav'});
  let current=null,mounted=false,unlocked=false,auto=false,review={},epoch=0,lookup=false,captionTimer=null,captionScope=null;
  const lastByEvent=new Map();
+ const TRIMS='tg26-local-voice-trims-v1';let trims={};try{trims=JSON.parse(root.localStorage.getItem(TRIMS)||'{}')||{};}catch{}
+ const cutFor=file=>{const v=all.find(x=>x.file===file),n=Number(trims[v?.id]);return v&&Number.isFinite(n)&&n>=1&&n<v.duration_seconds?n:null;};
  const seen=new Set();
  try{const obj=JSON.parse(root.localStorage.getItem(REVIEW)||'{}');if(obj&&typeof obj==='object'&&!Array.isArray(obj))review=obj;}catch{}
  function volume(key,fallback,max){try{const raw=root.localStorage.getItem(key);const n=raw===null?fallback:Number(raw);return Number.isFinite(n)?Math.min(max,Math.max(0,n)):fallback;}catch{return fallback;}}
@@ -30,6 +32,7 @@
    const c={clip,kind,resolve,timer:null,room:scope?.room?.id,uid:scope?.user?.id,session:scope?.sessionEpoch,contextual,words};
    const fail=()=>{if(current!==c)return;status('Áudio não reproduzido. Confira o som do navegador; legenda mantida quando disponível.');const b=root.TG_BETA_BRIDGE?.();const fallback=contextual&&allowed()&&b?.room?.id===c.room&&b?.user?.id===c.uid&&b?.sessionEpoch===c.session;finish(c,fallback);if(fallback)fallbackCaption(words);};current=c;
    if(words)caption(words);if(kind==='voice'&&$('tg74-voice-play'))$('tg74-voice-play').textContent='Parar voz';clip.onended=()=>finish(c,true);clip.onerror=fail;
+   const end=kind==='voice'?cutFor(file):null;if(end!==null){clip.ontimeupdate=()=>{if(current===c&&clip.currentTime>=end)finish(c,true);};}
    c.timer=setTimeout(fail,limit);
    try{Promise.resolve(clip.play()).then(()=>{if(current!==c)clip.pause();}).catch(fail);}catch{fail();}
   });
@@ -72,7 +75,9 @@
   for(const name of new Set(all.map(v=>v.group))){const group=make('optgroup');group.label=name;all.filter(v=>v.group===name).forEach(v=>{const opt=make('option','',v.title+' · elevenlabs.io');opt.value=v.id;group.append(opt);});select.append(group);}field.append(select);details.append(field);
   const ref=make('p','tg74-studio-duration');ref.id='tg74-voice-duration';details.append(ref);
   const label=make('label','tg74-studio-label','Legenda literal (ouça e confira)');const words=make('textarea');words.rows=3;words.maxLength=600;words.id='tg05-voice-words';label.append(words);details.append(label);
-  const update=()=>{stop();const v=byId.get(select.value);if(!v)return;words.value=reviewed(v)||v.title;ref.textContent=v.id+' · '+Math.round(v.duration_seconds)+' s · '+(reviewed(v)?'Revisada neste aparelho':'Texto de referência NÃO conferido');status('Prévia parada.');};
+  const trimBox=make('div','tg26-trim');trimBox.append(make('strong','','Cortar final da gravação (neste palco)'));const trim=make('input');trim.type='number';trim.min='1';trim.step='.1';trim.id='tg26-trim-end';trim.setAttribute('aria-label','Último segundo que deve ser reproduzido');trimBox.append(make('small','','Ouça a frase, marque o instante antes da risada e teste novamente. O MP3 original e a publicação editorial são preservados.'),trim);
+  trimBox.append(button('Guardar corte local',()=>{const v=byId.get(select.value),n=Number(trim.value);if(!allowed()||!v||!Number.isFinite(n)||n<1||n>=v.duration_seconds){status('Escolha um instante válido após a fala, antes do fim do áudio.');return;}const next={...trims,[v.id]:n};try{root.localStorage.setItem(TRIMS,JSON.stringify(next));trims=next;stop();status('Corte guardado neste aparelho. Ouça novamente para conferir.');}catch{status('Não foi possível guardar o corte.');}}),button('Restaurar duração original',()=>{try{const next={...trims};delete next[select.value];root.localStorage.setItem(TRIMS,JSON.stringify(next));trims=next;update();status('Duração original restaurada.');}catch{status('Não foi possível restaurar.');}}));details.append(trimBox);
+  const update=()=>{stop();const v=byId.get(select.value);if(!v)return;words.value=reviewed(v)||v.title;trim.max=String(v.duration_seconds);trim.value=String(cutFor(v.file)??v.duration_seconds);ref.textContent=v.id+' · '+Math.round(v.duration_seconds)+' s · '+(reviewed(v)?'Revisada neste aparelho':'Texto de referência NÃO conferido');status('Prévia parada.');};
   select.addEventListener('change',update);
   const playButton=button('Ouvir prévia',async()=>{if(current){stop();return;}const v=byId.get(select.value);if(!v)return;if(!allowed()||voiceMuted()){status('Prévia somente no palco parado, sem microfones ativos.');return;}playButton.textContent='Parar prévia';const ok=await playClip(v.file,'voice',reviewed(v)?reviewed(v)+' · elevenlabs.io':'Prévia sem legenda conferida · elevenlabs.io',Math.ceil((v.duration_seconds+3)*1000));status(ok?'Prévia concluída.':'Prévia interrompida ou bloqueada.');});playButton.id='tg74-voice-play';
   const actions=make('div','tg74-studio-actions');actions.append(playButton,button('Parar som',stop),button('Confirmo que a legenda é fiel',()=>{try{if(!allowed())throw Error('Aguarde o palco ficar livre.');saveReview(select.value,words.value);update();status('Legenda confirmada localmente; não publicada.');}catch(e){status(e.message);}}),button('Retirar aprovação',()=>{try{forgetReview(select.value);update();}catch(e){status(e.message);}}));details.append(actions);
@@ -86,7 +91,7 @@
     $('tg05-test-voice')?.addEventListener('click',async()=>{if(!allowed()){status('Teste somente no palco parado, sem microfones ativos.');return;}if(voiceMuted()||getVolume()===0){status('A voz está silenciada; confira o volume e as preferências.');return;}unlock();const v=byId.get('voz-19');if(!v)return;status('Teste manual de voz · não publica a gravação.');const ok=await playClip(v.file,'voice','',Math.ceil((v.duration_seconds+3)*1000));if(ok)status('Teste de voz concluído.');});
     $('tg05-stop-voice')?.addEventListener('click',()=>{stopVoice();status('Fala interrompida pelo anfitrião.');});
   }
-  details.append(button('Testar POP',async()=>{if(!allowed()){status('Palco ocupado.');return;}unlock();const ok=await pop('recado','preview:'+Date.now());status(ok?'POP concluído.':'POP bloqueado ou silenciado.');}));
+  const pads=make('section','tg26-effects');pads.append(make('h3','','✦ Efeitos do show'),make('p','tg26-note','Efeitos somente no intervalo, sem sobrepor música, microfone ou fala. Use o volume POP.'));for(const [event,label] of [['palmas','👏 Aplausos'],['fogos','🎆 Fogos'],['vinheta','🎶 Vinheta'],['suspense','✨ Suspense']])pads.append(button(label,async()=>{if(!allowed()||current||captionTimer){status('Aguarde o palco ficar livre.');return;}unlock();const ok=await pop(event,'pad:'+event+':'+Date.now());status(ok?'Efeito concluído.':'Efeito bloqueado ou silenciado.');}));document.querySelector('#tg17-console .tg05-voice-controls')?.append(pads);
   details.append(make('p','tg74-studio-hint','Toque em Ativar som para liberar efeitos. Sem reprodução automática de falas não revisadas; sem voz ou POP sobre a música. Se o som estiver bloqueado ou silenciado, a legenda publicada continua disponível.'));
   const msg=make('p','tg74-studio-status','Prévia parada.');msg.id='tg74-voice-status';msg.setAttribute('role','status');details.append(msg);outer.append(details);target.append(outer);update();status(auto?'Falas autorizadas nesta sessão. Aguardando evento publicado.':'Falas automáticas desativadas. Autorize aqui e teste a voz; a reprodução contextual usa a publicação da Central.');
   details.addEventListener('toggle',()=>{if(!details.open&&current&&!current.contextual)stop();});
@@ -94,5 +99,5 @@
  root.addEventListener('temgogo:view',e=>{if(e.detail?.view!=='stage')reset();});root.addEventListener('pagehide',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
  function ready(){mount();if($('stage'))new MutationObserver(guard).observe($('stage'),{attributes:true,attributeFilter:['hidden']});}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});else ready();root.addEventListener('temgogo:host-cockpit-ready',mount);
- root.TG74_DIVA_STUDIO=Object.freeze({mount,stop,stopVoice,reset,guard,unlock,announce,pop,waitForCaption,getVolume,setVolume,getPopVolume,setPopVolume,catalogLength:all.length});
+ root.TG74_DIVA_STUDIO=Object.freeze({mount,stop,stopVoice,reset,guard,unlock,announce,pop,waitForCaption,getVolume,setVolume,getPopVolume,setPopVolume,getAuto:()=>auto,setAuto,catalogLength:all.length});
 })(window);

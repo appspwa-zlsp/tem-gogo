@@ -1,0 +1,93 @@
+/* R26: one navigation rail; the existing player remains mounted. */
+.tg26-legacy{display:none!important}
+#stage[data-tg26-ready] .tg26-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;min-width:0;position:sticky;top:4px;z-index:15;padding:5px;border-radius:16px;background:var(--tg-surface,var(--surface));border:1px solid var(--tg-border,var(--line));box-shadow:0 3px 12px #0002}
+#stage[data-tg26-ready] .tg26-nav button{min-width:0;min-height:44px;padding:6px 2px;font-size:clamp(10px,2.8vw,14px);white-space:normal;line-height:1.2;overflow-wrap:normal;box-shadow:none!important}
+#stage[data-tg26-ready] .tg26-nav button[aria-pressed=true]{background:var(--tg-cta,var(--violet))!important;color:var(--tg-on-primary,#fff)!important;border-color:var(--tg-border,var(--line))}
+#stage[data-tg26-ready] .tg100-controls{align-content:start!important;min-height:0!important;gap:8px!important}
+#stage[data-tg26-ready] .tg100-controls>#tg123-host-bar{order:-2;gap:6px!important}
+#stage[data-tg26-ready] .tg100-controls>.tg26-nav{order:-1}
+#stage[data-tg26-ready] #tg123-host-bar>.tg26-legacy,#stage[data-tg26-ready] #tg17-console .tg26-legacy,#stage[data-tg26-ready] .stage-sidebar .tg26-legacy,#stage[data-tg26-ready] .tg19-stage-tool-grid .tg26-legacy{display:none!important}
+#stage[data-tg26-ready]:not([data-tg26-panel=controle]) :is(#tg17-console,.tg04-stage-recado,#tg74-voice-preview,.tg26-control-settings){display:none!important}
+#stage[data-tg26-ready]:not([data-tg26-panel=mais]) .tg30-control-qr-details{display:none!important}
+#stage[data-tg26-ready]:not([data-tg26-panel=musicas]) #tg104-cockpit>.tg26-catalog,#stage[data-tg26-ready]:not([data-tg26-panel=musicas]) #tg104-cockpit>details:has(.tg100-catalog-panel){display:none!important}
+#stage[data-tg26-ready]:not([data-tg26-panel=mais]) #tg104-cockpit>details:has(.tg104-room-panel){display:none!important}
+#stage[data-tg26-ready]:not([data-tg26-panel=mais]):not([data-tg26-panel=musicas]) #tg104-cockpit{display:none!important}
+#stage[data-tg26-ready] .tg104-room-panel{display:grid!important;gap:12px!important;min-height:0!important;align-content:start!important;grid-template-columns:minmax(0,1fr)!important;padding:10px!important}
+#stage[data-tg26-ready] .tg104-room-panel .tg19-stage-tool-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;min-height:0!important;height:auto!important;align-content:start!important}
+#stage[data-tg26-ready] .tg104-room-panel .tg19-stage-tool-grid button{min-width:0!important;min-height:44px!important;white-space:normal!important;word-break:normal!important;overflow-wrap:normal!important;font-size:13px!important;line-height:1.3!important;box-shadow:none!important}
+#stage[data-tg26-ready] .tg26-room-actions{display:grid;gap:6px;padding:12px;border:1px solid var(--tg-border,var(--line));border-radius:14px;min-width:0}
+#stage[data-tg26-ready] .tg26-room-actions button{width:100%;min-height:44px;white-space:normal}
+#stage[data-tg26-ready] .tg26-room-actions #stage-exit,#tg18-remote #tg04-remote-end{color:var(--tg-error,#f49cba)!important;border-color:var(--tg-error,#f49cba)!important}
+#stage[data-tg26-ready] .tg26-room-actions small,.tg26-note{color:var(--tg-muted,var(--muted));font-size:12px;line-height:1.4;margin:0}
+#stage[data-tg26-ready] .tg04-stage-recado,#stage[data-tg26-ready] #tg74-voice-preview{margin:0!important;padding:0!important;max-width:100%!important;width:100%!important;min-width:0!important;min-height:0!important}
+#stage[data-tg26-ready] .tg04-stage-recado textarea{width:100%;box-sizing:border-box}
+#stage[data-tg26-ready] .tg05-voice-controls .tg26-note{grid-column:1/-1}
+#tg18-remote .tg18-remote-header{grid-template-areas:'title title' 'profile more'!important}
+#tg18-remote .tg26-remote-more{grid-area:more;min-width:0;align-self:start;border:1px solid var(--tg-border,var(--line));border-radius:12px;background:var(--tg-surface,var(--surface));padding:4px 8px}
+#tg18-remote .tg26-remote-more summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:700;font-size:13px}
+#tg18-remote .tg26-remote-menu{display:grid;gap:8px;padding-bottom:8px}
+#tg18-remote .tg26-remote-menu .button{min-height:44px;white-space:normal;font-size:13px}
+#tg18-remote .tg26-remote-menu .tg193-remote-help{display:grid;gap:6px;grid-template-columns:1fr}
+#faq-dialog{max-height:min(90dvh,780px)!important;overflow:hidden!important;padding:0!important;color:var(--tg-text,var(--text));background:var(--tg-surface,var(--surface));border:1px solid var(--tg-border,var(--line))}
+#faq-dialog .modal-inner{display:flex!important;flex-direction:column!important;gap:8px!important;max-height:min(90dvh,780px)!important;overflow:hidden!important;min-height:0!important;padding:16px!important;color:inherit;background:inherit;box-sizing:border-box}
+#faq-dialog #faq-heading{margin:0 40px 0 0;font-size:clamp(18px,4.5vw,24px);line-height:1.2}
+#faq-dialog .tg26-faq-list{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;display:grid;gap:6px;align-content:start}
+#faq-dialog .tg26-faq-list details{margin:0!important;padding:8px!important;border:1px solid var(--tg-border,var(--line));border-radius:10px;background:var(--tg-surface-raised,var(--surface-2));color:inherit}
+#faq-dialog .tg26-faq-list summary{font-size:14px;line-height:1.4;min-height:36px;cursor:pointer}
+#faq-dialog .tg26-faq-list p{font-size:13px;line-height:1.5;color:inherit}
+#faq-dialog .tg26-faq-footer{display:grid;gap:6px;flex:0 0 auto}
+#faq-dialog .tg193-faq-actions{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+#faq-dialog .tg193-faq-actions button{flex:1 1 120px;min-height:44px;font-size:12px;box-shadow:none!important}
+#faq-dialog #faq-done{min-height:44px;margin:0!important}
+#faq-dialog .tg26-faq-list [hidden],#tg124-profile-menu [hidden]{display:none!important}
+body.high-contrast #faq-dialog,body.high-contrast #faq-dialog .tg26-faq-list details{background:#000!important;color:#fff!important;border-color:#fff!important}
+@media(max-width:780px){
+ #stage[data-tg26-ready]:not([data-tg26-panel=musicas]):not([data-tg26-panel=placar]) .tg100-side{display:none!important}
+ #stage[data-tg26-ready][data-tg26-panel=musicas] .stage-rank-panel,#stage[data-tg26-ready][data-tg26-panel=placar] .stage-sidebar{display:none!important}
+ #stage[data-tg26-ready] .tg100-side{grid-template-columns:minmax(0,1fr)!important}
+ #stage[data-tg26-ready] .tg26-nav{position:static}
+ #stage[data-tg26-ready] .tg100-controls{padding:8px!important}
+ #stage[data-tg26-ready] .stage-command,#stage[data-tg26-ready] .singer-strip{min-height:0!important;margin:0!important}
+}
+#tg18-remote .tg26-remote-more:not([open])>.tg26-remote-menu{display:none!important}
+#stage[data-tg26-ready] .tg26-footer{min-height:0!important;height:auto!important;padding:0!important;background:none!important;border:none!important}
+#stage[data-tg26-ready] #tg17-console .track-controls{justify-content:flex-start!important}
+#stage[data-tg26-ready] .tg26-nav button:focus-visible{outline:2px solid var(--tg-focus,#d5b1ff);outline-offset:2px}
+#stage[data-tg26-ready] .stage-sidebar .queue-empty{min-height:0!important;padding:12px!important}
+#stage[data-tg26-ready] .tg19-stage-tool-grid>button[hidden],#tg18-remote .tg26-remote-menu>button[hidden]{display:none!important}
+#stage[data-tg26-ready]>.tg26-nav{margin:6px 12px;top:0;z-index:90;position:sticky}
+#stage[data-tg26-ready] :is(#tg17-console,.tg100-catalog-panel,.tg104-room-panel,.stage-rank-panel,#tg123-host-bar){scroll-margin-top:72px}
+#stage[data-tg26-ready]:fullscreen>.tg26-nav{position:static}
+#stage[data-tg26-ready] #tg123-host-bar>#start-audio{min-height:44px!important;flex:1 1 100px!important;width:auto!important;white-space:normal!important;font-size:12px!important}
+
+/* Keep performance feedback visible in Palco; show it in Controle as well. */
+#stage[data-tg26-ready][data-tg26-panel=musicas] :is(.stage-command,.singer-strip),#stage[data-tg26-ready][data-tg26-panel=placar] :is(.stage-command,.singer-strip),#stage[data-tg26-ready][data-tg26-panel=mais] :is(.stage-command,.singer-strip){display:none!important}
+#stage[data-tg26-ready] .tg26-nav button[aria-pressed=true]{box-shadow:inset 0 1px 0 #ffffff50,0 0 9px #d4b4ff38!important}
+#stage[data-tg26-ready] .tg26-nav button{border-radius:11px;background:linear-gradient(150deg,#ffffff13,transparent 70%),var(--tg-surface-raised,var(--surface))}
+#stage[data-tg26-ready] .tg26-effects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;grid-column:1/-1;padding:8px 0;min-width:0}
+#stage[data-tg26-ready] .tg26-effects h3,#stage[data-tg26-ready] .tg26-effects p{grid-column:1/-1;margin:0}
+#stage[data-tg26-ready] .tg26-effects button{min-height:44px;white-space:normal;font-size:12px;border-radius:12px;box-shadow:inset 0 1px 0 #ffffff33!important}
+#tg74-voice-preview .tg26-trim{display:grid;gap:8px;border:1px solid var(--tg-border,var(--line));border-radius:12px;padding:10px}
+#tg74-voice-preview .tg26-trim input{min-width:0;width:100%}
+#tg74-voice-preview .tg26-trim .button{white-space:normal;min-height:44px;font-size:13px}
+
+#tg18-remote .tg26-effects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 0} #tg18-remote .tg26-effects :is(h3,p){grid-column:1/-1;margin:0} #tg18-remote .tg26-effects button{min-width:0;min-height:44px;white-space:normal;font-size:12px;box-shadow:none!important}
+
+/* Biblioteca R26: ações compactas e curadoria recolhida. */
+:is(#stage-library,#catalog-list,#search-results,#host-results,#guest-library,#tg07-external-results) .tg123-track:has(.tg26-track-actions){grid-template-columns: minmax(48px,80px) minmax(0,1fr) auto!important;grid-template-areas:'cover info toggle' 'curation curation curation'!important;gap:4px 8px!important;align-items:center!important;grid-template-rows:auto auto!important}
+.tg26-track-actions{grid-area:toggle;display:flex;flex-direction:column;align-items:stretch;gap:2px;min-width:44px}
+.tg26-track-actions .tg123-track-toggle{min-height:44px!important;min-width:44px!important;width:auto!important;white-space:nowrap!important;padding:6px!important}
+.tg26-favorite{min-height:44px;min-width:44px;border:1px solid var(--tg-border,var(--line));border-radius:10px;background:transparent;color:inherit;font:600 23px/1 system-ui;cursor:pointer}
+.tg26-favorite[aria-pressed=true]{color:var(--tg-accent,#e47adb);background:var(--tg-panel,transparent)}
+.tg123-track>.tg-r16-curation:not([open]){width:auto!important;justify-self:end!important;min-height:0!important}
+.tg123-track>.tg-r16-curation>summary{font-size:23px!important;list-style:none!important;line-height:1!important;min-width:44px!important;min-height:44px!important;text-align:center!important;cursor:pointer;display:grid!important;place-items:center!important}
+.tg123-track>.tg-r16-curation>summary::-webkit-details-marker{display:none}
+.tg26-favorite-line{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:4px 8px}.tg26-favorite-line button{min-height:44px}
+
+/* R27: capas quadradas locais, categoria legível, espaço estável e fallback configurável. */
+.tg123-track>.tg27-genre-cover{grid-area:cover;position:relative;display:grid;place-items:center;width:100%;max-width:80px;aspect-ratio:1;border-radius:10px;overflow:hidden;isolation:isolate;background:linear-gradient(145deg,#522278,#26133f);color:#fff;border:1px solid #d9a0fa55;align-self:start}
+.tg27-genre-cover>img{position:absolute!important;inset:0;width:100%!important;height:100%!important;aspect-ratio:1!important;object-fit:cover!important;border-radius:inherit!important;max-width:none!important;max-height:none!important;margin:0!important}
+.tg27-genre-fallback{display:grid;place-items:center;gap:3px;text-align:center;padding:4px;min-width:0;width:100%;height:100%;align-content:center;overflow:hidden}
+.tg27-genre-fallback>span{font-size:clamp(15px,4vw,27px);line-height:1}.tg27-genre-fallback>b{font:700 9px/1.1 system-ui;overflow-wrap:anywhere;text-transform:uppercase}
+.tg27-genre-cover[data-genre=reggae]{background:linear-gradient(135deg,#146b50,#153c33)}.tg27-genre-cover[data-genre=eletronica]{background:linear-gradient(135deg,#174db7,#28245e)}.tg27-genre-cover[data-genre=axe]{background:linear-gradient(135deg,#ad531e,#653b23)}.tg27-genre-cover[data-genre=infantil]{background:linear-gradient(135deg,#a63f9d,#50399d)}
+.tg123-track .tg27-genre-label{display:block;font-size:11px!important;font-weight:650;color:inherit;opacity:.85;overflow-wrap:anywhere}
