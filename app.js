@@ -305,6 +305,14 @@
   }
   // V18: microfone solo utiliza a captura local SEM enviar áudio para a própria saída,
   // evitando eco. A nota continua sendo atividade vocal, não afinação.
+  function tgR07SyncSoloDock(){
+    const dock=$('tg192-solo-dock'),button=$('tg192-solo-off');if(!dock||!button)return;
+    const active=Boolean(state.soloMic),solo=state.role==='host'&&state.room?.room_mode==='solo';
+    dock.dataset.micActive=String(active);dock.hidden=!(state.role==='host'&&(active||solo));
+    const label=dock.querySelector('.tg192-solo-label');if(label)label.textContent=active?'MIC SOLO ATIVO':'MIC SOLO DESLIGADO';
+    button.textContent=active?'Desligar':'Ativar';button.setAttribute('aria-label',active?'Desligar microfone solo':'Ativar microfone solo');button.title=button.getAttribute('aria-label');
+    if(!active)for(const bar of $('tg192-solo-meter')?.children||[]){bar.classList.remove('lit');bar.style.height='12%';}
+  }
   async function toggleSoloMic(){
     if(state.emergencyBlocked)return;
     if(state.role!=='host'||!state.room)return;
@@ -321,7 +329,7 @@
       if(!tg07Current(scope)||state.emergencyBlocked){stream.getTracks().forEach(t=>t.stop());await ctx.close().catch(()=>{});return;}
       state.soloMic={stream,ctx,analyser,samples:0,vocal:0,volume:0,last:0,songId:null};
       $('tg192-solo-dock').hidden=false;
-      const soloLabel=document.querySelector('#tg192-solo-dock .tg192-solo-label');if(soloLabel)soloLabel.textContent='MIC SOLO ATIVO';
+      tgR07SyncSoloDock();
       stream.getAudioTracks().forEach(t=>t.onended=()=>stopSoloMic());
       $('tg18-solo-button').textContent='🎙️ Desligar microfone solo';
       $('tg18-solo-status').textContent='🟢 Mic ativo no celular · áudio não sai pelos alto-falantes para evitar eco';
@@ -334,6 +342,7 @@
     if(document.body.classList.contains('tg104-single-device')){$('tg192-solo-dock').hidden=false;document.querySelector('#tg192-solo-dock .tg192-solo-label')?.replaceChildren(document.createTextNode('MIC SOLO DESLIGADO'));}
     $('tg18-solo-button').textContent='🎙️ Ativar microfone solo';
     $('tg18-solo-status').textContent='Microfone solo desligado';
+    tgR07SyncSoloDock();
   }
   function sampleSoloMic(){
     const m=state.soloMic;if(!m||state.role!=='host')return;
@@ -3795,6 +3804,7 @@ function renderFullCatalog(){
     const solo=state.room.room_mode==='solo';document.body.classList.toggle('tg104-single-device',solo);
     const stage=$('stage');if(!stage)return;
     stage.dataset.tg100Mode=solo?'solo':'classic';
+    tgR07SyncSoloDock();
     const title=stage.querySelector('.stage-sidebar .sidebar-top h2');if(title)title.textContent=solo?'SUAS MÚSICAS':'PRÓXIMOS A CANTAR';
     const call=stage.querySelector('[data-tg123-host-command="call"]');if(call)call.textContent=solo?'🎤 Preparar música':'🎤 Chamar cantor';
     const hint=stage.querySelector('.vox-idle-copy small');if(hint)hint.textContent=solo?'Escolha sua música pelo catálogo. A Drag Diva acompanha seu show!':'Escolha sua música pelo QR ou pelo catálogo. A Drag Diva tá de olho!';
@@ -3828,7 +3838,7 @@ function renderFullCatalog(){
       }
       document.body.classList.add('tg104-single-device');
       $('tg192-solo-dock').hidden=false;
-      const soloHint=document.querySelector('#tg192-solo-dock .tg192-solo-label');if(soloHint)soloHint.textContent='MODO SOLO · TOQUE EM ATIVAR MIC';
+      tgR07SyncSoloDock();
       $('tg18-solo-status').textContent='🎤 Modo solo: toque em Ativar microfone solo. A letra continua no vídeo e sua nota usa a captação local.';
       toast('Modo solo pronto! Ative o microfone para captar sua voz. O vídeo permanece em destaque.');
       $('tg18-solo-button')?.focus({preventScroll:true});
