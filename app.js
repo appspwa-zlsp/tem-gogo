@@ -1342,12 +1342,13 @@
     state.client=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     // IMPORTANTE: receber PASSWORD_RECOVERY antes de ler/restaurar convites ou abrir o lobby.
     state.client.auth.onAuthStateChange((event,session)=>{
+      const favoriteIdentityChanged=tg26FavoriteAccount()!==tg36FavoriteIdentity(session?.user);
+      if(favoriteIdentityChanged)tg36ClearFavoriteIdentity();
       if(state.user?.id!==session?.user?.id){
         if($('catalog-dialog')?.open)$('catalog-dialog').close();
-        tg26Favorites={uid:null,items:new Map(),status:'idle',pending:null,writes:new Set()};
         if(state.room&&!state.emergencyClosing){tg23Suspend('A conta deste aparelho mudou. Saia do palco local e entre novamente com a conta correta.');show('landing');}
         tgR18ClearReadyRoom();tgR17ClearPasswordContext();tgR09ClearHistory();tg15ClearRecap();++tg15RoomsSerial;$('existing-rooms')?.replaceChildren();$('tg123-active-controls')?.replaceChildren();}
-      state.user=session?.user||null;tg26FavoritePaint();if(!tg26FavoriteAccount()&&state.catalogFilter==='favorites'){state.catalogFilter='all';$('catalog-filter').value='all';if($('catalog-dialog')?.open)renderFullCatalog();}
+      state.user=session?.user||null;tg26FavoritePaint();if(favoriteIdentityChanged&&$('catalog-dialog')?.open){renderFullCatalog();void tg26LoadFavorites();}
       if(event==='PASSWORD_RECOVERY'){
         state.recoveryVerified=true;state.recoveryIntent=true;tgR17RecoveryUid=state.user?.id||null;
         setTimeout(offerRecoveryForm,0);
@@ -3058,7 +3059,13 @@ function matchesMusic(item,query){
 }
 // R26: favoritos privados, independentes do catálogo oficial e do ranking.
 let tg26Favorites={uid:null,items:new Map(),status:'idle',pending:null,writes:new Set()};
-function tg26FavoriteAccount(){return state.user&&!isAnonymous(state.user)?state.user.id:null;}
+function tg36FavoriteIdentity(user){return user?.id&&!isAnonymous(user)?user.id:null;}
+function tg26FavoriteAccount(){return tg36FavoriteIdentity(state.user);}
+function tg36ClearFavoriteIdentity(){
+  tg26Favorites={uid:null,items:new Map(),status:'idle',pending:null,writes:new Set()};
+  if(state.catalogFilter==='favorites'){state.catalogFilter='all';state.catalogPage=1;const filter=$('catalog-filter');if(filter)filter.value='all';$('catalog-list')?.replaceChildren();if($('catalog-total'))$('catalog-total').textContent='';if($('catalog-more'))$('catalog-more').hidden=true;}
+  for(const b of document.querySelectorAll('[data-tg26-favorite]')){b.hidden=true;b.disabled=true;b.textContent='♡';b.setAttribute('aria-pressed','false');}
+}
 function tg26FavoriteState(){const uid=tg26FavoriteAccount();if(tg26Favorites.uid!==uid)tg26Favorites={uid,items:new Map(),status:'idle',pending:null,writes:new Set()};return tg26Favorites;}
 function tg26FavoritePaint(){
   const f=tg26FavoriteState(),opt=$('catalog-favorites-option'),status=$('tg26-favorite-status');
@@ -3073,12 +3080,13 @@ async function tg26LoadFavorites(force=false){
   const f=tg26FavoriteState();if(!f.uid||!state.client){tg26FavoritePaint();return false;}if(f.pending)return f.pending;if(f.writes.size)return false;if(!force&&f.status==='ready')return true;if(!force&&f.status==='error')return false;
   f.status='loading';tg26FavoritePaint();
   const job=Promise.resolve().then(async()=>{try{
+    if(tg26FavoriteState()!==f)return false;
     const data=await callRPC('tg26_favorites_list',{});if(tg26FavoriteState()!==f)return false;
-    if(!Array.isArray(data))throw Error('Lista inválida');f.items=new Map(data.filter(x=>youtubeId(x.video_id)&&typeof x.title==='string').map(x=>[x.video_id,x.title]));f.status='ready';return true;
+    if(!Array.isArray(data)||data.some(x=>!x||typeof x.video_id!=='string'||!/^[A-Za-z0-9_-]{11}$/.test(x.video_id)||typeof x.title!=='string'))throw Error('Lista inválida');f.items=new Map(data.map(x=>[x.video_id,x.title]));f.status='ready';return true;
   }catch{if(tg26FavoriteState()===f)f.status='error';return false;}finally{if(tg26FavoriteState()===f){f.pending=null;tg26FavoritePaint();if($('catalog-dialog')?.open&&state.catalogFilter==='favorites')renderFullCatalog();}}});f.pending=job;return job;
 }
-async function tg26ToggleFavorite(item,uid){
-  const f=tg26FavoriteState(),id=youtubeId(item.video_id);if(!uid||uid!==f.uid||!id||f.status!=='ready'||f.writes.has(id)||f.pending)return;
+async function tg26ToggleFavorite(item,origin){
+  const f=tg26FavoriteState(),id=youtubeId(item.video_id);if(!f.uid||origin!==f||!id||f.status!=='ready'||f.writes.has(id)||f.pending)return;
   const save=!f.items.has(id);f.writes.add(id);tg26FavoritePaint();
   try{const data=await callRPC('tg26_favorite_set',{p_video:id,p_title:String(item.title).slice(0,200),p_saved:save});if(tg26FavoriteState()!==f)return;if(data!==save)throw Error('Não confirmado');if(save)f.items.set(id,item.title);else f.items.delete(id);toast(save?'Karaokê salvo nos favoritos.':'Karaokê removido dos favoritos.');}
   catch{if(tg26FavoriteState()===f){f.status='error';toast('Não foi possível confirmar o favorito. Atualize a lista antes de tentar novamente.',true);}}
@@ -3245,7 +3253,7 @@ function catalogCard(item,host){
     }
   });
   const actions=document.createElement('div');actions.className='tg26-track-actions';const f=tg26FavoriteState();
-  if(f.uid){const fav=document.createElement('button');fav.type='button';fav.className='tg26-favorite';fav.dataset.tg26Favorite=videoId;fav.dataset.tg26Uid=f.uid;fav.dataset.title=item.title;fav.textContent=f.items.has(videoId)?'♥':'♡';fav.disabled=f.status!=='ready'||f.writes.has(videoId);fav.setAttribute('aria-pressed',String(f.items.has(videoId)));fav.setAttribute('aria-label',(f.items.has(videoId)?'Remover dos favoritos: ':'Favoritar: ')+item.title);fav.addEventListener('click',()=>void tg26ToggleFavorite(item,f.uid));actions.append(fav);}
+  if(f.uid){const fav=document.createElement('button');fav.type='button';fav.className='tg26-favorite';fav.dataset.tg26Favorite=videoId;fav.dataset.tg26Uid=f.uid;fav.dataset.title=item.title;fav.textContent=f.items.has(videoId)?'♥':'♡';fav.disabled=f.status!=='ready'||f.writes.has(videoId);fav.setAttribute('aria-pressed',String(f.items.has(videoId)));fav.setAttribute('aria-label',(f.items.has(videoId)?'Remover dos favoritos: ':'Favoritar: ')+item.title);fav.addEventListener('click',()=>void tg26ToggleFavorite(item,f));actions.append(fav);}
   actions.prepend(toggle);card.append(cover,info,actions);if(curation)card.append(curation);card.append(expanded);return card;
 }
 
@@ -3740,7 +3748,7 @@ function renderFullCatalog(){
     if(tgR17PasswordPending){toast('Aguarde a operação de senha terminar.',true);return;}
     tgR17ClearPasswordContext();state.recoveryIntent=false;
     if(state.client){const {error}=await state.client.auth.signOut();if(error){toast(humanError(error),true);return;}}
-    await stopSession();state.user=null;tg26FavoritePaint();
+    await stopSession();tg36ClearFavoriteIdentity();state.user=null;tg26FavoritePaint();
     sessionStorage.removeItem('tg20-auth-return-room');
     localStorage.removeItem('tem-gogo-pending-remote');
     localStorage.removeItem('tem-gogo-pending-room');
