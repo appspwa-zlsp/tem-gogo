@@ -72,3 +72,19 @@ html[data-tg-theme] body:not(.high-contrast) :is(#guest .guest-header,#tg18-remo
 #catalog-dialog .tg-r04-catalog-top{position:sticky;top:0;z-index:8;background:var(--tg-surface,var(--surface));padding:4px 0;min-width:0}
 #catalog-dialog .tg-r04-catalog-top .catalog-toolbar,#catalog-dialog .tg-r04-catalog-top #catalog-close{position:static!important}
 [hidden]{display:none!important}
+/* R04.3 — cabeçalho de bolso, mesa compacta e foco consistente. */
+#tg18-remote .tg18-remote-header{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"title title" "profile back" "help help";align-items:center;gap:6px!important;border-radius:0 0 16px 16px}
+#tg18-remote .tg18-remote-header>b{grid-area:title}
+#tg18-remote .tg18-remote-header>.tg124-profile-shortcut{grid-area:profile;justify-self:start}
+#tg18-remote #tg18-remote-back{grid-area:back;justify-self:end}
+#tg18-remote .tg193-remote-help{grid-area:help;justify-content:center}
+#tg18-remote .tg193-remote-help button{min-height:38px;padding:6px 10px!important}
+#tg18-remote .tg18-remote-grid button{border-radius:14px!important;box-shadow:none!important}
+#tg18-remote .tg192-remote-advanced[open]:has(>label>input[type=range]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#tg18-remote .tg192-remote-advanced[open]:has(>label>input[type=range])> :is(summary,small,button){grid-column:1/-1}
+#tg18-remote .tg192-remote-advanced[open]:has(>label>input[type=range])>label{margin:0!important;min-width:0;padding:8px 4px;text-align:center;font-size:12px;line-height:1.35;overflow-wrap:anywhere;border-radius:12px;background:var(--tg-surface,var(--surface));border:1px solid var(--tg-border,var(--line))}
+#tg18-remote .tg192-remote-advanced[open]:has(>label>input[type=range])>label .tg-ui-knob-dial{width:64px;height:64px}
+#tg18-remote .tg192-remote-advanced[open]:has(>label>input[type=range])>label input[type=range]{min-width:0;width:100%}
+html[data-tg-theme] body:not(.high-contrast) :is(#landing,#lobby,#stage,#guest,#tg18-remote,dialog) :is(button,input,select,textarea):focus-visible{outline:2px solid var(--tg-focus,var(--lime));outline-offset:2px}
+@media(max-width:360px){#tg18-remote .tg192-remote-advanced[open]:has(>label>input[type=range]){grid-template-columns:1fr}}
+[hidden]{display:none!important}
