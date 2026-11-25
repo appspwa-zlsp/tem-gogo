@@ -27,3 +27,8 @@ body.tg104-single-device #stage .stage-layout{padding-bottom:calc(78px + env(saf
 [hidden]{display:none!important}
 body.tg103-remote-mic-focus #tg18-remote-mic #tg18-remote-mic-toggle{border-radius:50%!important;display:flex!important;flex-direction:column;justify-content:center;align-items:center;padding:10px!important;gap:4px!important}
 body.tg103-remote-mic-focus #tg18-remote-mic #tg192-remote-mic-action{font-size:10px!important;line-height:1.2!important;max-width:88px!important;white-space:normal!important;overflow-wrap:anywhere}
+body.tg103-mic-focus #guest #mic-capture-state{color:var(--tg-text,var(--text))!important;background:var(--tg-surface-raised,var(--surface-2))!important;border:1px solid var(--tg-border,var(--line))}
+body.tg103-remote-mic-focus #tg18-remote #tg18-remote-mic-status.tg103-status-off,body.tg103-mic-focus #guest #mic-status.tg103-status-off{color:var(--tg-error,#ff9898)!important;background:var(--tg-surface-raised,var(--surface-2))!important}
+body.tg103-remote-mic-focus #tg18-remote #tg18-remote-mic-status.tg103-status-on,body.tg103-mic-focus #guest #mic-status.tg103-status-on{color:var(--tg-success,#9dffbf)!important;background:var(--tg-surface-raised,var(--surface-2))!important}
+body.tg103-mic-focus #mic-card .level-wrapper{background:var(--tg-surface-raised,var(--surface-2));border-color:var(--tg-border,var(--line));height:auto!important;min-height:64px!important;overflow:visible!important}
+body.tg103-mic-focus #mic-card #guest-levels{height:30px!important;min-height:30px!important;margin:6px 0!important;box-sizing:border-box}
