@@ -1,0 +1,50 @@
+/* R04 — uma hierarquia de navegação e catálogo, sem alterar regras de sala. */
+#guest .mobile-switch{display:flex!important;flex-wrap:nowrap!important;justify-content:space-between;gap:3px!important;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))!important;bottom:0!important;width:min(100%,680px)!important;border-radius:16px 16px 0 0!important}
+#guest .mobile-switch .mobile-tab{flex:1 1 0;min-width:0!important;min-height:52px!important;line-height:1.15;white-space:normal;overflow-wrap:normal;font-size:11px!important}
+#guest .mobile-switch .mobile-tab span:last-child{font-size:10px!important;letter-spacing:0}
+body.tg18-singing #guest .mobile-switch,body.tg103-mic-focus #guest .mobile-switch{display:none!important}
+#guest .guest-main{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))!important}
+#guest #guest-queue-panel{padding-bottom:0!important}
+#guest .guest-header,#tg18-remote .tg18-remote-header{max-width:760px;margin:auto;gap:8px!important;flex-wrap:wrap;align-items:center}
+#tg18-remote .tg18-remote-header>b{flex:1 1 100%;order:-1;font-size:13px;letter-spacing:.04em;text-align:center}
+#tg18-remote .tg193-remote-help{display:flex;flex:1 1 auto;justify-content:center;gap:4px;flex-wrap:wrap}
+#tg18-remote .tg18-remote-shell{width:min(calc(100% - 24px),720px);max-width:720px;box-sizing:border-box;margin:0 auto;padding:16px 12px 32px!important}
+#tg18-remote .tg19-remote-tabs{position:sticky;top:0;z-index:12;gap:6px!important;margin:12px 0!important;border-radius:14px;box-shadow:0 4px 12px #0002}
+#tg18-remote .tg19-remote-tab{min-height:48px;white-space:normal}
+#tg18-remote .tg18-remote-status{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#tg18-remote .tg18-remote-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#tg18-remote .tg18-remote-grid button{min-height:58px!important;min-width:0;white-space:normal;line-height:1.2;padding:10px 8px!important;border-radius:14px!important}
+#tg18-remote .tg192-remote-advanced{margin:10px 0!important;border-radius:14px;padding:10px 12px}
+#tg18-remote .tg192-remote-advanced summary{min-height:44px;cursor:pointer;align-content:center}
+#tg18-remote .tg192-remote-advanced input[type=range]{min-height:32px}
+#tg18-remote #tg18-remote-feedback{padding:9px 12px;border-radius:10px;background:var(--tg-surface-raised,var(--surface-2));overflow-wrap:anywhere}
+#tg18-remote .tg19-remote-queue-list{min-width:0;overflow-wrap:anywhere}
+#catalog-dialog{width:min(100% - 24px,1040px)!important;max-width:1040px!important;max-height:94dvh!important;padding:0!important;overflow:auto!important;overscroll-behavior:contain}
+#catalog-dialog .catalog-modal-shell{display:block!important;max-height:none!important;min-height:0!important;padding:16px!important;overflow:visible!important}
+#catalog-dialog .catalog-head{display:flex;align-items:flex-start;gap:12px;padding:0 0 12px!important;position:static!important}
+#catalog-dialog .catalog-head>div{flex:1;min-width:0}
+#catalog-dialog .catalog-head h2{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;margin:4px 0}
+#catalog-dialog .catalog-head p{font-size:.9rem;line-height:1.45;margin:4px 0}
+#catalog-dialog #catalog-close{min-width:44px;min-height:44px;flex:none}
+#catalog-dialog .catalog-toolbar{position:sticky;top:0;z-index:5;display:grid!important;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:8px;padding:10px 0!important;background:var(--tg-surface,var(--surface));}
+#catalog-dialog .catalog-toolbar input,#catalog-dialog .catalog-toolbar select{min-width:0;width:100%;min-height:46px;font-size:16px!important}
+#catalog-dialog .catalog-data-line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0;font-size:13px}
+#catalog-dialog .catalog-data-line #tg07-catalog-refresh{margin-left:auto;min-height:40px}
+#catalog-dialog .catalog-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:none!important;min-height:0!important;overflow:visible!important;padding:0!important}
+#catalog-dialog .history-song-card{display:grid!important;grid-template-columns:76px minmax(0,1fr) auto;gap:10px;align-items:start;min-width:0;padding:10px!important;border-radius:14px!important;min-height:0!important}
+#catalog-dialog .history-song-card>img{width:76px!important;height:auto!important;aspect-ratio:16/9;object-fit:cover;border-radius:8px}
+#catalog-dialog .history-song-info{min-width:0;overflow-wrap:anywhere}
+#catalog-dialog .history-song-info strong{font-size:14px!important;line-height:1.35;display:block;overflow-wrap:anywhere}
+#catalog-dialog .history-song-info small{font-size:12px!important;line-height:1.35}
+#catalog-dialog .tg123-track-toggle{min-height:44px;min-width:54px;padding:8px!important;white-space:nowrap;font-size:12px!important}
+#catalog-dialog .tg123-track-choice{grid-column:1/-1;min-width:0}
+#catalog-dialog .tg123-track-modes{display:flex;flex-wrap:wrap;gap:6px}
+#catalog-dialog .tg123-mode{flex:1 1 76px;min-height:44px}
+#catalog-dialog .tg124-suggest{font-size:11px!important;min-height:32px;margin-top:5px}
+#catalog-dialog .catalog-bottom{position:static!important;padding:12px 0!important;display:grid;gap:8px}
+#catalog-dialog .tg-beta-external{margin:12px 0;border-radius:14px;padding:10px 12px}
+#catalog-dialog .tg-beta-external summary{min-height:44px;align-content:center;cursor:pointer}
+html[data-tg-theme] body:not(.high-contrast) #catalog-dialog :is(.history-song-card,.tg-beta-external),html[data-tg-theme] body:not(.high-contrast) #tg18-remote .tg192-remote-advanced{background:var(--tg-surface-raised,var(--surface-2))!important;border:1px solid var(--tg-border,var(--line))!important;color:var(--tg-text,var(--text))!important;box-shadow:none!important}
+html[data-tg-theme] body:not(.high-contrast) #catalog-dialog :is(.history-song-info small,.catalog-head p,.catalog-bottom small){color:var(--tg-muted,var(--muted))!important}
+@media(max-width:680px){#catalog-dialog{width:100%!important;max-width:100%!important;height:100dvh!important;max-height:100dvh!important;margin:0!important;border-radius:0!important}#catalog-dialog .catalog-modal-shell{padding:12px 12px calc(16px + env(safe-area-inset-bottom,0px))!important}#catalog-dialog .catalog-toolbar,#catalog-dialog .catalog-list{grid-template-columns:minmax(0,1fr)!important}#catalog-dialog .history-song-card{grid-template-columns:64px minmax(0,1fr) auto;gap:8px}#catalog-dialog .history-song-card>img{width:64px!important}#tg18-remote .tg18-remote-header .button{min-height:44px;font-size:12px}#tg18-remote .tg18-remote-shell>h1{font-size:clamp(1.5rem,6vw,2rem)}}
+[hidden]{display:none!important}
