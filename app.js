@@ -213,6 +213,7 @@
   function tgR14ClearRemote(){
     state.remotePending.clear();state.remoteLatestCommandId=null;
     for(const [id] of Object.values(tgR14Volumes))if($(id))$(id).disabled=false;
+    if($('tg-r22-tv-theme-feedback'))$('tg-r22-tv-theme-feedback').textContent='Nenhum ajuste enviado.';
   }
   function tgR14AcceptAck(data){
     const pending=state.remotePending.get(data.id);if(!pending||data.command!==pending.cmd)return;
@@ -227,6 +228,7 @@
     }
     if(ok&&latest&&['stage-status','stage-theme'].includes(pending.cmd)&&THEMES.includes(data.stage?.theme)&&document.activeElement!==$('tg30-remote-stage-theme'))$('tg30-remote-stage-theme').value=data.stage.theme;
     const message=ok?'✅ TV confirmou: '+String(data.message||'comando'):'⚠ TV não confirmou '+(tgR14CommandNames[pending.cmd]||'o comando')+': '+String(data.ok===true?'resposta incompleta; consulte os ajustes da TV':data.message||'Não foi possível executar');
+    if(pending.cmd==='stage-theme')$('tg-r22-tv-theme-feedback').textContent=message;
     if(latest)$('tg18-remote-feedback').textContent=message;
     else if(!ok)toast(message,true);
   }
@@ -237,7 +239,7 @@
     const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song','stage-theme','diva-preview-volume','pop-volume','stage-status'];
     if(!allowed.includes(cmd))return;
     if(callActive() && !['start','resend'].includes(cmd)){toast('Durante sua vez o controle fica protegido; use o painel do microfone.',true);return;}
-    if((cmd==='stage-status'||Object.hasOwn(tgR14Volumes,cmd))&&[...state.remotePending.values()].some(p=>p.cmd===cmd))return;
+    if((cmd==='stage-status'||cmd==='stage-theme'||Object.hasOwn(tgR14Volumes,cmd))&&[...state.remotePending.values()].some(p=>p.cmd===cmd))return;
     const roomId=state.room.id,scope=tg07Scope();
     const playingId=()=>state.songs.find(s=>s.status==='playing')?.id??null;
     const expectedSongId=playingId();
@@ -257,6 +259,7 @@
       state.remoteLatestCommandId=id;
       $('tg18-remote-feedback').textContent='◌ Enviando comando ao palco…';
       state.remotePending.set(id,{cmd,at:Date.now()});
+      if(cmd==='stage-theme')$('tg-r22-tv-theme-feedback').textContent='Aguardando confirmação da TV…';
       if(tgR14Volumes[cmd])$(tgR14Volumes[cmd][0]).disabled=true;
       setTimeout(async()=>{
         if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
@@ -264,6 +267,7 @@
         await Promise.race([(async()=>{await fetchHostDeviceSignals();await state.signalChain;})(),new Promise(resolve=>setTimeout(resolve,3000))]);
         if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
         tgR14Release(id);
+        if(cmd==='stage-theme')$('tg-r22-tv-theme-feedback').textContent='A TV não confirmou. Confira o palco antes de repetir.';
         if(state.role==='remote'&&state.remoteLatestCommandId===id){
           $('tg18-remote-feedback').textContent='⚠ A TV não confirmou este comando. Confira a tela antes de tocar novamente; não repetimos ações automaticamente.';
         }else toast('A TV não confirmou '+(tgR14CommandNames[cmd]||'o comando')+'. Consulte os ajustes antes de repetir.',true);
@@ -278,6 +282,7 @@
       if(!tg07Current(scope)||state.emergencyBlocked)return;
       if(id&&!state.remotePending.has(id))return; // ACK ou prazo já encerrou este comando.
       if(id)tgR14Release(id); // Não apagar outros comandos pendentes.
+      if(cmd==='stage-theme')$('tg-r22-tv-theme-feedback').textContent='Não foi possível confirmar o envio.';
       if(state.role==='remote'&&(!id||state.remoteLatestCommandId===id)){
         $('tg18-remote-feedback').textContent='⚠ Envio não concluído: '+humanError(err);
       }
@@ -3026,8 +3031,9 @@ function catalogCard(item,host){
   info.append(title,tiny);
   const genre=(state.catalogGenres||[]).find(g=>g.code===item.genre);
   if(genre){const label=document.createElement('small');label.textContent='Gênero: '+genre.label;info.append(label);}
+  let curation=null;
   if(item.source_kind!=='external'){
-    const details=document.createElement('details');details.className='tg-r16-curation';
+    const details=document.createElement('details');details.className='tg-r16-curation';curation=details;
     const summary=document.createElement('summary');summary.textContent='Sugerir melhoria';details.append(summary);
     const suggest=document.createElement('button');suggest.type='button';suggest.className='tg124-suggest';suggest.textContent='Corrigir título';suggest.dataset.tg124Suggest=videoId;suggest.dataset.originalTitle=item.title;
     suggest.addEventListener('click',event=>{event.stopPropagation();void sendTitleSuggestion(videoId,item.title,scope,suggest);});details.append(suggest);
@@ -3047,7 +3053,7 @@ function catalogCard(item,host){
         finally{tgR16EndCurate(ticket);select.disabled=false;send.disabled=!select.value;}
       });details.append(label,send);
     }
-    const hint=document.createElement('small');hint.textContent='Sugestões passam pela curadoria; o catálogo não muda imediatamente.';details.append(hint);info.append(details);
+    const hint=document.createElement('small');hint.textContent='Sugestões passam pela curadoria; o catálogo não muda imediatamente.';details.append(hint);
   }
   const toggle=document.createElement('button');toggle.type='button';toggle.className='tg123-track-toggle';
   toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent='+ FILA';
@@ -3109,7 +3115,7 @@ function catalogCard(item,host){
       add.focus({preventScroll:true});
     }
   });
-  card.append(cover,info,toggle,expanded);return card;
+  card.append(cover,info,toggle);if(curation)card.append(curation);card.append(expanded);return card;
 }
 
 function renderCatalog(){
@@ -3639,7 +3645,12 @@ function renderFullCatalog(){
       syncPrivateControls();updateVoxLine('opening');
     }
   }
-  function syncPrivateControls(){document.querySelectorAll('[data-host-only]').forEach(el=>el.hidden=!canDirectDiva());document.querySelectorAll('[data-diva-mode]').forEach(btn=>btn.classList.toggle('chosen',btn.dataset.divaMode===state.humorMode));}
+  function syncPrivateControls(){
+    $('tg-r22-tv-theme').hidden=!(state.role==='remote'&&canDirectDiva());
+    const stage=state.role==='host'&&state.room;
+    $('tg-r22-personal-heading').textContent=stage?'🎨 Aparência do palco':'🎨 Aparência deste aparelho';
+    $('tg30-theme-scope').textContent=stage?'Tema compartilhado do palco. Os celulares dos convidados não mudam.':'Tema pessoal deste aparelho. Não altera a TV.';
+    document.querySelectorAll('[data-host-only]').forEach(el=>el.hidden=!canDirectDiva());document.querySelectorAll('[data-diva-mode]').forEach(btn=>btn.classList.toggle('chosen',btn.dataset.divaMode===state.humorMode));}
   function updateGroupChoice(host){
     const p=host?'host':'guest',chosen=document.querySelector('input[name="'+p+'-mode"]:checked')?.value||'solo';
     const group=$(p+'-duet-choice');group.querySelector('.duet-person').hidden=chosen!=='duet';

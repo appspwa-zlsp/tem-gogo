@@ -348,3 +348,14 @@ html[data-tg-theme] body :is(button,input,select,textarea,a[href],summary,[role=
 .tg-r16-curation select,.tg-r16-curation button{min-height:44px!important;min-width:0;max-width:100%;width:100%;box-sizing:border-box;white-space:normal;overflow-wrap:anywhere}
 .tg-r16-curation select{font-size:16px}
 .tg-r16-curation small{line-height:1.4;color:var(--tg-muted,var(--muted))}
+
+/* R22: catálogo compacto também na lista de destaques do palco/Solo. */
+:is(#stage-library,#catalog-list,#search-results,#host-results,#guest-library) .history-song-card.tg123-track:has(> .tg-r16-curation){grid-template-areas:'cover info toggle' 'curation curation curation'!important;grid-template-rows:auto auto!important;align-items:start!important;align-content:start!important;gap:6px 8px!important;min-height:0!important}
+#guest-library.hit-library-list>.history-song-card.tg123-track:has(> .tg-r16-curation){grid-template-areas:'cover info' 'toggle toggle' 'curation curation'!important;grid-template-rows:auto auto auto!important}
+:is(#stage-library,#catalog-list,#search-results,#host-results,#guest-library) .tg123-track>.history-song-info>strong{display:block!important;-webkit-line-clamp:unset!important;line-clamp:unset!important;white-space:normal!important;overflow:visible!important;overflow-wrap:anywhere!important;line-height:1.35!important}
+:is(#stage-library,#catalog-list,#search-results,#host-results,#guest-library) .tg123-track>.tg-r16-curation{grid-area:curation!important;display:block;min-width:0;width:100%;margin:0!important;padding:0!important;border:0!important;background:transparent!important;border-radius:0!important;box-shadow:none!important}
+.tg123-track>.tg-r16-curation>summary{display:list-item!important;list-style-position:inside!important;font-size:12px!important;font-weight:600!important;line-height:1.3!important;min-height:44px!important;padding:8px 4px!important;box-sizing:border-box!important;align-content:center!important;color:inherit!important}
+.tg123-track>.tg-r16-curation[open]{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;padding:0 4px 6px!important}
+.tg123-track>.tg-r16-curation[open]>button{width:100%!important;min-height:44px!important;border:1px solid var(--tg-border,var(--line))!important;border-radius:10px!important;padding:8px 10px!important;color:var(--tg-text,var(--text))!important;text-align:center!important;font-size:13px!important}
+.tg123-track>.tg-r16-curation[open]>label{font-size:13px!important}
+.tg123-track>.tg-r16-curation[open]>small{font-size:12px!important}
