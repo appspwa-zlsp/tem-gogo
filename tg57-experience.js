@@ -20,7 +20,7 @@
   const scope=dialog||document.getElementById(view);if(!scope||scope.hidden)return;
   const all=[...scope.querySelectorAll(selector)].filter(visible);if(!all.length)return;
   document.body.classList.add('tg57-dpad');
-  if(!all.includes(active)){e.preventDefault();focus(all.find(n=>n.matches('[data-tg123-host-command=toggle]'))||all[0]);return;}
+  if(!all.includes(active)){e.preventDefault();focus(all.find(n=>n.id==='play-pause')||all[0]);return;}
   const ar=active.getBoundingClientRect(),[x,y]=center(ar);let best=null,score=Infinity;
   for(const n of all){if(n===active)continue;const r=n.getBoundingClientRect(),[cx,cy]=center(r),dx=cx-x,dy=cy-y;const along=dx*dir[0]+dy*dir[1],cross=Math.abs(dx*dir[1]-dy*dir[0]);if(along<=1)continue;const aligned=dir[0]?(r.top<ar.bottom&&r.bottom>ar.top):(r.left<ar.right&&r.right>ar.left);const cost=along+cross*(aligned?.5:3)+(aligned?0:80);if(cost<score){score=cost;best=n;}}
   if(best){e.preventDefault();focus(best);}

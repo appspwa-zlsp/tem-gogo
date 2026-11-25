@@ -1095,7 +1095,7 @@
     document.body.classList.toggle('tg95-join-signed-in',signedIn);
     openGuestEntry(clean);
     if(signedIn&&!$('guest-name').value.trim()){
-      $('guest-name').value=String(state.user.user_metadata?.display_name||localStorage.getItem('tem-gogo-display-name')||'');
+      $('guest-name').value=String(state.user.user_metadata?.display_name||'');
     }
     show('landing');
     window.dispatchEvent(new CustomEvent('temgogo:guest-entry',{detail:{room:clean}}));
@@ -1440,7 +1440,16 @@
     $('tab-guest').classList.add('active');$('tab-guest').setAttribute('aria-selected','true');
     $('host-access').hidden=true;$('guest-access').hidden=false;
     $('guest-code').value=normalizeRoom(roomCode);
-    $('guest-name').value=localStorage.getItem('tem-gogo-display-name')||'';
+    const signed=!!(state.user&&!isAnonymous(state.user));
+    $('guest-name').readOnly=signed;
+    $('guest-name').value=signed?String(state.user.user_metadata?.display_name||''):localStorage.getItem('tem-gogo-display-name')||'';
+    if(signed){
+      const uid=state.user.id,epoch=tg07SessionEpoch,code=$('guest-code').value,field=$('guest-name');
+      void (async()=>{try{
+        const {data,error}=await state.client.from('tg_profiles').select('nickname').eq('user_id',uid).maybeSingle();
+        if(!error&&state.user?.id===uid&&tg07SessionEpoch===epoch&&!state.room&&$('guest-code').value===code&&!$('guest-access').hidden&&field.readOnly&&typeof data?.nickname==='string')field.value=data.nickname;
+      }catch(e){console.warn('Apelido da conta ainda não carregado.');}})();
+    }
   }
   let tg12AvailabilityEpoch=0;
   async function tg12ModeAvailability(){
@@ -3338,6 +3347,7 @@ async function openFullCatalog(){
   $('catalog-search').value='';$('catalog-filter').value='all';
   $('tg07-external-query').value='';$('tg07-external-results').replaceChildren();$('tg07-link').value='';$('tg07-link-title').value='';
   $('catalog-dialog').showModal();
+  if(document.body.dataset.currentView==='stage')$('catalog-close').focus({preventScroll:true});
   $('catalog-list').textContent='Abrindo a biblioteca do povo... 🎶';
   const scope=tg07Scope();void tg26LoadFavorites(true);await loadCatalog();if(!tg07Current(scope)||!$('catalog-dialog').open)return;renderFullCatalog();
   if(document.body.dataset.currentView!=='stage')$('catalog-search').focus({preventScroll:true});

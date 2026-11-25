@@ -128,3 +128,15 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
 .tg60-profile-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:10px;border-top:1px solid var(--tg-border,var(--line));min-width:0}
 .tg60-profile-actions button{min-height:44px;white-space:normal}
 @media(max-width:360px){.tg60-profile-actions{grid-template-columns:1fr}}
+
+/* R61 — keep mobile ancillary functions reachable but out of the main path. */
+#guest .tg61-guest-extra{min-width:0;max-width:100%;border-radius:14px;border:1px solid var(--tg-border,var(--line));padding:8px 10px;background:var(--tg-surface,var(--surface));margin:8px 0}
+#guest .tg61-guest-extra>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-weight:700;gap:8px}
+#guest .tg61-guest-extra>summary::before{content:'›';font-size:20px}
+#guest .tg61-guest-extra[open]>summary::before{transform:rotate(90deg)}
+#guest .tg61-guest-extra:not([open])>:not(summary){display:none!important}
+#guest .tg61-guest-extra :is(.mobile-card,.tg18-account-promo){min-width:0;max-width:100%;box-sizing:border-box;margin:0!important;box-shadow:none!important}
+#guest .tg58-guest-menu{max-width:100%}
+#stage .tg50-drawer-head .tg61-back{min-width:84px;min-height:44px}
+#catalog-dialog #catalog-close:focus-visible{outline:3px solid var(--tg-focus,#f5ddff);outline-offset:3px}
+#tg-beta-dialog .tg-beta-avatar-option:has(input:checked),#guest-profile-dialog .avatar-option:has(input:checked){border-color:var(--tg-focus,var(--tg-primary))!important;box-shadow:0 0 0 1px var(--tg-focus,var(--tg-primary))!important}

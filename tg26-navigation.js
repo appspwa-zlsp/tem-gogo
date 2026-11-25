@@ -10,7 +10,7 @@
   if(!stage||!main||!bar||!consoleNode||!room||!catalog||!side||!queue||!rank||!screen||!header||stage.dataset.tg50Ready)return;
   stage.dataset.tg50Ready='true';
   const drawer=el('dialog','tg50-drawer');drawer.id='tg50-drawer';drawer.setAttribute('aria-labelledby','tg50-drawer-title');
-  const heading=el('header','tg50-drawer-head'),title=el('h2','','Painel');title.id='tg50-drawer-title';const close=button('Voltar',()=>drawer.close());heading.append(title,close);drawer.append(heading);stage.append(drawer);
+  const heading=el('header','tg50-drawer-head'),title=el('h2','','Painel');title.id='tg50-drawer-title';const close=button('Voltar',()=>drawer.close());close.classList.add('tg61-back');heading.append(title,close);drawer.append(heading);stage.append(drawer);
   const sections=new Map();let opener=null;
   function section(key,label,...nodes){const panel=el('section','tg50-panel');panel.dataset.tg50Section=key;panel.hidden=true;move(panel,...nodes);drawer.append(panel);sections.set(key,{panel,label});return panel;}
   function show(key,trigger){const entry=sections.get(key);if(!entry||stage.hidden)return;opener=trigger;for(const x of sections.values())x.panel.hidden=x!==entry;title.textContent=entry.label;if(!drawer.open)drawer.showModal();entry.panel.scrollTop=0;close.focus({preventScroll:true});}
@@ -42,7 +42,7 @@
   const measure=()=>{if(stage.hidden)return;const occupied=measured.filter(n=>n&&!n.hidden&&n.getClientRects().length).reduce((sum,n)=>sum+n.getBoundingClientRect().height,0);const h=Math.max(180,Math.floor(window.innerHeight-occupied-28));const val=h+'px';if(stage.style.getPropertyValue('--tg50-player-height')!==val)stage.style.setProperty('--tg50-player-height',val);};
   if(typeof ResizeObserver==='function'){const observer=new ResizeObserver(measure);for(const n of measured)if(n)observer.observe(n);}
   window.addEventListener('resize',measure);window.addEventListener('temgogo:view',()=>{if(drawer.open)drawer.close();measure();});document.addEventListener('fullscreenchange',measure);
-  const cat=$('catalog-dialog');cat?.addEventListener('close',()=>{if(!stage.hidden&&!document.querySelector('dialog[open]'))music.focus({preventScroll:true});});
+  const cat=$('catalog-dialog');cat?.addEventListener('close',()=>{if(!stage.hidden&&!document.querySelector('dialog[open]')&&music.isConnected)music.focus({preventScroll:true});});
   measure();
  }
  function remoteNav(){
@@ -75,6 +75,9 @@
   move(menu,people,sw,help,helpTools,leave);top.append(more);
   const extra=q('.guest-song-search-card',guest),install=$('guest-install');if(install)menu.append(install);
   legacy(extra);legacy(q('.guest-hit-library',guest));for(const n of guest.querySelectorAll('.tg16-guest-actions [data-catalog-open]'))legacy(n);
+  const recado=$('tg17-guest-message');if(recado){const d=el('details','tg61-guest-extra');d.append(el('summary','','Recados'));recado.before(d);d.append(recado);}
+  const promo=q('.tg18-account-promo',guest);if(promo){const d=el('details','tg61-guest-extra');d.append(el('summary','','Conta, histórico e notificações'));promo.before(d);d.append(promo);}
+  const nav=q('.mobile-switch',guest);if(nav)nav.setAttribute('aria-label','Músicas, fila, microfone, placar e perfil');
   music.setAttribute('aria-label','Músicas');const labels=music.querySelectorAll('span');if(labels.length>1)labels[1].textContent='Músicas';
   menu.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});window.addEventListener('temgogo:view',()=>{more.open=false;});
  }
@@ -102,7 +105,7 @@
     const close=()=>{if(guest.open)guest.close();if(social.open)social.close();};
     action('Aparência',()=>{const view=$(document.body.dataset.currentView);close();(q('.open-settings',view)||q('.open-settings'))?.click();});
     action('Identidade vocal',()=>{close();const view=$(document.body.dataset.currentView);(q('[data-tg30-voice-open]',view)||q('[data-tg30-voice-open]'))?.click();});
-    if(!isGuest){action('Alterar senha',()=>{close();$('account-password-open')?.click();});action('Sair da conta',()=>{close();$('logout-button')?.click();});}
+    if(!isGuest){action('Minhas notas',()=>{close();q('[data-tg124-action="history"]',quick)?.click();});action('Alterar senha',()=>{close();$('account-password-open')?.click();});action('Sair da conta',()=>{close();q('[data-tg124-action="logout"]',quick)?.click();});}else{action('Criar conta',()=>{close();$('tg18-account-cta')?.click();});}
     target.append(box);
   };
   actions(panel,false);actions(anonInner,true);
