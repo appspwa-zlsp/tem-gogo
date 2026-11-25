@@ -1085,7 +1085,7 @@
     return q.get('auth')==='recovery'||q.get('type')==='recovery'||hash.get('type')==='recovery';
   }
   function offerRecoveryForm(){
-    if(!state.recoveryVerified||!state.user||isAnonymous(state.user))return;
+    if(!state.recoveryVerified||!state.user||tgR17RecoveryUid!==state.user.id||isAnonymous(state.user))return;
     show('landing');document.body.classList.remove('invite-active','entry-active');
     $('invite-welcome').hidden=true;
     $('host-access').hidden=false;$('guest-access').hidden=true;
@@ -1255,10 +1255,10 @@
     state.client=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     // IMPORTANTE: receber PASSWORD_RECOVERY antes de ler/restaurar convites ou abrir o lobby.
     state.client.auth.onAuthStateChange((event,session)=>{
-      if(state.user?.id!==session?.user?.id){tgR09ClearHistory();tg15ClearRecap();++tg15RoomsSerial;$('existing-rooms')?.replaceChildren();$('tg123-active-controls')?.replaceChildren();}
+      if(state.user?.id!==session?.user?.id){tgR17ClearPasswordContext();tgR09ClearHistory();tg15ClearRecap();++tg15RoomsSerial;$('existing-rooms')?.replaceChildren();$('tg123-active-controls')?.replaceChildren();}
       state.user=session?.user||null;
       if(event==='PASSWORD_RECOVERY'){
-        state.recoveryVerified=true;state.recoveryIntent=true;
+        state.recoveryVerified=true;state.recoveryIntent=true;tgR17RecoveryUid=state.user?.id||null;
         setTimeout(offerRecoveryForm,0);
       }
       if(state.role==='guest')updateAccountCTA();
@@ -1421,7 +1421,7 @@
     else showGuestEntry('');
   }
   async function login(event) {
-    event.preventDefault();if(!checkBackend())return;
+    event.preventDefault();if(!checkBackend()||tgR17PasswordPending||$('login-button').disabled)return;
     const button=$('login-button');setLoading(button,true,'Entrando...');
     try {
       const {data,error}=await state.client.auth.signInWithPassword({email:$('auth-email').value.trim(),password:$('auth-password').value});
@@ -1467,7 +1467,7 @@
   function closeSignup(){ $('signup-dialog').close(); }
   async function signup(event) {
     event.preventDefault();
-    if(!checkBackend())return;
+    if(!checkBackend()||tgR17PasswordPending||$('signup-submit').disabled)return;
     const name=$('signup-name').value.trim();
     const email=$('signup-email').value.trim().toLowerCase();
     const password=$('signup-password').value;
@@ -3536,6 +3536,8 @@ function renderFullCatalog(){
     }
   }
   async function logout(){
+    if(tgR17PasswordPending){toast('Aguarde a operação de senha terminar.',true);return;}
+    tgR17ClearPasswordContext();state.recoveryIntent=false;
     if(state.client){const {error}=await state.client.auth.signOut();if(error){toast(humanError(error),true);return;}}
     await stopSession();state.user=null;
     sessionStorage.removeItem('tg20-auth-return-room');
@@ -3606,22 +3608,60 @@ function renderFullCatalog(){
       },350);
     }catch(err){$('tg16-scan-feedback').textContent='Não foi possível ativar a câmera. Verifique a permissão e use o código da festa.';for(const t of qrStream?.getTracks()||[])t.stop();qrStream=null;}
   }
-  let recoveryMode=false;
-  function openPasswordDialog(recovery=false){if(recovery&&!state.recoveryVerified){toast('Este link de recuperação não foi validado. Peça um novo e-mail.',true);return;}if(!state.user||isAnonymous(state.user)){toast('Para trocar senha, entre com uma conta de e-mail.',true);return;}recoveryMode=recovery;$('tg16-old-label').hidden=recovery;$('tg16-old-password').hidden=recovery;$('tg16-old-password').required=!recovery;$('tg16-password-feedback').textContent='';if(!$('tg16-password-dialog').open)$('tg16-password-dialog').showModal();}
+  let recoveryMode=false,tgR17RecoveryUid=null,tgR17PasswordContext=null,tgR17PasswordPending=null,tgR17ResetPending=false,tgR17ResetUntil=0;
+  function tgR17ResetPasswordFields(){
+    $('tg16-password-form').reset();
+    for(const id of ['tg16-old-password','tg16-new-password','tg16-confirm-password'])$(id).type='password';
+    $('tg192-show-password').checked=false;
+  }
+  function tgR17ClearPasswordContext(){
+    tgR17RecoveryUid=null;state.recoveryVerified=false;recoveryMode=false;tgR17PasswordContext=null;
+    if($('tg16-password-dialog').open)$('tg16-password-dialog').close();
+    tgR17ResetPasswordFields();$('tg192-recovery-caption').hidden=true;$('tg16-password-title').textContent='Trocar senha';
+  }
+  function openPasswordDialog(recovery=false){
+    if(tgR17PasswordPending)return;
+    if(recovery&&(!state.recoveryVerified||tgR17RecoveryUid!==state.user?.id)){toast('Este link de recuperação não foi validado. Peça um novo e-mail.',true);return;}
+    if(!state.user||isAnonymous(state.user)){toast('Para trocar senha, entre com uma conta de e-mail.',true);return;}
+    if($('tg16-password-dialog').open&&tgR17PasswordContext?.uid===state.user.id&&tgR17PasswordContext.recovery===recovery)return;
+    recoveryMode=recovery;tgR17PasswordContext={uid:state.user.id,epoch:tg07SessionEpoch,recovery};tgR17ResetPasswordFields();
+    $('tg16-old-label').hidden=recovery;$('tg16-old-password').hidden=recovery;$('tg16-old-password').required=!recovery;
+    $('tg16-password-feedback').textContent='';if(!$('tg16-password-dialog').open)$('tg16-password-dialog').showModal();
+  }
   async function submitNewPassword(event){
-    event.preventDefault();const feedback=$('tg16-password-feedback'),current=$('tg16-old-password').value,pwd=$('tg16-new-password').value;
+    event.preventDefault();if(!checkBackend()||tgR17PasswordPending)return;
+    const context=tgR17PasswordContext,dlg=$('tg16-password-dialog'),feedback=$('tg16-password-feedback'),current=$('tg16-old-password').value,pwd=$('tg16-new-password').value;
+    const valid=()=>!!context&&tgR17PasswordContext===context&&dlg.open&&state.user?.id===context.uid&&tg07SessionEpoch===context.epoch&&!isAnonymous(state.user)&&(!context.recovery||(state.recoveryVerified&&tgR17RecoveryUid===context.uid));
+    if(!valid()){feedback.textContent='Abra novamente a troca de senha com sua conta atual.';return;}
     if(pwd!==$('tg16-confirm-password').value){feedback.textContent='As novas senhas não coincidem.';return;}
-    if(pwd.length<10){feedback.textContent='Use no mínimo 10 caracteres.';return;}
+    if(pwd.length<10||!/[A-Za-zÀ-ÿ]/.test(pwd)||!/[0-9]/.test(pwd)){feedback.textContent='Use pelo menos 10 caracteres, com letras e números.';return;}
+    const button=$('tg16-password-form').querySelector('[type=submit]');tgR17PasswordPending=context;setLoading(button,true,'Salvando…');$('tg16-password-close').disabled=true;
     try{
-      if(!recoveryMode){const email=state.user?.email;if(!email||!current)throw new Error('Digite sua senha atual.');const {error}=await state.client.auth.signInWithPassword({email,password:current});if(error)throw new Error('Senha atual incorreta.');}
+      if(!context.recovery){const email=state.user?.email;if(!email||!current)throw new Error('Digite sua senha atual.');const {data,error}=await state.client.auth.signInWithPassword({email,password:current});if(error||data?.user?.id!==context.uid)throw new Error('Não foi possível confirmar a senha atual.');}
+      if(!valid())return;
       const {error}=await state.client.auth.updateUser({password:pwd});if(error)throw error;
-      const wasRecovery=recoveryMode;localStorage.removeItem('tem-gogo-upgrading-account');recoveryMode=false;state.recoveryVerified=false;state.recoveryIntent=false;$('tg16-password-form').reset();$('tg16-password-dialog').close();$('tg192-recovery-caption').hidden=true;$('tg16-password-title').textContent='Trocar senha';$('access-tabs').hidden=false;toast('Senha atualizada com sucesso! 🔒');if(wasRecovery){history.replaceState(null,'',new URL('./',location.href).href);await openLobby();}
-    }catch(e){feedback.textContent=humanError(e);}
+      if(!valid())return;
+      const wasRecovery=context.recovery;
+      const url=new URL(location.href),returnRoom=normalizeRoom(url.searchParams.get('remote')==='1'?null:url.searchParams.get('room')||sessionStorage.getItem('tg20-auth-return-room'));
+      localStorage.removeItem('tem-gogo-upgrading-account');tgR17ClearPasswordContext();state.recoveryIntent=false;$('access-tabs').hidden=false;toast('Senha atualizada com sucesso! 🔒');
+      if(wasRecovery){sessionStorage.removeItem('tg20-auth-return-room');const clean=new URL('./',location.href);if(validRoom(returnRoom))clean.searchParams.set('room',returnRoom);history.replaceState(null,'',clean.href);if(validRoom(returnRoom))showGuestEntry(returnRoom);else await openLobby();}
+    }catch(e){if(valid())feedback.textContent=humanError(e);}
+    finally{if(tgR17PasswordPending===context){tgR17PasswordPending=null;setLoading(button,false);$('tg16-password-close').disabled=false;}}
   }
   async function forgotPassword(){
-    const email=$('auth-email').value.trim();if(!email||!email.includes('@')){toast('Digite seu e-mail no campo acima para receber o link.',true);return;}
-    try{const {error}=await state.client.auth.resetPasswordForEmail(email,{redirectTo:new URL('./index.html?auth=recovery',location.href).href});if(error)throw error;toast('Se o endereço tiver conta, você receberá instruções para redefinir a senha.');}
-    catch(e){toast(humanError(e),true);}
+    if(!checkBackend()||tgR17ResetPending)return;
+    const input=$('auth-email'),email=input.value.trim();if(!email||!input.checkValidity()||!email.includes('@')){toast('Digite um e-mail válido no campo acima.',true);return;}
+    if(Date.now()<tgR17ResetUntil){toast('Aguarde um minuto antes de solicitar outro link.');return;}
+    const button=$('auth-forgot-password');tgR17ResetPending=true;tgR17ResetUntil=Date.now()+60000;button.disabled=true;
+    try{
+      const target=new URL('./index.html?auth=recovery',location.href),url=new URL(location.href);
+      const room=normalizeRoom(url.searchParams.get('remote')==='1'||localStorage.getItem('tem-gogo-pending-remote')?null:url.searchParams.get('room')||sessionStorage.getItem('tg20-auth-return-room')||state.inviteRoom);
+      if(validRoom(room))target.searchParams.set('room',room);
+      const {error}=await state.client.auth.resetPasswordForEmail(email,{redirectTo:target.href});
+      if(error&&(error.status===429||Number(error.status)>=500||/network|failed to fetch|rate limit/i.test(error.message||'')))throw error;
+      toast('Se o endereço tiver conta, você receberá instruções para redefinir a senha.');
+    }catch(e){toast('Não foi possível solicitar o link agora. Aguarde e tente novamente.',true);}
+    finally{tgR17ResetPending=false;button.disabled=false;}
   }
   function setupProfileQuickMenu(){
     const dlg=$('tg124-profile-menu');if(!dlg)return;
@@ -3685,6 +3725,8 @@ function renderFullCatalog(){
     $('tg16-scan-dialog').addEventListener('close',()=>void closeQrScan());
     $('account-password-open').addEventListener('click',()=>openPasswordDialog());
     $('tg16-password-close').addEventListener('click',()=>$('tg16-password-dialog').close());
+    $('tg16-password-dialog').addEventListener('cancel',event=>{if(tgR17PasswordPending)event.preventDefault();});
+    $('tg16-password-dialog').addEventListener('close',()=>{if(!$('tg16-password-dialog').open){tgR17PasswordContext=null;recoveryMode=false;tgR17ResetPasswordFields();}});
     $('tg16-password-form').addEventListener('submit',submitNewPassword);$('tg192-show-password').addEventListener('change',e=>{for(const id of ['tg16-old-password','tg16-new-password','tg16-confirm-password'])$(id).type=e.target.checked?'text':'password';});
     $('auth-forgot-password').addEventListener('click',forgotPassword);
     for(const host of [true,false]){
