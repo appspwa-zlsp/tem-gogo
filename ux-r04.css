@@ -48,3 +48,23 @@ html[data-tg-theme] body:not(.high-contrast) #catalog-dialog :is(.history-song-c
 html[data-tg-theme] body:not(.high-contrast) #catalog-dialog :is(.history-song-info small,.catalog-head p,.catalog-bottom small){color:var(--tg-muted,var(--muted))!important}
 @media(max-width:680px){#catalog-dialog{width:100%!important;max-width:100%!important;height:100dvh!important;max-height:100dvh!important;margin:0!important;border-radius:0!important}#catalog-dialog .catalog-modal-shell{padding:12px 12px calc(16px + env(safe-area-inset-bottom,0px))!important}#catalog-dialog .catalog-toolbar,#catalog-dialog .catalog-list{grid-template-columns:minmax(0,1fr)!important}#catalog-dialog .history-song-card{grid-template-columns:64px minmax(0,1fr) auto;gap:8px}#catalog-dialog .history-song-card>img{width:64px!important}#tg18-remote .tg18-remote-header .button{min-height:44px;font-size:12px}#tg18-remote .tg18-remote-shell>h1{font-size:clamp(1.5rem,6vw,2rem)}}
 [hidden]{display:none!important}
+/* R04.1 — reduzir o caminho até o primeiro resultado e harmonizar superfícies. */
+#catalog-dialog .catalog-head{padding-bottom:4px!important}
+#catalog-dialog .catalog-head .card-eyebrow{font-size:10px;letter-spacing:.1em}
+#catalog-dialog .catalog-head p{font-size:12px;line-height:1.35;margin:3px 0!important}
+#catalog-dialog .catalog-toolbar{padding:6px 0!important;gap:6px}
+#catalog-dialog .tg-beta-external{margin:8px 0!important;padding:4px 10px!important}
+#catalog-dialog .tg-beta-external summary{min-height:40px;font-size:12px}
+#catalog-dialog .catalog-data-line{margin:8px 0!important;gap:4px 8px}
+#catalog-dialog .catalog-data-line>span:nth-child(2){flex:1 1 100%;font-size:12px;order:2}
+#catalog-dialog .catalog-data-line #tg07-catalog-refresh{font-size:11px;min-height:36px;padding:6px 9px!important}
+#catalog-dialog .history-song-card{align-items:center;box-shadow:none!important}
+#catalog-dialog .history-song-info strong{display:block!important;-webkit-line-clamp:unset!important;max-height:none!important;white-space:normal!important;overflow:visible!important}
+#catalog-dialog .history-song-card>img{height:43px!important;background:var(--tg-bg,var(--bg))}
+#catalog-dialog .history-song-info .tg124-suggest{margin:4px 0 0!important;min-height:32px;line-height:1.2}
+#catalog-dialog #catalog-close{position:sticky;top:8px;z-index:7}
+#catalog-dialog .catalog-toolbar{scroll-margin-top:10px}
+html[data-tg-theme] body:not(.high-contrast) :is(#guest .mobile-card,#lobby .tg92-hub-choices button,#lobby .tg70-mode-list button,#tg18-remote .tg19-remote-queue,#tg18-remote .tg92-remote-info){background:var(--tg-surface,var(--surface))!important;color:var(--tg-text,var(--text))!important;border-color:var(--tg-border,var(--line))!important;border-radius:16px!important;box-shadow:none!important}
+html[data-tg-theme] body:not(.high-contrast) :is(#guest .guest-header,#tg18-remote .tg18-remote-header,#stage .stage-header,#lobby .simple-header){color:var(--tg-text,var(--text));border-color:var(--tg-border,var(--line))}
+@media(max-width:680px){#catalog-dialog .catalog-head h2{font-size:1.4rem}#catalog-dialog .catalog-modal-shell{padding-top:10px!important}#catalog-dialog .catalog-list .history-song-card{margin:0!important}#tg18-remote .tg18-remote-header{padding:8px 12px!important}#tg18-remote .tg18-remote-shell{border-radius:18px!important}}
+[hidden]{display:none!important}
