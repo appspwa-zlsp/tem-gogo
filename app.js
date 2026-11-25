@@ -365,40 +365,50 @@
   }
   // V18: microfone solo utiliza a captura local SEM enviar áudio para a própria saída,
   // evitando eco. A nota continua sendo atividade vocal, não afinação.
+  let tgR19SoloRequest=null;
   function tgR07SyncSoloDock(){
     const dock=$('tg192-solo-dock'),button=$('tg192-solo-off');if(!dock||!button)return;
     const active=Boolean(state.soloMic),solo=state.role==='host'&&state.room?.room_mode==='solo';
     dock.dataset.micActive=String(active);dock.hidden=!(state.role==='host'&&(active||solo));
+    for(const id of ['tg192-solo-off','tg18-solo-button'])if($(id))$(id).disabled=Boolean(tgR19SoloRequest);
     const label=dock.querySelector('.tg192-solo-label');if(label)label.textContent=active?'MIC SOLO ATIVO':'MIC SOLO DESLIGADO';
     button.textContent=active?'Desligar':'Ativar';button.setAttribute('aria-label',active?'Desligar microfone solo':'Ativar microfone solo');button.title=button.getAttribute('aria-label');
     if(!active)for(const bar of $('tg192-solo-meter')?.children||[]){bar.classList.remove('lit');bar.style.height='12%';}
   }
   async function toggleSoloMic(){
     if(state.emergencyBlocked)return;
-    if(state.role!=='host'||!state.room)return;
+    if(state.role!=='host'||!state.room||state.emergencyClosing||state.finishing||tgR19SoloRequest)return;
     if(state.soloMic){stopSoloMic();return;}
     window.TG74_DIVA_STUDIO?.stop();
     if(!navigator.mediaDevices?.getUserMedia){toast('Microfone solo exige HTTPS e navegador compatível.',true);return;}
-    const scope=tg07Scope();let stream,ctx;
+    const scope=tg07Scope(),ticket={scope,song:state.currentSong?.id??null,preflight:state.preflight};let stream,ctx;
+    tgR19SoloRequest=ticket;tgR07SyncSoloDock();
+    const current=()=>tgR19SoloRequest===ticket&&tg07Current(scope)&&state.role==='host'&&!state.emergencyBlocked&&!state.emergencyClosing&&!state.finishing&&(state.currentSong?.id??null)===ticket.song&&state.preflight===ticket.preflight;
     try{
       stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,autoGainControl:false,noiseSuppression:true},video:false});
-      if(!tg07Current(scope)||state.emergencyBlocked){stream.getTracks().forEach(t=>t.stop());return;}
+      if(!current()){stream.getTracks().forEach(t=>t.stop());return;}
       ctx=new (window.AudioContext||window.webkitAudioContext)();
       const analyser=ctx.createAnalyser();analyser.fftSize=2048;
       ctx.createMediaStreamSource(stream).connect(analyser);await ctx.resume();
-      if(!tg07Current(scope)||state.emergencyBlocked){stream.getTracks().forEach(t=>t.stop());await ctx.close().catch(()=>{});return;}
+      if(!current()||!stream.getAudioTracks().some(t=>t.readyState==='live')){stream.getTracks().forEach(t=>t.stop());await ctx.close().catch(()=>{});return;}
       state.soloMic={stream,ctx,analyser,samples:0,vocal:0,volume:0,last:0,songId:null};
       $('tg192-solo-dock').hidden=false;
       tgR07SyncSoloDock();
-      stream.getAudioTracks().forEach(t=>t.onended=()=>stopSoloMic());
+      const capture=state.soloMic;stream.getAudioTracks().forEach(t=>t.onended=()=>{if(state.soloMic===capture&&tg07Current(scope))stopSoloMic();});
       $('tg18-solo-button').textContent='🎙️ Desligar microfone solo';
       $('tg18-solo-status').textContent='🟢 Mic ativo no celular · áudio não sai pelos alto-falantes para evitar eco';
       if(state.preflight&&isSinger(state.preflight.song,state.user.id))renderPreflightHost();
-    }catch(err){for(const t of stream?.getTracks()||[])t.stop();try{await ctx?.close();}catch{}if(tg07Current(scope))toast('Permissão de microfone negada: '+humanError(err),true);}
+    }catch(err){for(const t of stream?.getTracks()||[])t.stop();try{await ctx?.close();}catch{}if(current())toast('Não foi possível ativar o microfone: '+humanError(err),true);}
+    finally{if(tgR19SoloRequest===ticket){tgR19SoloRequest=null;tgR07SyncSoloDock();}}
   }
+  function tgR19CancelSoloRequest(){tgR19SoloRequest=null;tgR07SyncSoloDock();}
   function stopSoloMic(){
-    const m=state.soloMic;if(!m)return;state.soloMic=null;$('tg192-solo-dock').hidden=true;
-    m.stream.getTracks().forEach(t=>t.stop());m.ctx.close().catch(()=>{});
+    tgR19CancelSoloRequest();
+    const m=state.soloMic;state.soloMic=null;
+    if(m){m.stream.getTracks().forEach(t=>{t.onended=null;t.stop();});m.ctx.close().catch(()=>{});}
+    const pre=state.preflight;if(pre?.statuses.get(state.user?.id)?.localSolo)pre.statuses.delete(state.user.id);
+    if(pre&&state.role==='host')renderPreflightHost();
+    $('tg192-solo-dock').hidden=true;
     if(document.body.classList.contains('tg104-single-device')){$('tg192-solo-dock').hidden=false;document.querySelector('#tg192-solo-dock .tg192-solo-label')?.replaceChildren(document.createTextNode('MIC SOLO DESLIGADO'));}
     $('tg18-solo-button').textContent='🎙️ Ativar microfone solo';
     $('tg18-solo-status').textContent='Microfone solo desligado';
@@ -638,7 +648,8 @@
     $('stage-command-participants').innerHTML=singing?songSingers(singing).map(uid=>`<div class="command-singer"><img alt="" src="${avatarSrc(state.avatars.get(uid))}"><span><b>${escapeHTML(memberName(uid))}</b><small>${micStatusLabel(uid)}</small></span></div>`).join(''):'<span class="command-placeholder">Escaneie o QR para a plateia escolher músicas.</span>';
   }
   function renderPreflightHost(){
-    if(state.preflight&&state.soloMic&&isSinger(state.preflight.song,state.user?.id))state.preflight.statuses.set(state.user.id,{mic:true,ready:true,at:Date.now()});
+    if(state.preflight&&state.soloMic&&isSinger(state.preflight.song,state.user?.id)&&state.soloMic.stream.getAudioTracks().some(t=>t.readyState==='live'))state.preflight.statuses.set(state.user.id,{mic:true,ready:true,at:Date.now(),localSolo:true});
+    else if(state.preflight?.statuses.get(state.user?.id)?.localSolo)state.preflight.statuses.delete(state.user.id);
     const pre=state.preflight,box=$('stage-preflight');
     box.hidden=!pre;showHostCommand();if(!pre)return;
     $('stage-preflight-track').textContent=pre.song.title;
@@ -1518,10 +1529,10 @@
   }
   let tgR18RoomRequest=null;
   function tgR18BeginRoomRequest(){
-    if(tgR18RoomRequest||state.emergencyBlocked)return null;
+    if(tgR18RoomRequest||state.room||state.emergencyClosing)return null;
     const t={uid:state.user?.id??null,epoch:tg07SessionEpoch,view:document.body.dataset.currentView};tgR18RoomRequest=t;return t;
   }
-  function tgR18RoomRequestCurrent(t){return tgR18RoomRequest===t&&t.epoch===tg07SessionEpoch&&t.uid===(state.user?.id??null)&&t.view===document.body.dataset.currentView&&!state.emergencyBlocked;}
+  function tgR18RoomRequestCurrent(t){return tgR18RoomRequest===t&&t.epoch===tg07SessionEpoch&&t.uid===(state.user?.id??null)&&t.view===document.body.dataset.currentView&&!state.room&&!state.emergencyClosing;}
   function tgR18EndRoomRequest(t){if(tgR18RoomRequest===t)tgR18RoomRequest=null;}
   function tgR18ClearReadyRoom(){state.readyRoom=null;$('ready-code').textContent='';if($('room-ready-dialog').open)$('room-ready-dialog').close();}
   function tgR18ReadyRoom(){const saved=state.readyRoom;return saved&&saved.uid===state.user?.id&&saved.epoch===tg07SessionEpoch&&saved.room.owner_id===saved.uid&&$('room-ready-dialog').open?saved:null;}
@@ -2739,7 +2750,7 @@
     if(state.emergencyBlocked)return;
     if(!state.currentSong||state.finishing)return;
     const completedRoom=state.room?.id,completedSong=state.currentSong.id,finishScope=tg07Scope(),generation=state.emergencyGeneration??null;
-    state.finishing=true;
+    state.finishing=true;tgR19CancelSoloRequest();
     try {
       if(!skipped&&state.soloMic?.songId===completedSong)void tg30SendShadow(state.soloMic.tg30Shadow,true);
       if(!skipped){showDivaBubble('Segura o glitter, que eu estou conferindo o placar desta cantoria!','🏆');await fetchMembers();if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;await awaitSingersLastMicReport(state.currentSong);}
@@ -3392,7 +3403,7 @@ function renderFullCatalog(){
     clearTimeout(state.roomReloadTimer);clearTimeout(state.scoreOverlayTimer);
     if($('tg123-post-score'))$('tg123-post-score').hidden=true;clearTimeout(window.__tg123PostScoreTimer);
     clearHostPreflight(false);state.guestPreflightSong=null;state.guestReady=false;state.avatars.clear();
-    if(state.localStream)await stopMicrophone(true);if(state.soloMic)stopSoloMic();
+    stopSoloMic();if(state.localStream)await stopMicrophone(true);
     if(state.role==='host'){for(const uid of state.peers.keys())void sendSignal(uid,'bye').catch(console.warn);}
     for(const uid of [...state.peers.keys()])closePeer(uid);
     try{if(state.channel&&state.client)await state.client.removeChannel(state.channel);}catch{}
@@ -4061,33 +4072,41 @@ function renderFullCatalog(){
     if(!state.client||!state.user||isAnonymous(state.user)){
       toast('Entre com sua conta de anfitrião para cantar sozinho neste aparelho.',true);return;
     }
-    const button=$('tg103-solo-entry');button.disabled=true;
+    const button=$('tg103-solo-entry');if(button.disabled||state.room)return;
+    const ticket=tgR18BeginRoomRequest();if(!ticket)return;button.disabled=true;
+    const current=()=>tgR18RoomRequestCurrent(ticket)&&!state.room;
+    const valid=r=>r?.id&&r.owner_id===ticket.uid&&r.room_mode==='solo'&&r.status==='open'&&r.tg30_battle_reserved===false&&Date.parse(r.expires_at)>Date.now()&&validRoom(r.code);
+    const fields='id,code,title,owner_id,status,expires_at,current_song_id,room_mode,tg30_battle_reserved';
     try{
-      const {data,error}=await state.client.from('karaoke_rooms')
-        .select('id,code,title,owner_id,status,expires_at,current_song_id,room_mode')
-        .eq('owner_id',state.user.id).eq('room_mode','solo').eq('status','open')
+      const {data,error}=await state.client.from('karaoke_rooms').select(fields)
+        .eq('owner_id',ticket.uid).eq('room_mode','solo').eq('status','open')
         .gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).limit(1);
-      if(error)throw error;
+      if(!current())return;if(error)throw error;
+      let room;
       if(data?.length){
-        if(data[0].current_song_id){
-          const proceed=await window.TG_UI.confirm('Esta sala tem uma música em andamento. Abrir o palco aqui pode disputar a reprodução com a TV. Prefere aguardar e usar Controle no celular?',{title:'Sala já está tocando',confirmText:'Abrir palco neste aparelho',danger:true});
-          if(!proceed)return;
-        }
-        await enterRoomAsHost(data[0]);
-      }
-      else{
+        room=data[0];if(!valid(room))throw Error('Não foi possível confirmar a sala solo.');
+        if(!await window.TG_UI.confirm('Se o palco solo estiver aberto em outro aparelho, feche-o sem encerrar a festa. A exclusividade ainda não é verificada pelo servidor.',{title:'Retomar show solo',confirmText:'Palco anterior fechado · Retomar'}))return;
+        if(!current())return;
+        const fresh=await state.client.from('karaoke_rooms').select(fields).eq('id',room.id).single();
+        if(!current())return;if(fresh.error)throw fresh.error;
+        if(!valid(fresh.data)||fresh.data.id!==room.id||fresh.data.current_song_id!==room.current_song_id)throw Error('A sala mudou. Confira Minhas festas antes de retomar.');
+        room=fresh.data;
+      }else{
         const results=await callRPC('karaoke_create_room_mode',{p_title:'Meu show solo 🎤',p_mode:'solo'});
-        if(!results?.[0]?.room_id)throw new Error('Não foi possível preparar sua sala solo.');
-        const x=results[0];await enterRoomAsHost({id:x.room_id,code:x.room_code,title:x.room_title,owner_id:state.user.id,room_mode:'solo'});
+        if(!current())return;
+        const x=results?.[0];if(!x?.room_id||!validRoom(x.room_code))throw Error('Não foi possível confirmar a criação. Confira Minhas festas.');
+        room={id:x.room_id,code:x.room_code,title:x.room_title,owner_id:ticket.uid,room_mode:'solo'};
       }
-      document.body.classList.add('tg104-single-device');
-      $('tg192-solo-dock').hidden=false;
-      tgR07SyncSoloDock();
+      if(!current())return;
+      const epoch=ticket.epoch+1;
+      await enterRoomAsHost(room);
+      if(state.user?.id!==ticket.uid||tg07SessionEpoch!==epoch||state.role!=='host'||state.room?.id!==room.id||state.room.room_mode!=='solo'||state.emergencyBlocked)return;
+      tg100SyncRoomMode();
       $('tg18-solo-status').textContent='🎤 Modo solo: toque em Ativar microfone solo. A letra continua no vídeo e sua nota usa a captação local.';
       toast('Modo solo pronto! Ative o microfone para captar sua voz. O vídeo permanece em destaque.');
-      $('tg18-solo-button')?.focus({preventScroll:true});
-    }catch(err){toast('Não foi possível iniciar o modo solo: '+humanError(err),true);}
-    finally{button.disabled=false;}
+      $('tg192-solo-off')?.focus({preventScroll:true});
+    }catch(err){if(current())toast('Não foi possível iniciar o modo solo: '+humanError(err),true);}
+    finally{tgR18EndRoomRequest(ticket);button.disabled=false;}
   }
   function switchMobileTab(tab,push=true){
     if(state.guestMicLock&&tab!=='mic')return;
@@ -4121,7 +4140,7 @@ function renderFullCatalog(){
     if(!state.room||state.emergencyClosing)return;
     state.emergencyBlocked=true;
     if(!state.emergencyLatch){
-      state.emergencyLatch=true;++tg07SessionEpoch;
+      state.emergencyLatch=true;++tg07SessionEpoch;tgR19CancelSoloRequest();
       // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
       state.isPlaying=false;state.finishing=false;state.playMetrics=null;
       tg18AbortDictation();window.TG74_DIVA_STUDIO?.reset();
@@ -4142,7 +4161,7 @@ function renderFullCatalog(){
       clearHostPreflight(false);state.guestPreflightSong=null;state.guestReady=false;state.guestMicLock=false;closeGuestCall();
       hideFinal();hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;
       if($('mic-toggle'))$('mic-toggle').disabled=true;
-      if($('tg18-solo-status'))$('tg18-solo-status').textContent='Microfone interrompido por segurança.';
+      tgR07SyncSoloDock();if($('tg18-solo-status'))$('tg18-solo-status').textContent='Microfone interrompido por segurança.';
       if($('tg18-remote-feedback'))$('tg18-remote-feedback').textContent='Comandos suspensos; não serão reenviados.';
     }
     tg23Dialog(message);
@@ -4178,7 +4197,7 @@ function renderFullCatalog(){
     tg18AbortDictation();window.TG74_DIVA_STUDIO?.reset();
     try{if(state.player?.pauseVideo)state.player.pauseVideo();}catch(e){console.warn('Pausa por manutenção',e);}
     try{await stopMicrophone(false);}catch(e){console.warn('Fechamento do microfone',e);}
-    try{if(state.soloMic)stopSoloMic();}catch(e){console.warn(e);}
+    try{stopSoloMic();}catch(e){console.warn(e);}
     try{for(const peer of state.peers.values()){peer?.pc?.close?.();peer?.peer?.close?.();peer?.gain?.disconnect?.();}state.peers.clear();}catch(e){console.warn(e);}
     state.isPlaying=false;
   };
