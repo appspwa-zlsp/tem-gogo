@@ -26,7 +26,7 @@
 <script defer="" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script defer="" src="./qr-local.js?v=3beta05"></script>
 <script defer="" src="./config.js?v=3beta05"></script>
-<script defer src="./tg73-invitations.js?v=3beta05"></script><script defer src="./tg73-battle-gate.js?v=3beta05"></script><script defer src="./tg-dialogs.js?v=r10"></script><script defer src="./tg30-voice.js?v=3beta05"></script><script defer src="./tg30-voice-shadow.js?v=3beta05"></script><script defer src="./tg30-voice-ui.js?v=3beta05"></script><script defer src="./tg30-diva-result.js?v=3beta05"></script><script defer src="./app.js?v=r32"></script><script defer src="./beta10.js?v=3beta05"></script><script defer src="./beta12.js?v=r30"></script><script defer src="./tg124-enhance.js?v=3beta05"></script><script defer src="./tg20.js?v=3beta05"></script><script defer src="./tg21-shortcuts.js?v=3beta05"></script><script defer src="./tg70-ux.js?v=3beta05"></script><script defer src="./tg74-voice-catalog.js?v=3beta05"></script><script defer src="./tg74-diva-studio.js?v=r32b"></script><script defer src="./tg75-battle-core.js?v=3beta05"></script><script defer src="./tg75-battle-bridge.js?v=3beta05"></script><script defer src="./tg75-battle-panel.js?v=3beta05"></script>
+<script defer src="./tg73-invitations.js?v=3beta05"></script><script defer src="./tg73-battle-gate.js?v=3beta05"></script><script defer src="./tg-dialogs.js?v=r10"></script><script defer src="./tg30-voice.js?v=3beta05"></script><script defer src="./tg30-voice-shadow.js?v=3beta05"></script><script defer src="./tg30-voice-ui.js?v=3beta05"></script><script defer src="./tg30-diva-result.js?v=3beta05"></script><script defer src="./app.js?v=r32"></script><script defer src="./beta10.js?v=3beta05"></script><script defer src="./beta12.js?v=r30"></script><script defer src="./tg124-enhance.js?v=3beta05"></script><script defer src="./tg20.js?v=3beta05"></script><script defer src="./tg21-shortcuts.js?v=3beta05"></script><script defer src="./tg70-ux.js?v=r33"></script><script defer src="./tg74-voice-catalog.js?v=3beta05"></script><script defer src="./tg74-diva-studio.js?v=r32b"></script><script defer src="./tg75-battle-core.js?v=3beta05"></script><script defer src="./tg75-battle-bridge.js?v=3beta05"></script><script defer src="./tg75-battle-panel.js?v=r33"></script>
 
 
 <script defer src="./tg100-story.js?v=3beta05"></script>
@@ -34,7 +34,7 @@
 
 
 
-<script defer src="./tg30-campaign.js?v=3beta05"></script><script defer src="./tg-premium-interface.js?v=r31"></script><link rel="stylesheet" href="./ux-r26.css?v=r32"/>
+<script defer src="./tg30-campaign.js?v=3beta05"></script><script defer src="./tg-premium-interface.js?v=r31"></script><link rel="stylesheet" href="./ux-r26.css?v=r33"/>
 <script defer src="./tg26-navigation.js?v=r29"></script></head>
 <body data-theme="glam">
 <div aria-hidden="true" class="grain"></div>
@@ -318,7 +318,7 @@
 <dialog id="tg70-battle-guide" aria-labelledby="tg70-battle-guide-title" class="tg70-battle-guide"><div class="tg70-guide-inner">
  <button type="button" id="tg70-guide-close" class="tg70-guide-close" aria-label="Fechar guia">✕</button>
  <div class="tg70-guide-top"><img src="./diva-busto.png" alt="Diva Gogó"><div><small>UM NOVO SHOW ESTÁ A CAMINHO</small><h2 id="tg70-battle-guide-title">Modo Batalha</h2></div></div>
- <p id="tg70-guide-counter" class="tg70-guide-counter">Cena 1 de 6</p><h3 id="tg70-guide-heading"></h3><p id="tg70-guide-text"></p>
+ <p id="tg70-guide-counter" class="tg70-guide-counter" aria-live="polite">Cena 1 de 6</p><progress id="tg33-guide-progress" max="6" value="1" aria-label="Progresso da apresentação"></progress><h3 id="tg70-guide-heading"></h3><p id="tg70-guide-text"></p>
  <div class="tg70-guide-buttons"><button type="button" id="tg70-guide-skip">Pular apresentação</button><button type="button" id="tg70-guide-prev">Anterior</button><button type="button" id="tg70-guide-next">Próximo</button></div>
  <button id="tg75-open-workspace" type="button" class="tg75-button">Conhecer painel da Batalha (prévia)</button><div class="tg70-guide-note">Prévia educativa. A Batalha está em preparação. Nenhuma competição, votação ou premiação pode ser iniciada.</div>
  </div></dialog>
@@ -327,8 +327,8 @@
 <dialog id="tg75-battle-panel" aria-labelledby="tg75-battle-title">
  <div class="tg75-shell">
  <header class="tg75-header"><div><p class="tg75-kicker">Tem Gogó · Festival</p><h2 id="tg75-battle-title">Batalha de Estrelas</h2></div><button id="tg75-battle-close" class="tg75-close" type="button" aria-label="Fechar Batalha">✕</button></header>
- <nav class="tg75-tabs" role="tablist" aria-label="Painéis da Batalha"><button type="button" data-tg75-tab="inicio" aria-selected="true">Festival</button><button type="button" data-tg75-tab="elenco" aria-selected="false">Elenco</button><button type="button" data-tg75-tab="classificatoria" aria-selected="false">Classificatória</button><button type="button" data-tg75-tab="chave" aria-selected="false">Confrontos</button><button type="button" data-tg75-tab="votacao" aria-selected="false">Votação</button><button type="button" data-tg75-tab="recuperacao" aria-selected="false">Recuperação</button><button type="button" data-tg75-tab="premios" aria-selected="false">Premiações</button><button type="button" data-tg75-tab="seguranca" aria-selected="false">Segurança</button></nav>
- <div class="tg75-scroll"><p id="tg75-feedback" role="status" aria-live="polite"></p><div id="tg75-battle-content" class="tg75-stack"></div></div>
+ <nav class="tg75-tabs" role="tablist" aria-label="Painéis da Batalha"><button type="button" id="tg33-tab-inicio" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="inicio" aria-selected="true">Festival</button><button type="button" id="tg33-tab-elenco" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="elenco" aria-selected="false">Elenco</button><button type="button" id="tg33-tab-classificatoria" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="classificatoria" aria-selected="false">Classificatória</button><button type="button" id="tg33-tab-chave" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="chave" aria-selected="false">Confrontos</button><button type="button" id="tg33-tab-votacao" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="votacao" aria-selected="false">Votação</button><button type="button" id="tg33-tab-recuperacao" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="recuperacao" aria-selected="false">Recuperação</button><button type="button" id="tg33-tab-premios" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="premios" aria-selected="false">Premiações</button><button type="button" id="tg33-tab-seguranca" role="tab" aria-controls="tg75-battle-content" data-tg75-tab="seguranca" aria-selected="false">Segurança</button></nav>
+ <div class="tg75-scroll"><p id="tg75-feedback" role="status" aria-live="polite"></p><div id="tg75-battle-content" class="tg75-stack" role="tabpanel" tabindex="0"></div></div>
  <footer class="tg75-footer">Resultados oficiais exigem validação do servidor. Nenhum microfone é ligado por este painel.</footer>
  </div>
 </dialog>
