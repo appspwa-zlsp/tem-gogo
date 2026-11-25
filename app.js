@@ -1831,29 +1831,41 @@
     if(!tg07Current(scope)||state.emergencyBlocked)return;if(error)throw error;
     state.members=data||[];refreshDuetOptions();
   }
+  let tg37ScoreRead=0,tg37ScoreApplied=0;
   async function fetchScores(){
-    if(!state.room)return;
+    if(!state.room||state.emergencyBlocked)return;
     if(!tg13Recreational()){tg13ScorePrivacy();return;}
-    const roomId=state.room.id,all=[],scope=tg07Scope();
+    const roomId=state.room.id,all=[],scope=tg07Scope(),serial=++tg37ScoreRead;
+    const current=()=>tg07Current(scope)&&!state.emergencyBlocked&&tg13Recreational()&&serial>=tg37ScoreApplied;
     for(let offset=0;offset<30000;offset+=500){
       const {data,error}=await state.client.from('karaoke_scores').select('*').eq('room_id',roomId).order('created_at',{ascending:false}).range(offset,offset+499);
-      if(state.room?.id!==roomId||!tg13Recreational()||!tg07Current(scope))return;
+      if(!current())return;
       if(error)throw error;
       all.push(...(data||[]));if((data||[]).length<500)break;
     }
-    if(state.room?.id!==roomId||!tg13Recreational()||!tg07Current(scope))return;
-    state.scores=all;
+    if(!current())return;
+    tg37ScoreApplied=serial;state.scores=all;
     // D014: metadados de músicas concluídas; a pontuação continua intocada.
     state.songTitleCache=state.songTitleCache||new Map();
     const ids=[...new Set(all.map(row=>row.song_id).filter(Boolean))].filter(id=>!state.songTitleCache.has(String(id)));
     for(let start=0;start<ids.length;start+=80){
       const {data,error}=await state.client.from('karaoke_songs').select('id,title').eq('room_id',roomId).in('id',ids.slice(start,start+80));
-      if(!tg07Current(scope)||!tg13Recreational())return;
+      if(!current())return;
       if(!error)(data||[]).forEach(song=>state.songTitleCache.set(String(song.id),String(song.title||'Música')));
     }
+    if(!current())return;
     if(state.role==='host')renderStageRanking();
     if(state.role==='guest')renderGuestScore();
     if(state.role==='remote')renderRemote();
+  }
+  // R37: a cerimônia depende da leitura específica da música, não de um ranking paginado.
+  async function tg37ReadFinishedScores(scope,songId){
+    const current=()=>tg07Current(scope)&&!state.emergencyBlocked&&tg13Recreational()&&state.currentSong?.id===songId;
+    if(!current())return null;
+    const {data,error}=await state.client.from('karaoke_scores').select('song_id,user_id,score').eq('room_id',scope.room).eq('song_id',songId).limit(5);
+    if(!current())return null;
+    if(error)throw error;
+    return Array.isArray(data)&&data.length<=4&&data.every(row=>row?.song_id===songId)?data:null;
   }
   function renderGuestScore(){
     if(!tg13Recreational()){tg13ScorePrivacy();return;}
@@ -2515,31 +2527,36 @@
     for(let i=0;i<25&&state.micActivitySyncing;i++)await wait(120);
   }
   async function awaitSingersLastMicReport(song){
+    const scope=tg07Scope(),current=()=>tg07Current(scope)&&!state.emergencyBlocked&&state.currentSong?.id===song.id;
     const singers=songSingers(song);
-    if(!singers.length)return;
+    if(!singers.length||!current())return;
     // Solicita captura de dados finais; não solicita gravações de voz.
     await Promise.allSettled(singers.map(uid=>sendSignal(uid,'score-flush',{songId:song.id})));
     const start=Date.now();
-    while(Date.now()-start<5200){
+    while(current()&&Date.now()-start<5200){
       await fetchMicActivity();
+      if(!current())return;
       // Os microfones que confirmaram entrega podem ser pontuados com as amostras atualizadas.
       const expected=singers.filter(uid=>state.peers.has(uid)||state.cloudMicStats.has(uid));
       if(expected.length&&expected.every(uid=>state.scoreReady.get(uid)?.songId===song.id))break;
       await wait(650);
     }
-    await fetchMicActivity();
+    if(current())await fetchMicActivity();
   }
+  let tg37MicRead=0,tg37MicApplied=0;
   async function fetchMicActivity(){
-    if(!state.room)return;
-    const requestedRoom=state.room.id;
+    if(!state.room||state.emergencyBlocked)return;
+    const requestedRoom=state.room.id,scope=tg07Scope(),serial=++tg37MicRead;
     const song=state.currentSong||state.songs.find(s=>s.status==='playing');
     if(!song)return;
     const {data,error}=await state.client.from('karaoke_mic_activity')
       .select('user_id,samples,vocal_samples,intensity_sum')
       .eq('room_id',requestedRoom).eq('song_id',song.id);
+    if(!tg07Current(scope)||state.emergencyBlocked||state.currentSong?.id!==song.id||serial<tg37MicApplied)return;
     if(error){console.warn('Pontuação sincronizada indisponível:',error.message);return;}
-    if(state.room?.id!==requestedRoom||state.currentSong?.id!==song.id)return;
-    state.cloudMicStats=new Map((data||[]).map(x=>[x.user_id,x]));
+    if(!Array.isArray(data))return;
+    tg37MicApplied=serial;
+    state.cloudMicStats=new Map(data.map(x=>[x.user_id,x]));
     renderLiveScore();
   }
   function scoreForSinger(uid){
@@ -2871,8 +2888,11 @@
       const results=skipped?[]:getScoreResults();
       await callRPC('tg30_finish_song_bound',{p_room:completedRoom,p_song:completedSong,p_generation:generation,p_skipped:skipped,p_results:results});
       if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
-      state.isPlaying=false;let verifiedScores=false;
-      if(!skipped){try{await fetchScores();verifiedScores=tg07Current(finishScope);}catch(e){console.warn('Atualização do ranking:',e);}}
+      state.isPlaying=false;let verifiedRows=null;
+      if(!skipped&&tg13Recreational()){
+        try{verifiedRows=await tg37ReadFinishedScores(finishScope,completedSong);}catch(e){console.warn('Confirmação da apresentação:',e);}
+        if(tg07Current(finishScope)&&!state.emergencyBlocked)void fetchScores().catch(e=>console.warn('Atualização do ranking:',e));
+      }
       if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
       if(skipped){try{state.player?.stopVideo();}catch{}}
       state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;tgR25ClearSoloReport();
@@ -2888,7 +2908,7 @@
         updateVoxLine('ending');
         const studio=window.TG74_DIVA_STUDIO;
         const eventKey=completedRoom+':'+completedSong;
-        const decision=verifiedScores?window.TG30DivaResult?.decide(completedSong,singers,results,state.scores):null;
+        const decision=verifiedRows!==null?window.TG30DivaResult?.decide(completedSong,singers,results,verifiedRows):null;
         const stillCurrent=()=>tg07Current(finishScope)&&!state.emergencyBlocked&&state.role==='host'&&tg13Recreational()&&!state.currentSong&&!state.preflight&&!$('final-overlay').hidden;
         tg05BeginResult(singers);
         if(studio&&decision){
