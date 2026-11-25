@@ -67,6 +67,9 @@ function boot(){
     c.restore();
   }
   async function makeRankingCard(){
+    const context=window.TG15_RECAP_CONTEXT?.();
+    if(!context){rankingNotice('Abra um placar autorizado da sua conta para compartilhar.');return;}
+    const stillCurrent=()=>window.TG15_RECAP_CONTEXT?.()===context;
     const root=byId('recap-podium');
     const podium=Array.from(root?.querySelectorAll('.recap-winner')||[]).slice(0,3);
     if(!podium.length){
@@ -79,6 +82,10 @@ function boot(){
       score:el.querySelector('strong')?.textContent?.trim()||'',
       img:el.querySelector('img')
     }));
+    const room=String(byId('recap-room-title')?.textContent||'Nossa festa').trim();
+    const total=String(byId('recap-total')?.textContent||'0').trim(),scored=String(byId('recap-scored')?.textContent||'0').trim();
+    const perrengue=byId('recap-flop'),includeFlop=byId('tg15-share-flop')?.checked===true;
+    const flopName=includeFlop&&perrengue&&!perrengue.hidden?byId('recap-flop-name')?.textContent?.trim()||'':'';
     const cv=document.createElement('canvas');cv.width=1080;cv.height=1350;
     const c=cv.getContext('2d');if(!c)throw Error('Canvas indisponível');
     const grad=c.createLinearGradient(0,0,1080,1350);
@@ -89,8 +96,7 @@ function boot(){
     rounded(c,51,42,978,1224,36,'rgba(27,14,43,.6)','#a86eaa');
     shareText(c,'✳ TEM GOGÓ',540,142,{size:66,color:'#f8d9f4',weight:900});
     shareText(c,'PLACAR DA NOITE',540,225,{size:56,weight:900});
-    shareText(c,'MODO CLÁSSICO · RANKING RECREATIVO',540,272,{size:24,color:'#f3bde5',weight:650});
-    const room=String(byId('recap-room-title')?.textContent||'Nossa festa').trim();
+    shareText(c,'RANKING RECREATIVO',540,272,{size:24,color:'#f3bde5',weight:650});
     shareText(c,room,540,333,{size:35,color:'#f0d7ef',maxWidth:920});
     rounded(c,88,368,904,4,2,'#9c619a');
     const display=podiumData.length===3?[podiumData[1],podiumData[0],podiumData[2]]:podiumData;
@@ -103,24 +109,22 @@ function boot(){
       cardGrad.addColorStop(0,tone);cardGrad.addColorStop(.55,'#352247');cardGrad.addColorStop(1,'#221a34');
       rounded(c,x,y,298,h,26,cardGrad,border);
       shareText(c,item.position+'º LUGAR',x+149,y+67,{size:33,weight:900,color:'#ffffff',maxWidth:270});
-      await paintAvatar(c,item.img,x+149,y+205);
+      await paintAvatar(c,item.img,x+149,y+205);if(!stillCurrent())return;
       wrapName(c,item.name,x+149,y+328,255);
       shareText(c,'MELHOR NOTA',x+149,y+425,{size:21,color:'#e3c6e8',weight:650,maxWidth:265});
       shareText(c,item.score,x+149,y+488,{size:44,color:'#f2f9c5',weight:900,maxWidth:270});
     }
-    const total=String(byId('recap-total')?.textContent||'0').trim(),scored=String(byId('recap-scored')?.textContent||'0').trim();
     rounded(c,91,1010,898,88,18,'#402b4e','#95739c');
     shareText(c,total+' MÚSICAS CONCLUÍDAS  ·  '+scored+' COM AVALIAÇÃO',540,1066,{size:27,weight:750});
-    const perrengue=byId('recap-flop');
-    if(perrengue&&!perrengue.hidden){
-      const name=byId('recap-flop-name')?.textContent?.trim()||'';
-      shareText(c,'PERRRENGUE DA NOITE: '+name,540,1156,{size:25,color:'#f9bfd4',maxWidth:850});
+    if(flopName){
+      shareText(c,'PERRENGUE DA NOITE: '+flopName,540,1156,{size:25,color:'#f9bfd4',maxWidth:850});
     }else shareText(c,'UMA NOITE DE ESTRELAS!',540,1156,{size:29,color:'#fad2ee'});
     shareText(c,'Nota recreativa de tempo e volume · não mede afinação',540,1204,{size:22,color:'#e0cfe9'});
     shareText(c,'Tem Gogó · quem tem gogó, mostra!',540,1250,{size:23,color:'#d3ffac',weight:800});
     const blob=await new Promise(resolve=>cv.toBlob(resolve,'image/png'));
+    if(!stillCurrent())return;
     if(!blob)throw Error('Não foi possível gerar PNG');
-    const name='tem-gogo-placar-classico.png';
+    const name='tem-gogo-placar.png';
     if(typeof File==='function' && navigator.canShare){
       const file=new File([blob],name,{type:'image/png'});
       if(navigator.canShare({files:[file]})){
@@ -128,6 +132,7 @@ function boot(){
         catch(error){if(error?.name==='AbortError')return;}
       }
     }
+    if(!stillCurrent())return;
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a');
     link.href=url;link.download=name;link.style.display='none';
