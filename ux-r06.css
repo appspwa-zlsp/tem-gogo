@@ -21,3 +21,6 @@
 #stage #video-frame:has(#stage-preflight:not([hidden]))>:is(#youtube-player,#video-placeholder,#diva-stage-banner){visibility:hidden;position:absolute!important;pointer-events:none}
 @media(max-width:780px){#stage #stage-preflight:not([hidden]){grid-template-columns:minmax(0,1fr);grid-template-rows:auto;gap:12px}#stage #stage-preflight :is(.diva-preflight-intro,#stage-preflight-track,.stage-preflight-singers,#stage-preflight-feedback,.stage-preflight-actions){grid-column:1;grid-row:auto}#stage #stage-preflight .diva-preflight-intro{display:grid;grid-template-columns:80px minmax(0,1fr);text-align:left;align-items:center}#stage #stage-preflight .diva-preflight-face{height:100px!important}#stage #stage-preflight .diva-preflight-intro #tg19-next-singer{font-size:16px!important}}
 @media(max-width:360px){#stage #stage-preflight .stage-preflight-singers{grid-template-columns:minmax(0,1fr)}}
+/* R06.1: nomes completos no veredito, inclusive dueto e grupo. */
+#stage #final-overlay .final-person{width:100%;min-width:0;max-width:100%;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.25;font-size:clamp(1rem,1.65vw,1.6rem)}
+#stage #final-overlay .duet-result-line{line-height:1.35;min-width:0;overflow-wrap:anywhere;white-space:normal}
