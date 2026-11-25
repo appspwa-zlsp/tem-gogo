@@ -1,5 +1,5 @@
-const CACHE='tem-gogo-30-r34-auditoria';
-const SHELL=["./capa-pop.webp","./capa-rock.webp","./capa-funk.webp","./capa-sertanejo.webp","./capa-pagode-samba.webp","./capa-forro.webp","./capa-rap-trap.webp","./capa-mpb.webp","./capa-internacional.webp","./capa-outras.webp","./pop-fogos.wav","./pop-vinheta.wav","./ux-r26.css?v=r34","./tg26-navigation.js?v=r29","./pop-recado.wav","./pop-suspense.wav","./pop-palmas.wav","./","./index.html","./ux-revisao.css?v=r22","./termos.html","./privacidade.html","./bora-pro-role-logo.png","./diva.png","./diva-busto.png","./cantor-urbano.png","./cantor-esporte.png","./cantora-ruiva.png","./cantora-oculos.png","./manifest.webmanifest","./icon-192.png","./icon-512.png","./tem-gogo.css?v=r10","./qr-local.js?v=3beta05","./tg73-invitations.js?v=3beta05","./tg73-battle-gate.js?v=3beta05","./tg-dialogs.js?v=r10","./tg30-voice.js?v=3beta05","./tg30-voice-shadow.js?v=3beta05","./tg30-voice-ui.js?v=3beta05","./tg30-diva-result.js?v=3beta05","./app.js?v=r32","./beta10.js?v=3beta05","./beta12.js?v=r30","./tg124-enhance.js?v=3beta05","./tg20.js?v=3beta05","./tg21-shortcuts.js?v=3beta05","./tg70-ux.js?v=r33","./tg74-voice-catalog.js?v=3beta05","./tg74-diva-studio.js?v=r32b","./tg75-battle-core.js?v=3beta05","./tg75-battle-bridge.js?v=3beta05","./tg75-battle-panel.js?v=r33","./tg100-story.js?v=3beta05","./tg30-campaign.js?v=3beta05","./tg-premium-interface.js?v=r31"];
+const CACHE='tem-gogo-30-r35-atualizacao';
+const SHELL=["./capa-pop.webp","./capa-rock.webp","./capa-funk.webp","./capa-sertanejo.webp","./capa-pagode-samba.webp","./capa-forro.webp","./capa-rap-trap.webp","./capa-mpb.webp","./capa-internacional.webp","./capa-outras.webp","./pop-fogos.wav","./pop-vinheta.wav","./ux-r26.css?v=r34","./tg26-navigation.js?v=r29","./pop-recado.wav","./pop-suspense.wav","./pop-palmas.wav","./","./index.html","./ux-revisao.css?v=r22","./termos.html","./privacidade.html","./bora-pro-role-logo.png","./diva.png","./diva-busto.png","./cantor-urbano.png","./cantor-esporte.png","./cantora-ruiva.png","./cantora-oculos.png","./manifest.webmanifest","./icon-192.png","./icon-512.png","./tem-gogo.css?v=r10","./qr-local.js?v=3beta05","./tg73-invitations.js?v=3beta05","./tg73-battle-gate.js?v=3beta05","./tg-dialogs.js?v=r10","./tg30-voice.js?v=3beta05","./tg30-voice-shadow.js?v=3beta05","./tg30-voice-ui.js?v=3beta05","./tg30-diva-result.js?v=3beta05","./app.js?v=r35","./beta10.js?v=3beta05","./beta12.js?v=r30","./tg124-enhance.js?v=3beta05","./tg20.js?v=3beta05","./tg21-shortcuts.js?v=3beta05","./tg70-ux.js?v=r33","./tg74-voice-catalog.js?v=3beta05","./tg74-diva-studio.js?v=r32b","./tg75-battle-core.js?v=3beta05","./tg75-battle-bridge.js?v=3beta05","./tg75-battle-panel.js?v=r33","./tg100-story.js?v=3beta05","./tg30-campaign.js?v=3beta05","./tg-premium-interface.js?v=r31"];
 // Cache apenas de recursos estáticos inventariados e deste escopo.
 const scopeURL=()=>new URL(self.registration.scope);
 const isShell=url=>SHELL.some(path=>new URL(path,scopeURL()).href===url.href);
@@ -54,9 +54,9 @@ self.addEventListener('fetch',event=>{
 // Web Push genuíno: mensagem enviada pela Edge Function autenticada.
 self.addEventListener('push',event=>{
   let data={};try{data=event.data?.json()||{};}catch{}
-  const title=String(data.title||'🎤 Tem Gogó: é sua vez!').slice(0,90);
-  const options={body:String(data.body||'Abra o Tem Gogó e prepare seu microfone.').slice(0,180),
-    icon:'./icon-192.png',badge:'./icon-192.png',tag:'tem-gogo-call-'+String(data.songId||''),
+  const title=(typeof data.title==='string'&&data.title.trim()?data.title:'🎤 Tem Gogó: é sua vez!').slice(0,90);
+  const options={body:(typeof data.body==='string'&&data.body.trim()?data.body:'Abra o Tem Gogó e prepare seu microfone.').slice(0,180),
+    icon:'./icon-192.png',badge:'./icon-192.png',tag:'tem-gogo-call-'+(typeof data.songId==='string'?data.songId.slice(0,100):''),
     renotify:true,data:{url:safeNotificationTarget(data.url)}};
   event.waitUntil(self.registration.showNotification(title,options));
 });

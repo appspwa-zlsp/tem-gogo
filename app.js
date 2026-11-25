@@ -1130,12 +1130,19 @@
       return true;
     }catch(err){if(tgR18RoomRequestCurrent(ticket))console.warn('Retomada indisponível:',err.message);return false;}finally{tgR18EndRoomRequest(ticket);}
   }
+  // R35: aviso de atualização somente fora do palco/camarim, sem reload forçado.
+  let tg35UpdatePending=false;
   function notifyUpdateAvailable(){
-    if(state.updateNotified)return;state.updateNotified=true;
-    if(state.role==='host'&&state.currentSong)return; // jamais interromper música
-    toast('Nova versão do Tem Gogó disponível. Atualize após a apresentação.');
+    if(state.updateNotified)return;
+    tg35UpdatePending=true;
+    const view=document.body.dataset.currentView;
+    if(!['landing','lobby'].includes(view)||state.room||state.currentSong||state.preflight||state.startingSong||state.finishing||state.localStream||state.soloMic||state.peers.size||state.recoveryIntent||document.hidden)return;
+    state.updateNotified=true;tg35UpdatePending=false;
+    toast('Nova versão do Tem Gogó disponível. Quando todas as festas terminarem, feche e reabra as abas ou o aplicativo para atualizar.');
   }
   function initPWA() {
+    window.addEventListener('temgogo:view',()=>{if(tg35UpdatePending)notifyUpdateAvailable();});
+    document.addEventListener('visibilitychange',()=>{if(tg35UpdatePending&&!document.hidden)notifyUpdateAvailable();});
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
       navigator.serviceWorker.register('./service-worker.js').then(reg=>{if(reg.waiting)notifyUpdateAvailable();reg.addEventListener('updatefound',()=>{const worker=reg.installing;worker?.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)notifyUpdateAvailable();});});}).catch(err => console.warn('Service worker:',err));
     }
