@@ -11,7 +11,7 @@
   stage.dataset.tg26Ready='true';
   const nav=el('nav','tg26-nav');nav.setAttribute('aria-label','Navegação do anfitrião');
   const options=[['palco','▶ Palco'],['controle','🎛 Controle'],['musicas','♫ Músicas'],['placar','🏆 Placar'],['mais','☰ Sala']];
-  const select=(key,scroll=false)=>{if(!options.some(x=>x[0]===key))return;stage.dataset.tg26Panel=key;for(const b of nav.children)b.setAttribute('aria-pressed',String(b.dataset.tg26Key===key));if(key==='musicas')catalog.closest('details').open=true;if(key==='mais')room.closest('details').open=true;if(scroll){const target=key==='controle'?consoleNode:key==='musicas'?catalog:key==='placar'?rank:key==='mais'?room:bar;target.scrollIntoView({block:'start',behavior:'instant'});}};
+  const select=(key,scroll=false)=>{if(!options.some(x=>x[0]===key))return;stage.dataset.tg26Panel=key;for(const b of nav.children)b.setAttribute('aria-pressed',String(b.dataset.tg26Key===key));if(key==='musicas')catalog.closest('details').open=true;if(key==='mais')room.closest('details').open=true;if(scroll){const target=key==='controle'?consoleNode:key==='musicas'?catalog:key==='placar'?rank:key==='mais'?room:q('.stage-header',stage)||bar;target.scrollIntoView({block:'start',behavior:'instant'});}};
   for(const [key,label] of options){const b=button(label,()=>select(key,true));b.dataset.tg26Key=key;const split=label.indexOf(' ');const icon=el('span','tg28-nav-icon',label.slice(0,split));icon.setAttribute('aria-hidden','true');b.replaceChildren(icon,el('span','tg28-nav-label',label.slice(split+1)));b.setAttribute('aria-label',label.slice(split+1));nav.append(b);}
   const controls=consoleNode.parentElement;
   const remoteQR=$('tg30-control-qr-details');if(remoteQR)room.append(remoteQR);
