@@ -385,18 +385,27 @@
     }catch(err){$('tg18-account-feedback').textContent=humanError(err);}
     finally{setLoading(btn,false);}
   }
+  let tgR09HistorySerial=0;
+  function tgR09ClearHistory(){
+    ++tgR09HistorySerial;
+    const dlg=$('tg18-history-dialog');if(dlg?.open)dlg.close();
+    $('tg18-history-list')?.replaceChildren();
+    const score=$('score-dialog');if(score?.open)score.close();$('score-list')?.replaceChildren();
+  }
   async function showPersonalHistory(){
     if(!state.user)return;
-    const historyUid=state.user.id;const host=$('tg18-history-list');host.textContent='Buscando notas salvas…';$('tg18-history-dialog').showModal();
+    const historyUid=state.user.id,epoch=tg07SessionEpoch,serial=++tgR09HistorySerial;
+    const dlg=$('tg18-history-dialog'),host=$('tg18-history-list');
+    host.textContent='Buscando notas salvas…';if(!dlg.open)dlg.showModal();
+    const current=()=>state.user?.id===historyUid&&epoch===tg07SessionEpoch&&serial===tgR09HistorySerial&&dlg.open;
     try{
-      const {data,error}=await state.client.from('karaoke_scores').select('score,created_at,room_id,song_id').eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(100);
-      if(error)throw error;
-      if(state.user?.id!==historyUid)return;
-      const list=data||[];
-      host.innerHTML='';
+      const {data,error}=await state.client.from('karaoke_scores').select('score,created_at,room_id,song_id').eq('user_id',historyUid).order('created_at',{ascending:false}).limit(100);
+      if(!current())return;if(error)throw error;
+      const list=(data||[]).filter(x=>x.score!=null&&x.score!==''&&Number.isFinite(Number(x.score)));
+      host.replaceChildren();
       if(!list.length){host.textContent='Nenhuma nota encontrada. Suas apresentações serão registradas quando o microfone conseguir enviar as medições.';return;}
-      for(const x of list){const item=document.createElement('div');item.className='tg18-history-item';item.textContent=`${new Date(x.created_at).toLocaleDateString('pt-BR')} · ${Number(x.score)}/100 pontos`;host.appendChild(item);}
-    }catch(err){host.textContent='Histórico indisponível: '+humanError(err)+'. Verifique as permissões da base.';}
+      for(const x of list){const item=document.createElement('div');item.className='tg18-history-item';const date=document.createElement('span'),score=document.createElement('strong');date.textContent=new Date(x.created_at).toLocaleDateString('pt-BR');score.textContent=Number(x.score)+'/100';item.append(date,score);host.appendChild(item);}
+    }catch(err){if(current())host.textContent='Histórico indisponível. Confira a conexão e tente novamente.';}
   }
   async function enableTurnPush(){
     if(!state.user||!isPhoneSingerRole()){toast('Entre numa festa pelo celular para ligar os avisos.',true);return;}
@@ -1179,7 +1188,7 @@
     state.client=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     // IMPORTANTE: receber PASSWORD_RECOVERY antes de ler/restaurar convites ou abrir o lobby.
     state.client.auth.onAuthStateChange((event,session)=>{
-      if(state.user?.id!==session?.user?.id){tg15ClearRecap();++tg15RoomsSerial;$('existing-rooms')?.replaceChildren();$('tg123-active-controls')?.replaceChildren();}
+      if(state.user?.id!==session?.user?.id){tgR09ClearHistory();tg15ClearRecap();++tg15RoomsSerial;$('existing-rooms')?.replaceChildren();$('tg123-active-controls')?.replaceChildren();}
       state.user=session?.user||null;
       if(event==='PASSWORD_RECOVERY'){
         state.recoveryVerified=true;state.recoveryIntent=true;
@@ -3138,7 +3147,7 @@ function renderFullCatalog(){
     const rows=new Map();
     const titles=new Map(state.songTitleCache||[]);(state.songs||[]).forEach(song=>titles.set(String(song.id),String(song.title||'Música')));
     for(const row of state.scores){
-      const value=Number(row.score);if(!Number.isFinite(value))continue;
+      const value=Number(row.score);if(row.score==null||row.score===''||!Number.isFinite(value))continue;
       const songId=String(row.song_id||'');
       const key=String(row.user_id)+'|'+songId;
       const record=rows.get(key)||{uid:row.user_id,songId,title:titles.get(songId)||row.song_title||'Música da apresentação',best:0,count:0,attempts:[]};
@@ -3193,7 +3202,7 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
-    ++tg07SessionEpoch;state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
+    ++tg07SessionEpoch;tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
     for(const id of ['host-results','search-results','tg07-external-results'])$(id)?.replaceChildren();
@@ -3237,10 +3246,10 @@ function renderFullCatalog(){
     localStorage.removeItem('tem-gogo-pending-room');
     if(state.user)await openLobby();else showGuestEntry('');
   }
-  function recapText(data){
+  function recapText(data,includeFlop=false){
     const podium=Array.isArray(data?.podium)?data.podium:[];
     const rows=podium.map((p,i)=>`${['🥇','🥈','🥉'][i]} ${p.name} — ${p.best_score}/100 (melhor nota, ${p.songs_scored} apresentação(ões))`);
-    const flop=data?.perrengue;
+    const flop=includeFlop?data?.perrengue:null;
     return `🎤 TEM GOGÓ — ${data?.room_title||'Nossa festa'}\n`+
       `🎵 ${Number(data?.songs_completed)||0} músicas concluídas • ${Number(data?.songs_scored)||0} com nota\n`+
       `🏆 TOP 3\n${rows.join('\n')||'Ainda sem notas.'}\n`+
@@ -3475,6 +3484,8 @@ function renderFullCatalog(){
     dlg.querySelectorAll('[data-tg124-action]').forEach(button=>button.addEventListener('click',async()=>{
       const action=button.dataset.tg124Action;dlg.close();
       if(action==='edit'){if(state.role==='remote')$('tg18-remote-rename')?.click();else if(state.role==='guest')$('edit-guest-profile')?.click();else $('tg20-host-profile-dialog')?.showModal();}
+      else if(action==='privacy'){window.TG_BETA_OPEN_TAB?.('profile');}
+      else if(action==='history'){await showPersonalHistory();}
       else if(action==='change')await goToMyRooms();
       else if(action==='leave'){
         if(state.role==='guest')$('leave-party')?.click();
@@ -3648,6 +3659,7 @@ function renderFullCatalog(){
     $('tg18-account-password').addEventListener('click',()=>{if(isAnonymous(state.user)){toast('Confirme seu e-mail antes de definir uma senha.',true);return;}openPasswordDialog(localStorage.getItem('tem-gogo-upgrading-account')==='1');});
     $('tg18-install').addEventListener('click',installFromInvite);
     $('tg18-history-close').addEventListener('click',()=>$('tg18-history-dialog').close());
+    $('tg18-history-dialog').addEventListener('close',()=>{if(!$('tg18-history-dialog').open){++tgR09HistorySerial;$('tg18-history-list').replaceChildren();}});
     $('tg18-push-cta').addEventListener('click',enableTurnPush);
     $('tg19-push-shortcut').addEventListener('click',enableTurnPush);
     $('tg19-remote-push').addEventListener('click',enableTurnPush);
@@ -3690,7 +3702,7 @@ function renderFullCatalog(){
     $('playlist-import-submit').addEventListener('click',importPlaylistManual);
     $('open-scoreboard').addEventListener('click',openScoreboard);
     $('reopen-recap').addEventListener('click',reopenLastRecap);
-    $('recap-copy').addEventListener('click',async()=>{if(!tg15RecapToken())return;const content=recapText(state.latestRecap);try{await navigator.clipboard.writeText(content);toast('Placar copiado! Compartilha com o povo! 🏆');}catch{toast('Não foi possível copiar automaticamente.',true);}});
+    $('recap-copy').addEventListener('click',async()=>{if(!tg15RecapToken())return;const content=recapText(state.latestRecap,$('tg15-share-flop').checked);try{await navigator.clipboard.writeText(content);toast('Placar copiado! Compartilha com o povo! 🏆');}catch{toast('Não foi possível copiar automaticamente.',true);}});
     $('recap-done').addEventListener('click',()=>$('party-recap-dialog').close());
     $('party-recap-dialog').addEventListener('close',()=>{if(!$('party-recap-dialog').open&&tg15RecapContext)tg15ClearRecap();});
     document.querySelectorAll('[data-close-score]').forEach(btn=>btn.addEventListener('click',()=>$('score-dialog').close()));
