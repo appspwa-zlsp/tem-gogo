@@ -37,9 +37,9 @@ function initAccess(){
  $('login-button')?.replaceChildren(document.createTextNode('Entrar'));
  $('signup-button')?.replaceChildren(document.createTextNode('Criar conta'));
  const guestAction=button('🎟️ Entrar sem login (Convidado)','button button-outline full tg12-guest-entry-cta');guestAction.id='tg12-guest-entry-cta';
- guestAction.addEventListener('click',()=>{$('tab-guest')?.click();openGuest('',{fresh:true});});
+ guestAction.addEventListener('click',()=>{$('tab-guest')?.click();openGuest('',{fresh:true});$('guest-code')?.focus({preventScroll:true});});
  host.after(guestAction);
- const back=button('← Voltar para minha conta','tg12-back-link');back.id='tg12-back-login';back.addEventListener('click',backToLogin);guest.insertBefore(back,guest.firstChild);
+ const back=button('← Voltar para minha conta','tg12-back-link');back.id='tg12-back-login';back.addEventListener('click',()=>{backToLogin();$('auth-email')?.focus({preventScroll:true});});guest.insertBefore(back,guest.firstChild);
  const subhead=mk('div',{class:'tg12-guest-progress',id:'tg12-guest-progress'},'1 de 2 · Localize sua festa');back.after(subhead);
  const form=$('guest-entry-form');const code=$('guest-code');const name=$('guest-name');if(!form||!code||!name)return;
  const roomPanel=mk('div',{id:'tg12-guest-room',class:'tg12-guest-step'});
