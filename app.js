@@ -2961,8 +2961,32 @@ function catalogCard(item,host){
   const info=document.createElement('div');info.className='history-song-info';
   const title=document.createElement('strong');title.textContent=item.title;
   const tiny=document.createElement('small');tiny.textContent=item.source_kind==='external'?'🔎 Sugestão externa · reprodução sujeita ao YouTube':Number(item.plays)>0?`🔥 ${Number(item.plays)} apresentação(ões)`:'📚 Música do catálogo';
-  info.append(title,tiny);const genre=(state.catalogGenres||[]).find(g=>g.code===item.genre);if(genre){const label=document.createElement('small');label.textContent='Gênero: '+genre.label;info.append(label);}if(item.source_kind!=='external'&&state.user&&!isAnonymous(state.user)&&(state.catalogGenres||[]).length){const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Sugerir gênero musical';const select=document.createElement('select');select.setAttribute('aria-label','Gênero musical sugerido');for(const g of state.catalogGenres){const opt=document.createElement('option');opt.value=g.code;opt.textContent=g.label;select.append(opt);}const send=document.createElement('button');send.type='button';send.textContent='Enviar à curadoria';send.className='tg124-suggest';send.addEventListener('click',async()=>{if(send.disabled||!tg07Current(scope))return;send.disabled=true;try{const {data,error}=await state.client.rpc('tg30_music_suggest',{p_video:videoId,p_genre:select.value});if(error||data!==true)throw error||Error('Não confirmado');if(tg07Current(scope))toast('Sugestão de gênero enviada à Central.');}catch{if(tg07Current(scope))toast('Não foi possível enviar. Aguarde alguns segundos e tente novamente.',true);}finally{send.disabled=false;}});details.append(summary,select,send);info.append(details);}
-  if(item.source_kind!=='external'){const suggest=document.createElement('button');suggest.type='button';suggest.className='tg124-suggest';suggest.textContent='✎ Sugerir título';suggest.dataset.tg124Suggest=videoId;suggest.dataset.originalTitle=item.title;info.append(suggest);}
+  info.append(title,tiny);
+  const genre=(state.catalogGenres||[]).find(g=>g.code===item.genre);
+  if(genre){const label=document.createElement('small');label.textContent='Gênero: '+genre.label;info.append(label);}
+  if(item.source_kind!=='external'){
+    const details=document.createElement('details');details.className='tg-r16-curation';
+    const summary=document.createElement('summary');summary.textContent='Sugerir melhoria';details.append(summary);
+    const suggest=document.createElement('button');suggest.type='button';suggest.className='tg124-suggest';suggest.textContent='Corrigir título';suggest.dataset.tg124Suggest=videoId;suggest.dataset.originalTitle=item.title;
+    suggest.addEventListener('click',event=>{event.stopPropagation();void sendTitleSuggestion(videoId,item.title,scope,suggest);});details.append(suggest);
+    if(state.user&&!isAnonymous(state.user)&&(state.catalogGenres||[]).length&&!state.catalogGenreUnavailable){
+      const label=document.createElement('label');label.textContent='Sugerir gênero';const select=document.createElement('select');select.setAttribute('aria-label','Gênero musical sugerido');
+      const empty=document.createElement('option');empty.value='';empty.textContent='Escolher gênero';select.append(empty);
+      for(const g of state.catalogGenres){const opt=document.createElement('option');opt.value=g.code;opt.textContent=g.label;select.append(opt);}label.append(select);
+      const send=document.createElement('button');send.type='button';send.textContent='Enviar gênero';send.className='tg124-suggest';send.disabled=true;
+      select.addEventListener('change',()=>{send.disabled=!select.value;});
+      send.addEventListener('click',async()=>{
+        const chosen=select.value;
+        if(send.disabled||!tgR16CurateAllowed(scope,videoId)||isAnonymous(state.user)||state.catalogGenreUnavailable||!(state.catalogGenres||[]).some(g=>g.code===chosen))return;
+        const ticket=tgR16BeginCurate(scope,'genre',videoId);if(!ticket)return;
+        send.disabled=true;select.disabled=true;
+        try{const {data,error}=await state.client.rpc('tg30_music_suggest',{p_video:videoId,p_genre:chosen});if(error||data!==true)throw error||Error('Não confirmado');if(tg07Current(scope))toast('Sugestão de gênero enviada à Central.');}
+        catch(err){if(tg07Current(scope))toast(String(err?.message||'').includes('TG30_MUSIC_WAIT')?'Aguarde 10 segundos entre sugestões de gênero.':'Não foi possível confirmar o envio. Tente novamente.',true);}
+        finally{tgR16EndCurate(ticket);select.disabled=false;send.disabled=!select.value;}
+      });details.append(label,send);
+    }
+    const hint=document.createElement('small');hint.textContent='Sugestões passam pela curadoria; o catálogo não muda imediatamente.';details.append(hint);info.append(details);
+  }
   const toggle=document.createElement('button');toggle.type='button';toggle.className='tg123-track-toggle';
   toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent='+ FILA';
   const expanded=document.createElement('div');expanded.className='tg123-track-choice';expanded.hidden=true;
@@ -3618,14 +3642,27 @@ function renderFullCatalog(){
       }else if(action==='help'){document.querySelector('[data-tg193-faq]')?.click();}
     }));
   }
-  async function sendTitleSuggestion(videoId,currentTitle){
-    if(!state.user||!state.room){toast('Entre na festa para sugerir uma correção.',true);return;}
-    const scope=tg07Scope();
-    const suggestion=await window.TG_UI.prompt('Sugira o nome completo desta música. Sua sugestão será analisada pela Central; nada será alterado agora.',currentTitle,'Sugerir correção de título');
-    if(!tg07Current(scope)||!suggestion||suggestion.trim()===currentTitle)return;
-    const title=suggestion.trim();if(title.length<4||title.length>160){toast('O título deve conter de 4 a 160 caracteres.',true);return;}
-    const {error}=await state.client.from('tg_title_suggestions').insert({video_id:videoId,original_title:currentTitle,proposed_title:title,author_id:state.user.id,room_id:state.room.id});
-    toast(error?'Não foi possível enviar. Confira sua conexão e sua participação na sala.':'Sugestão enviada! A Central decidirá se será publicada.',Boolean(error));
+  const tgR16CuratePending=new Map();
+  function tgR16CurateAllowed(scope,videoId){return tg07Current(scope)&&!state.emergencyBlocked&&state.room?.status==='open'&&state.catalog.some(v=>v.video_id===videoId);}
+  function tgR16BeginCurate(scope,kind,videoId){
+    const key=scope.uid+':'+kind+':'+videoId;
+    if(tgR16CuratePending.has(key)){toast('Aguarde a sugestão anterior.');return null;}
+    const ticket={key,scope};tgR16CuratePending.set(key,ticket);return ticket;
+  }
+  function tgR16EndCurate(ticket){if(tgR16CuratePending.get(ticket.key)===ticket)tgR16CuratePending.delete(ticket.key);}
+  async function sendTitleSuggestion(videoId,currentTitle,scope=tg07Scope(),button=null){
+    if(!tgR16CurateAllowed(scope,videoId)){toast('Abra novamente a biblioteca para sugerir uma correção.',true);return;}
+    const ticket=tgR16BeginCurate(scope,'title',videoId);if(!ticket)return;
+    if(button)button.disabled=true;
+    try{
+      const suggestion=await window.TG_UI.prompt('Sugira o nome completo desta música. Sua sugestão será analisada pela Central; nada será alterado agora.',currentTitle,'Sugerir correção de título');
+      if(!tgR16CurateAllowed(scope,videoId)||typeof suggestion!=='string'||suggestion.trim()===currentTitle)return;
+      const title=suggestion.trim();if(title.length<4||title.length>160){toast('O título deve conter de 4 a 160 caracteres.',true);return;}
+      const {error}=await state.client.from('tg_title_suggestions').insert({video_id:videoId,original_title:currentTitle,proposed_title:title,author_id:scope.uid,room_id:scope.room});
+      if(error)throw error;
+      if(tg07Current(scope))toast('Sugestão enviada! A Central decidirá se será publicada.');
+    }catch{if(tg07Current(scope))toast('Não foi possível confirmar o envio. Confira sua conexão e participação na sala.',true);}
+    finally{tgR16EndCurate(ticket);if(button)button.disabled=false;}
   }
   function setupCatalogSuggestions(){
     for(const holder of ['catalog-list','guest-library','stage-library','search-results','host-results'])$(holder)?.addEventListener('click',event=>{
