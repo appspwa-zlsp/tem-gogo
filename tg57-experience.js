@@ -12,7 +12,7 @@
   const view=document.body.dataset.currentView;
   if(!['stage','lobby','landing'].includes(view)||e.defaultPrevented||e.altKey||e.ctrlKey||e.metaKey||e.isComposing)return;
   const active=document.activeElement,dialog=topDialog();
-  if(['BrowserBack','GoBack'].includes(e.key)&&!editable(active)){
+  if(['BrowserBack','GoBack'].includes(e.key)){
     if(dialog){e.preventDefault();if(typeof dialog.requestClose==='function')dialog.requestClose();else if(dialog.dispatchEvent(new Event('cancel',{cancelable:true})))dialog.close();return;}
     if(view==='stage'){e.preventDefault();const target=document.querySelector('#tg123-host-bar button:not([hidden]):not(.tg26-legacy):not(:disabled)');if(target&&visible(target))focus(target);}return;
   }

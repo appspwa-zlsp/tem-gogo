@@ -79,20 +79,36 @@
   menu.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});window.addEventListener('temgogo:view',()=>{more.open=false;});
  }
  function profile(){
-  const dlg=$('tg124-profile-menu');if(!dlg)return;
-  const content=q('.tg124-profile-inner',dlg);if(!content)return;
-  const leave=q('[data-tg124-action="leave"]',dlg),change=q('[data-tg124-action="change"]',dlg),help=q('[data-tg124-action="help"]',dlg);
-  legacy(change);legacy(help);
-  for(const id of ['tg-beta-stage-profile','tg-beta-lobby-profile','tg-beta-remote-profile'])legacy($(id));
-  for(const b of document.querySelectorAll('#stage .stage-actions .tg124-profile-shortcut,#lobby .header-control-group .tg124-profile-shortcut,#tg18-remote .tg18-remote-header .tg124-profile-shortcut')){b.hidden=false;b.textContent='👤 Minha conta';}
-  legacy($('edit-guest-profile'));legacy($('account-password-open'));legacy($('logout-button'));
-  legacy(q('#lobby .header-control-group .open-settings')); // delegated from Minha conta
-  legacy(q('#guest .guest-live .open-settings'));
-  const guest=$('guest');if(guest){const profileTab=q('.tg-beta-unified-tab',guest);if(profileTab)profileTab.textContent='👤 Perfil';}
-  const appearance=button('🎨 Aparência pessoal',()=>{dlg.close();const view=$(document.body.dataset.currentView);(q('.open-settings',view||document)||q('.open-settings'))?.click();});appearance.id='tg26-profile-appearance';content.insertBefore(appearance,leave);
-  const password=button('🔒 Alterar senha',()=>{dlg.close();$('account-password-open')?.click();});password.id='tg26-profile-password';content.insertBefore(password,leave); // the room and help paths now live in their own menus
-  const sync=()=>{const view=document.body.dataset.currentView;leave.hidden=view!=='guest';appearance.hidden=view==='stage'||view==='tg18-remote';const b=window.TG_BETA_BRIDGE?.();password.hidden=!b?.user||b.isAnonymous?.(b.user);if(view==='guest')leave.textContent='↩ Desvincular desta festa';};
-  new MutationObserver(sync).observe(dlg,{attributes:true,attributeFilter:['open']});sync();
+  const quick=$('tg124-profile-menu'),social=$('tg-beta-dialog'),guest=$('guest-profile-dialog');if(!quick||!social||!guest||quick.dataset.tg60Ready)return;quick.dataset.tg60Ready='true';
+  const blocked=()=>document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg103-remote-mic-focus');
+  const open=()=>{if(blocked())return;const b=window.TG_BETA_BRIDGE?.();if(!b?.user)return;for(const d of [$('tg50-drawer'),quick,$('tg20-host-profile-dialog'),guest,social])if(d?.open)d.close();
+    if(!b.isAnonymous(b.user)){window.TG_BETA_OPEN_TAB?.('profile');return;}
+    if(b.role!=='guest')return;const own=b.members?.find(m=>m.user_id===b.user.id);$('guest-profile-name').value=own?.display_name||$('guest-display-name').textContent;const chosen=[...$('profile-avatar-options').querySelectorAll('input')].find(n=>n.value===b.avatar);if(chosen)chosen.checked=true;guest.showModal();
+  };
+  const selectors='[data-tg124-profile],[data-tg-beta-open="profile"],#tg-beta-stage-profile,#tg-beta-lobby-profile,#tg-beta-remote-profile,#edit-guest-profile,#tg18-remote-rename,[data-tg124-action="edit"],[data-tg124-action="privacy"]';
+  document.addEventListener('click',e=>{if(!e.target.closest(selectors))return;e.preventDefault();e.stopImmediatePropagation();open();},true);
+  document.addEventListener('keydown',e=>{if(!['Enter',' '].includes(e.key)||!e.target.matches('[data-tg124-profile]:not(button)'))return;e.preventDefault();e.stopImmediatePropagation();open();},true);
+  for(const id of ['tg-beta-stage-profile','tg-beta-lobby-profile','tg-beta-remote-profile','edit-guest-profile','account-password-open','logout-button'])legacy($(id));
+  legacy(q('#lobby .header-control-group .open-settings'));legacy(q('#guest .guest-live .open-settings'));
+  for(const b of document.querySelectorAll('.tg124-profile-shortcut'))b.textContent='Meu perfil';
+  const panel=q('[data-tg-beta-panel="profile"]',social),save=$('tg-p-save'),anonInner=q('.modal-inner',guest);
+  if(panel&&save){
+    const socialDetails=el('details','tg60-social-options');socialDetails.append(el('summary','','Identificação social e privacidade'));
+    for(const id of ['tg-p-handle','tg-p-insta','tg-p-insta-vis','tg-p-photo-vis','tg-p-score-vis','tg-p-legal','tg-p-age','tg-p-best','tg-p-rank']){const label=$(id)?.closest('label');if(label)socialDetails.append(label);}
+    save.before(socialDetails);
+  }
+  const actions=(target,isGuest)=>{if(!target)return;const box=el('div','tg60-profile-actions');
+    const action=(label,fn)=>{box.append(button(label,fn));};
+    const close=()=>{if(guest.open)guest.close();if(social.open)social.close();};
+    action('Aparência',()=>{const view=$(document.body.dataset.currentView);close();(q('.open-settings',view)||q('.open-settings'))?.click();});
+    action('Identidade vocal',()=>{close();const view=$(document.body.dataset.currentView);(q('[data-tg30-voice-open]',view)||q('[data-tg30-voice-open]'))?.click();});
+    if(!isGuest){action('Alterar senha',()=>{close();$('account-password-open')?.click();});action('Sair da conta',()=>{close();$('logout-button')?.click();});}
+    target.append(box);
+  };
+  actions(panel,false);actions(anonInner,true);
+  const syncEntry=()=>{const b=window.TG_BETA_BRIDGE?.(),name=$('guest-name');if(name)name.readOnly=!!(b?.user&&!b.isAnonymous(b.user));};
+  window.addEventListener('temgogo:view',syncEntry);syncEntry();
+  for(const d of [quick,$('tg20-host-profile-dialog')])if(d)new MutationObserver(()=>{if(d.open)open();}).observe(d,{attributes:true,attributeFilter:['open']});
  }
  function faq(){
   const dlg=$('faq-dialog'),inner=q('.modal-inner',dlg);if(!inner)return;

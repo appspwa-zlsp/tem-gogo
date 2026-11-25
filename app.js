@@ -93,7 +93,7 @@
     for(const id of ['entry-avatar-options','profile-avatar-options']){
       const root=$(id);if(!root)continue;
       root.innerHTML=Object.entries(AVATARS).map(([key,src])=>`<label class="avatar-option"><input type="radio" name="${id}" value="${key}" ${key===state.avatar?'checked':''}><img src="${src}" alt="Avatar ${AVATAR_NUMBERS[key]}" loading="lazy"><span>${AVATAR_NUMBERS[key]}</span></label>`).join('');
-      root.addEventListener('change',event=>{if(AVATARS[event.target?.value]){state.avatar=event.target.value;localStorage.setItem('tem-gogo-avatar',state.avatar);document.querySelectorAll('.avatar-option input').forEach(input=>{input.checked=input.value===state.avatar;});if($('guest-profile-avatar'))$('guest-profile-avatar').src=avatarSrc(state.avatar);}});
+      root.onchange=event=>{if(id==='profile-avatar-options')return;if(AVATARS[event.target?.value]){state.avatar=event.target.value;localStorage.setItem('tem-gogo-avatar',state.avatar);document.querySelectorAll('.avatar-option input').forEach(input=>{input.checked=input.value===state.avatar;});if($('guest-profile-avatar'))$('guest-profile-avatar').src=avatarSrc(state.avatar);}};
     }
     if($('guest-profile-avatar'))$('guest-profile-avatar').src=avatarSrc(state.avatar);
   }
@@ -814,18 +814,42 @@
     } else {pre.starting=false;renderPreflightHost();}
   }
   async function editGuestProfile(event){
-    event.preventDefault();if(state.role!=='guest'||!state.room||!state.user)return;
-    const name=$('guest-profile-name').value.trim();
-    if(name.length<2||name.length>24){toast('O apelido precisa ter de 2 a 24 caracteres.',true);return;}
-    const {data:updated,error}=await state.client.from('karaoke_members').update({display_name:name})
-      .eq('room_id',state.room.id).eq('user_id',state.user.id).select('display_name');
-    if(!error&&(!updated||updated.length===0)){toast('O Supabase não autorizou a alteração do apelido. Revise a política de edição do próprio perfil.',true);return;}
-    if(error){toast('Não foi possível atualizar o apelido: '+humanError(error),true);return;}
-    localStorage.setItem('tem-gogo-display-name',name);
-    $('guest-display-name').textContent=name;
-    $('guest-profile-avatar').src=avatarSrc(state.avatar);
-    await sendProfileToHost();
-    $('guest-profile-dialog').close();queueChanged();toast('Apelido e avatar atualizados! 🎭');
+    event.preventDefault();if(state.role!=='guest'||!state.room||!state.user||!isAnonymous(state.user)||state.emergencyBlocked)return;
+    const scope=tg07Scope(),name=$('guest-profile-name').value.trim(),btn=event.target.querySelector('button[type=submit]'),avatar=event.target.querySelector('input[name="profile-avatar-options"]:checked')?.value||state.avatar;
+    if(!btn||btn.disabled)return;if(name.length<2||name.length>24){toast('Use um apelido de 2 a 24 caracteres.',true);return;}
+    btn.disabled=true;try{
+      const {data,error}=await state.client.from('karaoke_members').update({display_name:name}).eq('room_id',scope.room).eq('user_id',scope.uid).select('display_name');
+      if(!tg07Current(scope)||state.emergencyBlocked)return;
+      if(error||data?.length!==1||data[0].display_name!==name)throw error||Error('Apelido não confirmado.');
+      localStorage.setItem('tem-gogo-display-name',name);$('guest-display-name').textContent=name;
+      state.members=state.members.map(m=>m.user_id===scope.uid?{...m,display_name:name}:m);
+      if(AVATARS[avatar]){state.avatar=avatar;localStorage.setItem('tem-gogo-avatar',avatar);renderAvatarOptions();}
+      renderAll();await sendProfileToHost();if(!tg07Current(scope))return;
+      $('guest-profile-dialog').close();queueChanged();toast('Perfil atualizado.');
+    }catch(e){if(tg07Current(scope))toast('Não foi possível salvar: '+humanError(e),true);}finally{btn.disabled=false;}
+  }
+  // R60: canonical registered identity is tg_profiles. Copies are synchronized only after verified profile save.
+  let tg60IdentityPending=null;
+  async function tg60SyncIdentity(name,key,expected){
+    const uid=state.user?.id,epoch=tg07SessionEpoch,room=state.room?.id||null,client=state.client;
+    const current=()=>uid===state.user?.id&&epoch===tg07SessionEpoch&&room===(state.room?.id||null)&&!state.emergencyBlocked&&client===state.client;
+    if(!uid||!client||isAnonymous(state.user)||uid!==expected?.uid||epoch!==expected?.epoch||!current()||typeof name!=='string'||name.length<2||name.length>24||!AVATARS[key]||tg60IdentityPending)throw Error('Identidade ou sessão inválida.');
+    const token={};tg60IdentityPending=token;const failures=[];
+    try{
+      if(state.user.user_metadata?.display_name!==name){try{const {data,error}=await client.auth.updateUser({data:{display_name:name}});if(error||data?.user?.id!==uid||data.user.user_metadata?.display_name!==name)throw error||Error('Conta não confirmada.');}catch(e){failures.push('conta');}}
+      if(!current())throw Error('Sessão alterada; reabra o perfil.');
+      if(room&&state.room?.status==='open'&&tg13Recreational()){
+        try{const {data,error}=await client.from('karaoke_members').update({display_name:name}).eq('room_id',room).eq('user_id',uid).select('display_name');if(error||data?.length!==1||data[0].display_name!==name)throw error||Error('Participação não confirmada.');}catch(e){failures.push('sala');}
+        if(!current())throw Error('Sessão alterada; reabra o perfil.');
+        if(!failures.includes('sala'))state.members=state.members.map(m=>m.user_id===uid?{...m,display_name:name}:m);
+      }else if(room)failures.push('sala não recreativa ou encerrada');
+      if(!current())throw Error('Sessão alterada; reabra o perfil.');
+      localStorage.setItem('tem-gogo-display-name',name);$('guest-name').value=name;
+      if(state.role==='guest'&&!failures.includes('sala'))$('guest-display-name').textContent=name;
+      state.avatar=key;localStorage.setItem('tem-gogo-avatar',key);renderAvatarOptions();
+      if(room){renderAll();if(state.role==='remote')renderRemote();await sendProfileToHost();}
+      return {ok:failures.length===0,failures};
+    }finally{if(tg60IdentityPending===token)tg60IdentityPending=null;}
   }
 
   function toast(message, error = false) {
@@ -1633,7 +1657,7 @@
     const code=normalizeRoom(rawCode);
     if(!validRoom(code)){if(!auto)toast('Confira o código da festa no QR ou na TV.',true);return false;}
     let name=($('guest-name').value||'').trim();
-    if(name.length<2){toast('Escolha um apelido com pelo menos 2 caracteres antes de entrar.',true);return false;}
+    if((!state.user||isAnonymous(state.user))&&name.length<2){toast('Escolha um apelido com pelo menos 2 caracteres antes de entrar.',true);return false;}
     if(name.length>24)name=name.slice(0,24);
     if(state.room)return false;const ticket=tgR18BeginRoomRequest();if(!ticket)return false;
     const sameCode=()=>normalizeRoom($('guest-code').value)===code;
@@ -1645,6 +1669,12 @@
         state.user=data.user;ticket.uid=data.user.id;
       }
       if(!tgR18RoomRequestCurrent(ticket)||!sameCode())return false;
+      if(!isAnonymous(state.user)){
+        const {data:identity,error:identityError}=await state.client.from('tg_profiles').select('nickname').eq('user_id',ticket.uid).maybeSingle();
+        if(!tgR18RoomRequestCurrent(ticket)||!sameCode())return false;if(identityError)throw identityError;
+        name=String(identity?.nickname||state.user.user_metadata?.display_name||'').trim();
+        if(name.length<2||name.length>24)throw Error('Atualize o apelido em Meu perfil (2 a 24 caracteres) antes de entrar.');
+      }
       const result=await callRPC('karaoke_join_room',{p_code:code,p_name:name});
       if(!tgR18RoomRequestCurrent(ticket)||!sameCode())return false;
       const codeError=result?.[0]?.error_code;
@@ -1837,7 +1867,7 @@
     const {data,error}=await state.client.from('karaoke_members').select('user_id,display_name,joined_at')
       .eq('room_id',requestedRoom).order('joined_at',{ascending:true});
     if(!tg07Current(scope)||state.emergencyBlocked)return;if(error)throw error;
-    state.members=data||[];refreshDuetOptions();
+    state.members=data||[];const own=state.members.find(m=>m.user_id===state.user?.id);if(own&&state.role==='guest')$('guest-display-name').textContent=own.display_name;refreshDuetOptions();
   }
   let tg37ScoreRead=0,tg37ScoreApplied=0;
   async function fetchScores(){
@@ -4444,7 +4474,7 @@ function renderFullCatalog(){
   window.addEventListener('temgogo:remote-audio',e=>{const {command,value}=e.detail||{};if((command==='diva-auto'&&[0,1].includes(value))||(command==='pop-effect'&&[0,1,2,3].includes(value)))void remoteCommand(command,value);});
   // Beta 1.0: apenas a interface social usa este contexto; não expõe chaves administrativas.
   window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
-    members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,
+    members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,tg60SyncIdentity,
     campaignSafe:!state.emergencyBlocked&&!state.room?.current_song_id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.guestMicLock,
     canAnnounceOpening:()=>!state.emergencyBlocked&&tg13Recreational()&&state.room?.room_mode==='classic'&&state.role==='host'&&!state.currentSong&&!state.preflight&&!state.songs.some(s=>s.status==='done'||s.status==='playing'||s.status==='skipped'),
     canManualAudio:()=>!state.startingSong&&!state.finishing&&!recadoShowing&&!!$('final-overlay')?.hidden,

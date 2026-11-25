@@ -113,3 +113,18 @@ body.tg104-single-device #stage[data-tg50-ready] #tg192-solo-dock:not([hidden]){
 html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg-beta-dialog,#guest-profile-dialog,#settings-dialog,#catalog-dialog,#tg17-singer-dialog,#tg18-remote,#guest,#lobby,#landing) :is(button.button,button.tg-beta-primary,.tg-beta-tabs button):not([hidden]):not(.active):not([aria-pressed=true]):not([aria-selected=true]):not(.chosen):not(.button-primary):not(.tg-beta-primary){background:var(--tg-surface-raised,var(--surface-2))!important;color:var(--tg-text,var(--text))!important;border:1px solid var(--tg-border,var(--line))!important;border-radius:12px!important;box-shadow:none!important;letter-spacing:normal!important;text-transform:none!important}
 html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg-beta-dialog,#guest-profile-dialog,#settings-dialog,#catalog-dialog,#tg17-singer-dialog,#tg18-remote,#guest,#lobby,#landing) :is(button.button-primary,button.tg-beta-primary,.tg-beta-tabs button.active){background:var(--tg-cta,var(--violet))!important;color:var(--tg-on-primary,#fff)!important;border:1px solid var(--tg-border,var(--line))!important;border-radius:12px!important;box-shadow:none!important;letter-spacing:normal!important;text-transform:none!important}
 html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#guest) :is(#stage-exit,#tg04-remote-end,#leave-party){color:var(--tg-error,#f49cba)!important;border-color:var(--tg-error,#f49cba)!important;background:transparent!important}
+
+/* R60: one profile surface, basic identity + optional social settings. */
+#tg-beta-dialog,#guest-profile-dialog{width:min(calc(100% - 20px),560px)!important;max-height:calc(100dvh - 24px)!important;box-sizing:border-box;border-radius:20px!important;overflow:auto!important;background:var(--tg-surface,var(--surface))!important;color:var(--tg-text,var(--text))!important;border:1px solid var(--tg-border,var(--line))!important}
+#tg-beta-dialog .tg-beta-shell,#guest-profile-dialog .modal-inner{padding:clamp(12px,3vw,20px)!important;min-width:0!important}
+#tg-beta-dialog [data-tg-beta-panel=profile]{display:grid;gap:10px;min-width:0}
+#tg-beta-dialog [hidden],#guest-profile-dialog [hidden]{display:none!important}
+#tg-beta-dialog :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select),#guest-profile-dialog #guest-profile-name{min-width:0!important;width:100%!important;min-height:44px!important;font-size:16px!important;box-sizing:border-box;border-radius:12px!important;color:var(--tg-text,var(--text))!important;background:var(--tg-surface-raised,var(--surface-2))!important;border:1px solid var(--tg-border,var(--line))!important}
+#tg-beta-dialog .tg-beta-avatars,#guest-profile-dialog .avatar-options{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}
+#tg-beta-dialog .tg-beta-avatar-option img,#guest-profile-dialog .avatar-option img{width:100%!important;height:auto!important;aspect-ratio:1;object-fit:cover;border-radius:12px!important}
+.tg60-social-options{border:1px solid var(--tg-border,var(--line));padding:10px;border-radius:12px;min-width:0}
+.tg60-social-options summary{min-height:44px;cursor:pointer;font-weight:700}
+.tg60-social-options[open]>label{display:block;margin:10px 0}
+.tg60-profile-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-top:10px;border-top:1px solid var(--tg-border,var(--line));min-width:0}
+.tg60-profile-actions button{min-height:44px;white-space:normal}
+@media(max-width:360px){.tg60-profile-actions{grid-template-columns:1fr}}
