@@ -68,3 +68,7 @@ html[data-tg-theme] body:not(.high-contrast) :is(#guest .mobile-card,#lobby .tg9
 html[data-tg-theme] body:not(.high-contrast) :is(#guest .guest-header,#tg18-remote .tg18-remote-header,#stage .stage-header,#lobby .simple-header){color:var(--tg-text,var(--text));border-color:var(--tg-border,var(--line))}
 @media(max-width:680px){#catalog-dialog .catalog-head h2{font-size:1.4rem}#catalog-dialog .catalog-modal-shell{padding-top:10px!important}#catalog-dialog .catalog-list .history-song-card{margin:0!important}#tg18-remote .tg18-remote-header{padding:8px 12px!important}#tg18-remote .tg18-remote-shell{border-radius:18px!important}}
 [hidden]{display:none!important}
+/* R04.2 — busca e saída no mesmo cabeçalho fixo, sem duas rolagens. */
+#catalog-dialog .tg-r04-catalog-top{position:sticky;top:0;z-index:8;background:var(--tg-surface,var(--surface));padding:4px 0;min-width:0}
+#catalog-dialog .tg-r04-catalog-top .catalog-toolbar,#catalog-dialog .tg-r04-catalog-top #catalog-close{position:static!important}
+[hidden]{display:none!important}
