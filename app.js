@@ -3236,7 +3236,7 @@ function catalogCard(item,host){
   });
   const actions=document.createElement('div');actions.className='tg26-track-actions';const f=tg26FavoriteState();
   if(f.uid){const fav=document.createElement('button');fav.type='button';fav.className='tg26-favorite';fav.dataset.tg26Favorite=videoId;fav.dataset.tg26Uid=f.uid;fav.dataset.title=item.title;fav.textContent=f.items.has(videoId)?'♥':'♡';fav.disabled=f.status!=='ready'||f.writes.has(videoId);fav.setAttribute('aria-pressed',String(f.items.has(videoId)));fav.setAttribute('aria-label',(f.items.has(videoId)?'Remover dos favoritos: ':'Favoritar: ')+item.title);fav.addEventListener('click',()=>void tg26ToggleFavorite(item,f.uid));actions.append(fav);}
-  actions.append(toggle);card.append(cover,info,actions);if(curation)card.append(curation);card.append(expanded);return card;
+  actions.prepend(toggle);card.append(cover,info,actions);if(curation)card.append(curation);card.append(expanded);return card;
 }
 
 function renderCatalog(){

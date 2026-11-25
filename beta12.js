@@ -110,8 +110,8 @@ function initParticipant(){
  const row=guest.querySelector('.guest-profile-row');const name=$('guest-display-name');
  const top=mk('div',{class:'tg12-participant-top'});
  const avatar=$('guest-profile-avatar');
- const avatarBtn=button('','tg12-avatar-button');avatarBtn.setAttribute('aria-label','Editar foto, apelido e avatar');avatarBtn.addEventListener('click',()=>avatar?.click());
- if(avatar)avatarBtn.append(avatar);top.append(avatarBtn);
+ const avatarBtn=button('','tg12-avatar-button');avatarBtn.setAttribute('aria-label','Editar foto, apelido e avatar');avatarBtn.addEventListener('click',e=>{if(e.target!==avatar)avatar?.click();});
+ if(avatar){avatar.removeAttribute('tabindex');avatar.removeAttribute('role');avatar.removeAttribute('aria-label');avatarBtn.append(avatar);}top.append(avatarBtn);
  const label=mk('div',{class:'tg12-participant-label'});label.innerHTML='<span>MEU CAMARIM</span><strong id="tg12-party-title">Festa</strong>';
  top.append(label);
  const help=$('open-guest-faq');if(help){help.textContent='?';help.classList.add('tg12-help-button');top.append(help);}
@@ -119,7 +119,7 @@ function initParticipant(){
  const roomTitle=$('guest-room-title');const title=$('tg12-party-title');if(roomTitle&&title){
    const sync=()=>title.textContent=roomTitle.textContent||'Sua festa';sync();new MutationObserver(sync).observe(roomTitle,{childList:true,characterData:true,subtree:true});
  }
- const hero=guest.querySelector('.guest-hit-library');if(hero){const h=hero.querySelector('h2');if(h)h.textContent='Catálogo de músicas';}
+ const hero=guest.querySelector('.guest-hit-library');if(hero){const h=hero.querySelector('h2');if(h)h.textContent='Destaques da biblioteca';}
  const bar=guest.querySelector('.mobile-switch');if(bar){bar.setAttribute('aria-label','Músicas, microfone quando chamado, placar e perfil');const songs=$('mobile-tab-queue');if(songs){songs.textContent='';songs.append(mk('span',{},'♫'),mk('span',{},'Catálogo'));}}
  // R05: um destino por botão; mantém listeners originais e bloqueio do turno.
  if(bar){
@@ -127,7 +127,7 @@ function initParticipant(){
    const original=$('mobile-tab-queue'),score=$('mobile-tab-score');
    const makeNav=(id,emoji,label,action)=>{const b=mk('button',{id,type:'button',class:'mobile-tab'});b.append(mk('span',{'aria-hidden':'true'},emoji),mk('span',{},label));b.addEventListener('click',()=>{if(document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg18-singing'))return;action();});return b;};
    if(original&&!$('tg-r05-catalog-tab')){
-     const catalog=makeNav('tg-r05-catalog-tab','♫','Biblioteca',()=>guest.querySelector('.guest-hit-library [data-catalog-open]')?.click());
+     const catalog=makeNav('tg-r05-catalog-tab','♫','Catálogo',()=>guest.querySelector('.guest-hit-library [data-catalog-open]')?.click());
      const queue=makeNav('tg-r05-queue-tab','☷','Fila',()=>{original.click();const panel=$('guest-queue-panel'),list=$('guest-queue-list');if(!panel?.hidden&&list){const card=list.closest('.mobile-card');const heading=card?.querySelector('.mini-label');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}card?.scrollIntoView({block:'start',behavior:'instant'});}});
      original.before(catalog,queue);original.classList.add('tg-r05-legacy-tab');
    }
