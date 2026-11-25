@@ -88,3 +88,9 @@ html[data-tg-theme] body:not(.high-contrast) :is(#guest .guest-header,#tg18-remo
 html[data-tg-theme] body:not(.high-contrast) :is(#landing,#lobby,#stage,#guest,#tg18-remote,dialog) :is(button,input,select,textarea):focus-visible{outline:2px solid var(--tg-focus,var(--lime));outline-offset:2px}
 @media(max-width:360px){#tg18-remote .tg192-remote-advanced[open]:has(>label>input[type=range]){grid-template-columns:1fr}}
 [hidden]{display:none!important}
+/* R04.4 — wrapper real: não depender do pseudo-elemento interno de details. */
+#tg18-remote .tg-r04-audio-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
+#tg18-remote .tg-r04-audio-grid>label{margin:0!important;min-width:0;padding:8px 4px;text-align:center;font-size:12px;line-height:1.35;overflow-wrap:anywhere;border-radius:12px;background:var(--tg-surface,var(--surface));border:1px solid var(--tg-border,var(--line))}
+#tg18-remote .tg-r04-audio-grid>label .tg-ui-knob-dial{width:64px;height:64px}
+#tg18-remote .tg-r04-audio-grid>label input[type=range]{min-width:0;width:100%}
+@media(max-width:360px){#tg18-remote .tg-r04-audio-grid{grid-template-columns:1fr}}
