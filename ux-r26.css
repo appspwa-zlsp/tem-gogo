@@ -91,3 +91,16 @@ body.high-contrast #faq-dialog,body.high-contrast #faq-dialog .tg26-faq-list det
 .tg27-genre-fallback>span{font-size:clamp(15px,4vw,27px);line-height:1}.tg27-genre-fallback>b{font:700 9px/1.1 system-ui;overflow-wrap:anywhere;text-transform:uppercase}
 .tg27-genre-cover[data-genre=reggae]{background:linear-gradient(135deg,#146b50,#153c33)}.tg27-genre-cover[data-genre=eletronica]{background:linear-gradient(135deg,#174db7,#28245e)}.tg27-genre-cover[data-genre=axe]{background:linear-gradient(135deg,#ad531e,#653b23)}.tg27-genre-cover[data-genre=infantil]{background:linear-gradient(135deg,#a63f9d,#50399d)}
 .tg123-track .tg27-genre-label{display:block;font-size:11px!important;font-weight:650;color:inherit;opacity:.85;overflow-wrap:anywhere}
+
+/* R28 — navegação e controles sem dependências novas. */
+#stage[data-tg26-ready] .tg26-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;padding:5px 2px;line-height:1.1}
+.tg28-nav-icon{font-size:18px;line-height:1.1}.tg28-nav-label{font-size:clamp(10px,2.5vw,13px);white-space:nowrap}
+#tg18-remote .tg28-remote-catalog{width:100%;min-height:48px;margin:8px 0;white-space:normal}
+#tg18-remote .tg26-remote-menu h3{font-size:13px;margin:6px 0 0}
+#tg18-remote .tg26-remote-menu small{padding:0 4px 4px}
+#tg18-remote .tg28-effects summary{min-height:44px;cursor:pointer}
+#tg18-remote .tg28-effects:not([open]) .tg26-effects{display:none!important}
+.tg26-favorite-line .tg28-favorites-quick{min-height:44px;white-space:normal}
+.tg26-favorite-line .tg28-favorites-quick[aria-pressed=true]{border-color:var(--tg-focus,#d5b1ff);box-shadow:inset 0 0 0 1px var(--tg-focus,#d5b1ff)}
+.tg26-favorite-line [hidden]{display:none!important}
+.tg27-genre-cover[data-genre=gospel]{background:linear-gradient(135deg,#805c2f,#41346b)}

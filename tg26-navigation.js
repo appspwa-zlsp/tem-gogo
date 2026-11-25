@@ -1,6 +1,6 @@
 /* R26 — Navigation only. Keep existing nodes, handlers and permissions. */
 (()=>{'use strict';
- const $=id=>document.getElementById(id), q=(s,r=document)=>r.querySelector(s);
+ const $=id=>document.getElementById(id), q=(s,r=document)=>r?.querySelector(s)||null;
  const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text)n.textContent=text;return n;};
  const button=(label,fn)=>{const b=el('button','button button-outline',label);b.type='button';b.addEventListener('click',fn);return b;};
  const move=(parent,...nodes)=>nodes.filter(Boolean).forEach(n=>parent.append(n));
@@ -10,9 +10,9 @@
   if(!main||!bar||!consoleNode||!room||!catalog||!side||!queue||!rank||stage.dataset.tg26Ready)return;
   stage.dataset.tg26Ready='true';
   const nav=el('nav','tg26-nav');nav.setAttribute('aria-label','Navegação do anfitrião');
-  const options=[['palco','▶ Palco'],['controle','🎛 Controle'],['musicas','♫ Músicas'],['placar','🏆 Placar'],['mais','☰ Mais']];
+  const options=[['palco','▶ Palco'],['controle','🎛 Controle'],['musicas','♫ Músicas'],['placar','🏆 Placar'],['mais','☰ Sala']];
   const select=(key,scroll=false)=>{if(!options.some(x=>x[0]===key))return;stage.dataset.tg26Panel=key;for(const b of nav.children)b.setAttribute('aria-pressed',String(b.dataset.tg26Key===key));if(key==='musicas')catalog.closest('details').open=true;if(key==='mais')room.closest('details').open=true;if(scroll){const target=key==='controle'?consoleNode:key==='musicas'?catalog:key==='placar'?rank:key==='mais'?room:bar;target.scrollIntoView({block:'start',behavior:'instant'});}};
-  for(const [key,label] of options){const b=button(label,()=>select(key,true));b.dataset.tg26Key=key;nav.append(b);}
+  for(const [key,label] of options){const b=button(label,()=>select(key,true));b.dataset.tg26Key=key;const split=label.indexOf(' ');const icon=el('span','tg28-nav-icon',label.slice(0,split));icon.setAttribute('aria-hidden','true');b.replaceChildren(icon,el('span','tg28-nav-label',label.slice(split+1)));b.setAttribute('aria-label',label.slice(split+1));nav.append(b);}
   const controls=consoleNode.parentElement;
   const remoteQR=$('tg30-control-qr-details');if(remoteQR)room.append(remoteQR);
   controls.prepend(bar);q('.stage-header',stage).after(nav);move(bar,$('start-audio'));
@@ -40,18 +40,19 @@
   window.addEventListener('temgogo:view',e=>{if(e.detail?.view==='stage')select('palco');});
  }
  function remoteNav(){
-  const r=$('tg18-remote'),header=q('.tg18-remote-header',r),control=$('tg19-remote-control'),info=$('tg19-remote-singing');if(!header||!control||!info)return;
+  const r=$('tg18-remote'),header=q('.tg18-remote-header',r),control=$('tg19-remote-control'),info=$('tg19-remote-singing');if(!header||!control||!info||r.dataset.tg28Ready)return;r.dataset.tg28Ready='true';
   const more=el('details','tg26-remote-more');more.append(el('summary','','☰ Sala e ajuda'));
   const wrap=el('div','tg26-remote-menu');more.append(wrap);
-  const help=q('.tg193-remote-help',header);move(wrap,$('tg18-remote-back'),$('tg04-remote-end'),$('tg18-remote-stage'),help);
+  const help=q('.tg193-remote-help',header);wrap.append(el('h3','','Gerenciar festa'));move(wrap,$('tg18-remote-back'));wrap.append(el('small','tg26-note','Volta às suas salas sem encerrar a festa.'));move(wrap,$('tg04-remote-end'));wrap.append(el('small','tg26-note','Encerra a festa para todos, mediante confirmação.'));move(wrap,$('tg18-remote-stage'));wrap.append(el('h3','','Ajuda'));move(wrap,help);
   header.append(more);
   const moderation=$('tg-beta-host-moderate');if(moderation)move(wrap,moderation);legacy($('tg-beta-remote-nav'));
   const closeMenu=()=>{more.open=false;};wrap.addEventListener('click',e=>{if(e.target.closest('button'))closeMenu();});
-  const audio=q('.tg05-remote-audio',control);if(audio){audio.open=false;const summary=q('summary',audio);if(summary)summary.textContent='🎚 Mesa de áudio da TV';
-   const pads=el('section','tg26-effects');pads.append(el('h3','','✦ Drag Diva e efeitos da TV'),el('p','tg26-note','A TV precisa estar com o som ativo. Falas exigem publicação pela Central; efeitos somente no intervalo.'));
+  const music=$('tg18-remote-music');if(music){const shortcut=button('♫ Escolher música / catálogo',()=>music.click());shortcut.classList.add('tg28-remote-catalog','button-primary');q('.tg18-remote-grid',control)?.after(shortcut);}
+  const audio=q('.tg05-remote-audio',control);if(audio){audio.open=true;const summary=q('summary',audio);if(summary)summary.textContent='🎚 Mesa de áudio da TV';
+   const effects=el('details','tg192-remote-advanced tg28-effects');effects.append(el('summary','','✦ Drag Diva e efeitos da TV'));const pads=el('section','tg26-effects');pads.append(el('p','tg26-note','A TV precisa estar com o som ativo. Falas exigem publicação pela Central; efeitos somente no intervalo.'));
    const send=(command,value)=>window.dispatchEvent(new CustomEvent('temgogo:remote-audio',{detail:{command,value}}));
    for(const [cmd,value,label] of [['diva-auto',1,'🎙 Autorizar falas'],['diva-auto',0,'🔇 Desativar falas'],['pop-effect',0,'👏 Aplausos'],['pop-effect',1,'🎆 Fogos'],['pop-effect',2,'🎶 Vinheta'],['pop-effect',3,'✨ Suspense']])pads.append(button(label,()=>send(cmd,value)));
-   const status=el('p','tg26-note','Consulte a TV para conferir as falas.');status.id='tg26-remote-audio-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');pads.append(status);audio.append(pads);
+   const status=el('p','tg26-note','Consulte a TV para conferir as falas.');status.id='tg26-remote-audio-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');pads.append(status);effects.append(pads);audio.after(effects);
   }
   const recado=$('tg04-remote-send')?.closest('details');if(recado){const hint=el('p','tg26-note','O texto fica na fila de recados e aparece no intervalo da TV. Não é uma gravação de voz.');recado.insertBefore(hint,$('tg04-remote-send'));}
   legacy($('tg18-remote-rename')); // existing profile menu delegates to this action
@@ -78,7 +79,7 @@
  function faq(){
   const dlg=$('faq-dialog'),inner=q('.modal-inner',dlg);if(!inner)return;
   const entries=[...inner.querySelectorAll('details')];const list=el('div','tg26-faq-list');const footer=el('div','tg26-faq-footer');
-  const first=entries[0];if(first){first.before(list);move(list,...entries);}
+  const first=entries[0];if(first){first.before(list);const priorities=['Como entro na festa?','Passo a passo: como começar uma festa na TV?','Como canto?','Como sei se o microfone funciona?','Como uso o celular para controlar a festa e cantar?','Como encontro músicas sem gastar a busca externa?','Onde vejo minha nota?','Como funciona a nota?'];const priority=d=>{const i=priorities.indexOf(q('summary',d)?.textContent.trim());return i<0?priorities.length:i;};entries.sort((x,y)=>priority(x)-priority(y));for(const d of entries)d.open=false;move(list,...entries);}
   move(footer,q('.tg193-faq-actions',inner),$('faq-done'));inner.append(footer);
   dlg.addEventListener('close',()=>{for(const d of entries)d.open=false;const search=$('tg05-faq-search');if(search){search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));}list.scrollTop=0;});
   for(const d of entries)d.addEventListener('toggle',()=>{if(d.open)for(const x of entries)if(x!==d)x.open=false;});

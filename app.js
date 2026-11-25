@@ -3054,13 +3054,13 @@ function tg26FavoritePaint(){
   const f=tg26FavoriteState(),opt=$('catalog-favorites-option'),status=$('tg26-favorite-status');
   if(opt){opt.hidden=!f.uid;opt.disabled=!f.uid;}
   if(status)status.textContent=!f.uid?'Entre com uma conta para salvar favoritos.':f.status==='loading'?'Carregando seus favoritos…':f.status==='error'?'Favoritos indisponíveis. Toque em Atualizar favoritos para tentar novamente.':f.status==='ready'?'Seus favoritos são privados e acompanham sua conta.':'';
-  if($('tg26-favorite-refresh'))$('tg26-favorite-refresh').hidden=!f.uid;
+  const refresh=$('tg26-favorite-refresh');if(refresh){refresh.hidden=!f.uid||f.status==='ready';refresh.disabled=f.status==='loading'||f.writes.size>0;}const quick=$('tg28-favorites-quick');if(quick){quick.hidden=!f.uid;quick.setAttribute('aria-pressed',String(state.catalogFilter==='favorites'));}
   for(const b of document.querySelectorAll('[data-tg26-favorite]')){
     const id=b.dataset.tg26Favorite,on=f.items.has(id);b.hidden=!f.uid||b.dataset.tg26Uid!==f.uid;b.disabled=f.status!=='ready'||f.writes.has(id);b.textContent=on?'♥':'♡';b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',(on?'Remover dos favoritos: ':'Favoritar: ')+b.dataset.title);b.title=on?'Remover favorito':'Salvar favorito';
   }
 }
 async function tg26LoadFavorites(force=false){
-  const f=tg26FavoriteState();if(!f.uid||!state.client){tg26FavoritePaint();return false;}if(f.pending)return f.pending;if(f.writes.size)return false;if(!force&&f.status==='ready')return true;
+  const f=tg26FavoriteState();if(!f.uid||!state.client){tg26FavoritePaint();return false;}if(f.pending)return f.pending;if(f.writes.size)return false;if(!force&&f.status==='ready')return true;if(!force&&f.status==='error')return false;
   f.status='loading';tg26FavoritePaint();
   const job=Promise.resolve().then(async()=>{try{
     const data=await callRPC('tg26_favorites_list',{});if(tg26FavoriteState()!==f)return false;
@@ -3076,7 +3076,7 @@ async function tg26ToggleFavorite(item,uid){
 }
 // R27: capa gráfica por classificação oficial, nunca por inferência do título.
 const tg27Covers=Object.freeze({pop:'pop',rock:'rock',funk:'funk',sertanejo:'sertanejo',pagode:'pagode-samba',samba:'pagode-samba',forro:'forro',rap:'rap-trap',mpb:'mpb',internacional:'internacional',outros:'outras'});
-const tg27ExtraIcons=Object.freeze({reggae:'🌿',eletronica:'🎛️',axe:'☀️',infantil:'🎈'});
+const tg27ExtraIcons=Object.freeze({reggae:'🌿',eletronica:'🎛️',axe:'☀️',infantil:'🎈',gospel:'✦'});
 function tg27Genre(item){
  const official=(state.catalogGenres||[]).find(g=>g.code===item?.genre);
  const code=official?.code||'outros';
@@ -4115,6 +4115,7 @@ function renderFullCatalog(){
       },100);
     });
     $('tg26-favorite-refresh').addEventListener('click',()=>void tg26LoadFavorites(true));
+    $('tg28-favorites-quick')?.addEventListener('click',()=>{if(!tg26FavoriteAccount())return;const filter=$('catalog-filter');filter.value=state.catalogFilter==='favorites'?'all':'favorites';filter.dispatchEvent(new Event('change',{bubbles:true}));});
     $('catalog-filter').addEventListener('change',e=>{
       state.catalogFilter=e.target.value;state.catalogPage=1;renderFullCatalog();
     });
