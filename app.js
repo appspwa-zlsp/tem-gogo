@@ -3297,6 +3297,7 @@ function renderFullCatalog(){
     hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;recadoFrequency.clear();tg04SeenMessages.clear();nextGuestRecadoAt=0;tg04MessageFetch=null;tg04HostSending=null;tg18GuestSending=null;
     for(const id of ['tg17-send-message','tg04-stage-send','tg04-remote-send'])if($(id))setLoading($(id),false);
     if($('mic-toggle'))$('mic-toggle').disabled=false;
+    for(const id of ['stage-exit','tg04-remote-end'])if($(id))$(id).disabled=false;
     tg30VoiceSnapshots.clear();state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogGenres=[];state.catalogGenreUnavailable=false;state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
     state.remotePending.clear();state.remoteLatestCommandId=null;state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
     tg23Reset();hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
