@@ -198,6 +198,38 @@
       await fetchMembers();renderRemote();toast('Apelido atualizado no palco!');
     }catch(err){toast('Não foi possível alterar o apelido: '+humanError(err),true);}
   }
+  const tgR14Volumes={
+    'playback-volume':['tg18-remote-playback','playback',100],
+    'mic-volume':['tg18-remote-mics','mics',200],
+    'diva-preview-volume':['tg04-remote-diva','diva',75],
+    'pop-volume':['tg05-remote-pop','pop',75]
+  };
+  const tgR14CommandNames={'playback-volume':'volume da música','mic-volume':'volume dos microfones','diva-preview-volume':'volume da Diva','pop-volume':'volume POP','stage-status':'consulta dos ajustes','stage-theme':'tema do palco',next:'próxima música',prepare:'preparar',toggle:'play/pausa',play:'reproduzir',pause:'pausar',start:'iniciar',resend:'reenviar chamada','prepare-song':'preparar música'};
+  function tgR14Release(id){
+    const pending=state.remotePending.get(id);if(!pending)return;
+    state.remotePending.delete(id);
+    const channel=tgR14Volumes[pending.cmd];if(channel)$(channel[0]).disabled=false;
+  }
+  function tgR14ClearRemote(){
+    state.remotePending.clear();state.remoteLatestCommandId=null;
+    for(const [id] of Object.values(tgR14Volumes))if($(id))$(id).disabled=false;
+  }
+  function tgR14AcceptAck(data){
+    const pending=state.remotePending.get(data.id);if(!pending||data.command!==pending.cmd)return;
+    tgR14Release(data.id);
+    const latest=state.remoteLatestCommandId===data.id;
+    const channel=tgR14Volumes[pending.cmd];
+    const valid=(v,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=max;
+    let ok=data.ok===true;
+    if(ok&&channel){const [id,key,max]=channel;const v=data.stage?.[key];if(valid(v,max))$(id).value=String(v);else ok=false;}
+    if(ok&&latest&&!state.remotePending.size&&pending.cmd==='stage-status'){
+      for(const [id,key,max] of Object.values(tgR14Volumes))if(valid(data.stage?.[key],max)&&document.activeElement!==$(id))$(id).value=String(data.stage[key]);
+    }
+    if(ok&&latest&&['stage-status','stage-theme'].includes(pending.cmd)&&THEMES.includes(data.stage?.theme)&&document.activeElement!==$('tg30-remote-stage-theme'))$('tg30-remote-stage-theme').value=data.stage.theme;
+    const message=ok?'✅ TV confirmou: '+String(data.message||'comando'):'⚠ TV não confirmou '+(tgR14CommandNames[pending.cmd]||'o comando')+': '+String(data.ok===true?'resposta incompleta; consulte os ajustes da TV':data.message||'Não foi possível executar');
+    if(latest)$('tg18-remote-feedback').textContent=message;
+    else if(!ok)toast(message,true);
+  }
   let tgR13NextConfirmation=null;
   async function remoteCommand(cmd,value,songId=null){
     if(state.emergencyBlocked)return;
@@ -205,7 +237,7 @@
     const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song','stage-theme','diva-preview-volume','pop-volume','stage-status'];
     if(!allowed.includes(cmd))return;
     if(callActive() && !['start','resend'].includes(cmd)){toast('Durante sua vez o controle fica protegido; use o painel do microfone.',true);return;}
-    if(cmd==='stage-status'&&[...state.remotePending.values()].some(p=>p.cmd==='stage-status'))return;
+    if((cmd==='stage-status'||Object.hasOwn(tgR14Volumes,cmd))&&[...state.remotePending.values()].some(p=>p.cmd===cmd))return;
     const roomId=state.room.id,scope=tg07Scope();
     const playingId=()=>state.songs.find(s=>s.status==='playing')?.id??null;
     const expectedSongId=playingId();
@@ -225,26 +257,27 @@
       state.remoteLatestCommandId=id;
       $('tg18-remote-feedback').textContent='◌ Enviando comando ao palco…';
       state.remotePending.set(id,{cmd,at:Date.now()});
+      if(tgR14Volumes[cmd])$(tgR14Volumes[cmd][0]).disabled=true;
+      setTimeout(async()=>{
+        if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
+        // Reconcilia uma última vez com o banco, inclusive se o Realtime falhou.
+        await Promise.race([(async()=>{await fetchHostDeviceSignals();await state.signalChain;})(),new Promise(resolve=>setTimeout(resolve,3000))]);
+        if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
+        tgR14Release(id);
+        if(state.role==='remote'&&state.remoteLatestCommandId===id){
+          $('tg18-remote-feedback').textContent='⚠ A TV não confirmou este comando. Confira a tela antes de tocar novamente; não repetimos ações automaticamente.';
+        }else toast('A TV não confirmou '+(tgR14CommandNames[cmd]||'o comando')+'. Consulte os ajustes antes de repetir.',true);
+      },12000);
       await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'||(cmd==='stage-theme'&&THEMES.includes(value))?value:null,songId:typeof songId==='string'?songId:null,...(cmd==='next'?{expectedSongId}:{}),at:Date.now(),id});
       // O ACK pode chegar pelo Realtime antes de o INSERT terminar.
       if(state.emergencyBlocked||!tg07Current(scope))return;
       if(state.remotePending.has(id)&&state.remoteLatestCommandId===id){
         $('tg18-remote-feedback').textContent='◌ Comando registrado; aguardando resposta da TV…';
       }
-      setTimeout(async()=>{
-        if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
-        // Reconcilia uma última vez com o banco, inclusive se o Realtime falhou.
-        await fetchHostDeviceSignals();
-        await state.signalChain;
-        if(state.emergencyBlocked||!tg07Current(scope)||!state.remotePending.has(id))return;
-        state.remotePending.delete(id);
-        if(state.role==='remote'&&state.remoteLatestCommandId===id){
-          $('tg18-remote-feedback').textContent='⚠ A TV não confirmou este comando. Confira a tela antes de tocar novamente; não repetimos ações automaticamente.';
-        }
-      },12000);
     }catch(err){
       if(!tg07Current(scope)||state.emergencyBlocked)return;
-      if(id)state.remotePending.delete(id); // Não apagar outros comandos pendentes.
+      if(id&&!state.remotePending.has(id))return; // ACK ou prazo já encerrou este comando.
+      if(id)tgR14Release(id); // Não apagar outros comandos pendentes.
       if(state.role==='remote'&&(!id||state.remoteLatestCommandId===id)){
         $('tg18-remote-feedback').textContent='⚠ Envio não concluído: '+humanError(err);
       }
@@ -268,6 +301,7 @@
       return;
     }
     try{
+      const playbackSongId=state.currentSong?.id??null;
       const toggleHadSong=cmd==='toggle'&&Boolean(state.currentSong);
       const toggleTarget=toggleHadSong?(state.isPlaying?2:1):null;
       if(cmd==='prepare-song'){
@@ -318,12 +352,15 @@
       if(playbackCmd && state.currentSong && !state.playerReady)throw new Error('O player ainda não está pronto para confirmar este comando.');
       if(playbackCmd && state.currentSong && state.playerReady){
         await new Promise(resolve=>setTimeout(resolve,240));
+        if(state.emergencyBlocked||!tg07Current(scope))return;
+        if(playbackSongId!==null&&state.currentSong?.id!==playbackSongId)throw Error('A apresentação mudou antes da confirmação.');
         const status=state.player?.getPlayerState?.();
         if(cmd==='toggle' && toggleTarget!==null && status!==toggleTarget)throw new Error('O player ainda não confirmou a alteração de reprodução.');
         if(cmd==='pause' && status!==2)throw new Error('O player ainda não confirmou a pausa.');
         if(cmd==='play' && status!==1)throw new Error('O player ainda não confirmou a reprodução.');
       }
-      await ack(true,cmd==='toggle'&&!toggleHadSong&&state.preflight?'Apresentação preparada; aguarde a prontidão dos cantores.':playbackCmd?'Ação recebida pelo player; confira a reprodução.':'Comando executado no palco');
+      if(cmd==='playback-volume'&&state.playerReady&&typeof state.player?.getVolume==='function'&&Math.round(state.player.getVolume())!==state.playbackVolume)throw Error('O player ainda não confirmou o volume.');
+      await ack(true,cmd==='playback-volume'&&!state.playerReady?'Volume configurado; o vídeo ainda não está pronto.':cmd==='toggle'&&!toggleHadSong&&state.preflight?'Apresentação preparada; aguarde a prontidão dos cantores.':playbackCmd?'Ação recebida pelo player; confira a reprodução.':'Comando executado no palco');
     }catch(err){console.warn('Comando remoto:',err);await ack(false,String(err.message||'Falha ao executar').slice(0,130));}
   }
   // V18: microfone solo utiliza a captura local SEM enviar áudio para a própria saída,
@@ -881,9 +918,9 @@
   }
   async function setStageTheme(theme){
     if(!canDirectDiva()||state.role!=='host'||!THEMES.includes(theme))throw new Error('Tema de palco inválido ou não autorizado.');
-    const roomId=state.room.id;
+    const roomId=state.room.id,scope=tg07Scope();
     await callRPC('tg30_set_stage_theme',{p_room:roomId,p_theme:theme});
-    if(state.room?.id!==roomId||state.role!=='host')throw new Error('A sala mudou. Confira o tema ao retornar.');
+    if(!tg07Current(scope)||state.emergencyBlocked||state.room?.id!==roomId||state.role!=='host')throw new Error('A sala mudou. Confira o tema ao retornar.');
     applyTheme(theme,false,'stage');
   }
   async function chooseTheme(theme){
@@ -2030,18 +2067,7 @@
     }else if(isPhoneSingerRole()&&from===state.room.owner_id){
       if(signal.kind==='host-remote-ack'&&state.role==='remote'){
         if(signal._ownerDevice!==true)return;
-        if(data.id&&state.remotePending.has(data.id)){
-          state.remotePending.delete(data.id);
-          if(state.remoteLatestCommandId===data.id){
-            $('tg18-remote-feedback').textContent=data.ok===true?'✅ TV confirmou: '+String(data.message||'comando'):'⚠ TV respondeu: '+String(data.message||'Não foi possível executar');
-            if(data.ok===true&&data.stage){
-              for(const [id,value,max] of [['tg18-remote-playback',data.stage.playback,100],['tg18-remote-mics',data.stage.mics,200],['tg04-remote-diva',data.stage.diva,75],['tg05-remote-pop',data.stage.pop,75]]){
-                if(typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=max&&document.activeElement!==$(id))$(id).value=String(value);
-              }
-              if(THEMES.includes(data.stage.theme)&&document.activeElement!==$('tg30-remote-stage-theme'))$('tg30-remote-stage-theme').value=data.stage.theme;
-            }
-          }
-        }
+        tgR14AcceptAck(data);
         return;
       }
       if(signal.kind==='stage-prepare'){
@@ -3299,7 +3325,7 @@ function renderFullCatalog(){
     if($('mic-toggle'))$('mic-toggle').disabled=false;
     for(const id of ['stage-exit','tg04-remote-end'])if($(id))$(id).disabled=false;
     tg30VoiceSnapshots.clear();state.songFrames=0;state.micStats.clear();state.playMetrics=null;state.micActivity=null;state.cloudMicStats.clear();state.catalog=[];state.catalogGenres=[];state.catalogGenreUnavailable=false;state.catalogFetchedAt=0;state.catalogLoading=null;state.catalogError=null;state.currentSong=null;state.room=null;state.role=null;
-    state.remotePending.clear();state.remoteLatestCommandId=null;state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
+    tgR14ClearRemote();state.songs=[];state.members=[];state.scores=[];state.lastMySong=null;state.mobileTab=null;state.isPlaying=false;state.finishing=false;state.guestMicLock=false;document.body.classList.remove('tg18-remote-singing','tg18-remote-active','tg18-singing','tg103-mic-focus','tg103-remote-mic-focus');
     tg23Reset();hideFinal();$('video-placeholder').hidden=false;$('qr-bubble').classList.remove('qr-expanded');
   }
   async function leaveGuest(){
@@ -3843,7 +3869,7 @@ function renderFullCatalog(){
     $('qr-bubble').addEventListener('click',()=> $('qr-bubble').classList.toggle('qr-expanded'));
     $('qr-bubble').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('qr-bubble').classList.toggle('qr-expanded');}});
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){void tg23Poll();if(state.role==='host'&&!state.wakeLock)unlockWakeLock();void refreshRoomSnapshot();}});
-    window.addEventListener('online',()=>{void tg23Poll();toast('Internet conectada novamente. ✅');void refreshRoomSnapshot();void fetchRecentSignals();});
+    window.addEventListener('online',()=>{void tg23Poll();toast('Internet conectada novamente. ✅');void refreshRoomSnapshot();void fetchRecentSignals();void fetchHostDeviceSignals();});
     window.addEventListener('offline',()=>{if(state.room)tg23Suspend('Conexão interrompida. Não foi possível confirmar a segurança do palco.');setSyncStatus('offline');toast('Sem internet: o palco e a fila podem parar.',true);});
     window.addEventListener('popstate',event=>{
       if(state.role==='guest'&&state.room){
@@ -3970,7 +3996,7 @@ function renderFullCatalog(){
       for(const ctx of contexts)try{Promise.resolve(ctx?.close()).catch(()=>{});}catch{}
       try{state.localPeer?.close();}catch{}state.localPeer=null;
       for(const peer of state.peers.values()){try{peer.pc.ontrack=null;peer.pc.close();}catch{}for(const node of [peer.source,peer.analyser,peer.gain])try{node?.disconnect();}catch{}}
-      state.peers.clear();state.candidateBuffer.clear();state.remotePending.clear();state.remoteLatestCommandId=null;
+      state.peers.clear();state.candidateBuffer.clear();tgR14ClearRemote();
       state.micActivity=null;state.micActivitySyncing=false;state.micConnecting=false;tg30RevokeShadow();
       clearHostPreflight(false);state.guestPreflightSong=null;state.guestReady=false;state.guestMicLock=false;closeGuestCall();
       hideFinal();hideGuestRecado();recadoAfter=null;pendingGuestRecados.length=0;
