@@ -370,7 +370,38 @@
   }
   // V18: microfone solo utiliza a captura local SEM enviar áudio para a própria saída,
   // evitando eco. A nota continua sendo atividade vocal, não afinação.
-  let tgR19SoloRequest=null;
+  let tgR19SoloRequest=null,tgR25SoloReport=null,tgR25SoloRetry=null;
+  function tgR25SoloAllowed(a){return !!a&&tgR25SoloReport===a&&tg07Current(a.scope)&&!state.emergencyBlocked&&!state.emergencyClosing&&state.role==='host'&&state.room?.room_mode==='solo'&&tg13Recreational()&&state.room.owner_id===state.user?.id&&state.currentSong?.id===a.songId&&isSinger(state.currentSong,a.scope.uid);}
+  function tgR25SoloFor(song){
+    if(state.room?.room_mode!=='solo'||!tg13Recreational()||state.role!=='host'||state.room.owner_id!==state.user?.id||!isSinger(song,state.user?.id))return null;
+    if(!tgR25SoloAllowed(tgR25SoloReport))tgR25SoloReport={scope:tg07Scope(),songId:song.id,samples:0,vocal:0,intensity:0,last:0,lastAttempt:0,sent:0,pending:null};
+    return tgR25SoloReport;
+  }
+  function tgR25SyncSolo(a,force=false){
+    if(!tgR25SoloAllowed(a))return Promise.resolve(false);
+    if(a.pending)return a.pending;
+    if(a.samples<=a.sent)return Promise.resolve(true);
+    if(!force&&performance.now()-a.lastAttempt<2300)return Promise.resolve(false);
+    a.lastAttempt=performance.now();
+    const payload={p_room:a.scope.room,p_song:a.songId,p_samples:a.samples,p_vocal_samples:a.vocal,p_intensity_sum:a.intensity};
+    const job=Promise.resolve().then(async()=>{
+      if(!tgR25SoloAllowed(a))return false;
+      try{const saved=await callRPC('karaoke_report_mic_activity',payload);if(saved===true&&tgR25SoloAllowed(a)){a.sent=payload.p_samples;return true;}}
+      catch(err){console.warn('Sincronização Solo:',err?.message||err);}
+      return false;
+    }).finally(()=>{if(a.pending===job)a.pending=null;});
+    a.pending=job;return job;
+  }
+  async function tgR25WaitSolo(job){let timer;try{return await Promise.race([job,new Promise(resolve=>{timer=setTimeout(()=>resolve(false),3500);})]);}finally{clearTimeout(timer);}}
+  async function tgR25FlushSolo(a){
+    if(!a||a.samples<8)return true;
+    if(!tgR25SoloAllowed(a))return false;
+    if(a.pending)await tgR25WaitSolo(a.pending);
+    if(!tgR25SoloAllowed(a))return false;
+    if(a.sent===a.samples)return true;
+    return await tgR25WaitSolo(tgR25SyncSolo(a,true))&&tgR25SoloAllowed(a)&&a.sent===a.samples;
+  }
+  function tgR25ClearSoloReport(){tgR25SoloReport=null;tgR25SoloRetry=null;}
   function tgR07SyncSoloDock(){
     const dock=$('tg192-solo-dock'),button=$('tg192-solo-off');if(!dock||!button)return;
     const active=Boolean(state.soloMic),solo=state.role==='host'&&state.room?.room_mode==='solo';
@@ -382,7 +413,7 @@
   }
   async function toggleSoloMic(){
     if(state.emergencyBlocked)return;
-    if(state.role!=='host'||!state.room||state.emergencyClosing||state.finishing||tgR19SoloRequest)return;
+    if(state.role!=='host'||!state.room||state.emergencyClosing||state.finishing||tgR19SoloRequest||tgR25SoloRetry===state.currentSong?.id)return;
     if(state.soloMic){stopSoloMic();return;}
     window.TG74_DIVA_STUDIO?.stop();
     if(!navigator.mediaDevices?.getUserMedia){toast('Microfone solo exige HTTPS e navegador compatível.',true);return;}
@@ -424,12 +455,13 @@
     const rms=calculateRMS(m.analyser);
     const bars=$('tg192-solo-meter').children;const count=Math.round(Math.min(1,rms/.13)*bars.length);Array.from(bars).forEach((bar,i)=>{bar.classList.toggle('lit',i<count);bar.style.height=(i<count?Math.min(95,25+rms*440+(i%3)*9):12)+'%';});
     const song=state.currentSong;
-    if(!song||!state.isPlaying||!isSinger(song,state.user.id))return;
+    if(!song||!state.isPlaying||state.finishing||state.emergencyBlocked||!isSinger(song,state.user.id))return;
     if(m.songId!==song.id){m.songId=song.id;m.samples=0;m.vocal=0;m.volume=0;m.last=0;m.tg30Shadow=tg30ShadowFor(song.id);}
-    const now=performance.now();if(now-m.last<250)return;
-    m.last=now;m.samples++;
+    const a=tgR25SoloFor(song),now=performance.now();if(now-(a?a.last:m.last)<250)return;
+    m.last=now;m.samples++;if(a){a.last=now;a.samples++;}
     tg30CollectShadow(m.tg30Shadow,m.analyser,m.ctx?.sampleRate,now);
-    if(rms>.012){m.vocal++;m.volume+=Math.min(1,(rms-.012)/.085);}
+    if(rms>.012){const intensity=Math.min(1,(rms-.012)/.085);m.vocal++;m.volume+=intensity;if(a){a.vocal++;a.intensity+=Math.round(intensity*1000);}}
+    if(a&&now-a.lastAttempt>=2300&&a.samples>a.sent)void tgR25SyncSolo(a);
     const el=$('tg18-solo-status');if(el)el.textContent='🎙️ Captando atividade vocal • '+Math.round(Math.min(100,rms*750))+'%';
   }
   // Identidade anônima convertida pelo mesmo UID, para preservar as avaliações.
@@ -2479,6 +2511,14 @@
     // Nunca use microfone do notebook nem amostras do WebRTC para pontuar.
     // WebRTC transporta apenas o som dos celulares para as caixas do palco.
     const frames=state.songFrames||0;
+    const report=tgR25SoloReport;
+    if(state.room?.room_mode==='solo'&&uid===state.user?.id){
+      if(!tgR25SoloAllowed(report)||report.samples<8)return null;
+      const observedSeconds=Math.max(1,Number((frames*.14).toFixed(2)));
+      const sungSeconds=Math.min(observedSeconds,report.vocal*.25);
+      const volume=report.vocal?Math.min(1,report.intensity/(report.vocal*1000)):0;
+      return {score:Math.round(Math.min(100,72*sungSeconds/observedSeconds+28*volume)),sungSeconds,observedSeconds,source:'microfone solo (Supabase)'};
+    }
     const solo=state.soloMic;
     if(uid===state.user?.id&&solo?.songId===state.currentSong?.id&&solo.samples>=8){
       const observedSeconds=Math.max(1,(state.songFrames||0)*.14);
@@ -2577,7 +2617,7 @@
     $('play-pause').textContent=state.isPlaying?'⏸ Pausar':'▶ Reproduzir';
     if(event.data===window.YT.PlayerState.ENDED&&!state.finishing&&state.currentSong)finishSong(false);
   }
-  function resetSongMetrics(){state.micStats=new Map();state.cloudMicStats=new Map();state.scoreReady=new Map();state.songFrames=0;state.isPlaying=false;state.playMetrics=null;}
+  function resetSongMetrics(){tgR25ClearSoloReport();state.micStats=new Map();state.cloudMicStats=new Map();state.scoreReady=new Map();state.songFrames=0;state.isPlaying=false;state.playMetrics=null;}
   function setNowPlaying(song){
     $('now-title').textContent=song?.title||'O palco tá esperando você! 🎶';
     $('now-by').textContent=song?'Com '+songSingerLabel(song):'Adicione a primeira música pelo celular ou pelo painel.';
@@ -2780,8 +2820,17 @@
     state.finishing=true;tgR19CancelSoloRequest();
     try {
       if(!skipped&&state.soloMic?.songId===completedSong)void tg30SendShadow(state.soloMic.tg30Shadow,true);
-      if(!skipped){showDivaBubble('Segura o glitter, que eu estou conferindo o placar desta cantoria!','🏆');await fetchMembers();if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;await awaitSingersLastMicReport(state.currentSong);}
-      if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
+      if(!skipped){
+        showDivaBubble('Segura o glitter, que eu estou conferindo o placar desta cantoria!','🏆');
+        if(state.room?.room_mode==='solo'&&tg13Recreational()){
+          state.isPlaying=false;tgR25SoloRetry=completedSong;stopSoloMic();
+          if(!await tgR25FlushSolo(tgR25SoloReport)){
+            if(tg07Current(finishScope)&&!state.emergencyBlocked){$('play-pause').textContent='↻ Tentar finalizar';toast('Não foi possível confirmar as amostras Solo. Toque em Tentar finalizar quando a conexão voltar.',true);}
+            return;
+          }
+        }else{await fetchMembers();if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;await awaitSingersLastMicReport(state.currentSong);}
+      }
+      if(!tg07Current(finishScope)||state.emergencyBlocked||state.currentSong?.id!==completedSong)return;
       const singers=songSingers(state.currentSong);
       const results=skipped?[]:getScoreResults();
       await callRPC('tg30_finish_song_bound',{p_room:completedRoom,p_song:completedSong,p_generation:generation,p_skipped:skipped,p_results:results});
@@ -2790,7 +2839,7 @@
       if(!skipped){try{await fetchScores();verifiedScores=tg07Current(finishScope);}catch(e){console.warn('Atualização do ranking:',e);}}
       if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
       if(skipped){try{state.player?.stopVideo();}catch{}}
-      state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;
+      state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;tgR25ClearSoloReport();
       // D001: pontuação registrada ANTES de liberar o microfone solo.
       if(state.soloMic)stopSoloMic();
       // Privacidade: feche os microfones ao fim do show.
@@ -2833,7 +2882,7 @@
         },16500);
       }
       $('play-pause').textContent='▶ Reproduzir';queueChanged();
-    }catch(err){if(tg07Current(finishScope))toast('Falha ao finalizar música: '+humanError(err),true);}
+    }catch(err){if(tg07Current(finishScope)){if(tgR25SoloRetry===completedSong&&!state.emergencyBlocked)$('play-pause').textContent='↻ Tentar finalizar';toast('Falha ao finalizar música: '+humanError(err),true);}}
     finally{if(tg07Current(finishScope))state.finishing=false;}
   }
   let tgR13AdvanceConfirmation=null;
@@ -2865,6 +2914,8 @@
   async function togglePlayback(){
     if(state.emergencyBlocked)return;
     if(!state.currentSong){await advanceSong();return;}
+    if(state.finishing)return;
+    if(tgR25SoloRetry===state.currentSong.id){await finishSong(false,true);return;}
     if(!state.playerReady){toast('O vídeo ainda está carregando.',true);return;}
     if(state.isPlaying)state.player.pauseVideo();else state.player.playVideo();
   }
@@ -3415,7 +3466,7 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
-    ++tg07SessionEpoch;tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
+    ++tg07SessionEpoch;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
     for(const id of ['host-results','search-results','tg07-external-results'])$(id)?.replaceChildren();
@@ -4157,7 +4208,7 @@ function renderFullCatalog(){
   // O estado desconhecido bloqueia o início de mídia; uma suspensão observada é terminal
   // para esta sessão local. Não retomar nem finalizar uma música interrompida.
   let tg23Pending=null,tg23Timer=null,tg23Leaving=false;
-  function tg23Dialog(message){
+  function tg23Dialog(message,reason='security'){
     let d=$('tg23-emergency');
     if(!d){d=document.createElement('dialog');d.id='tg23-emergency';d.className='tg103-emergency';d.setAttribute('aria-labelledby','tg23-emergency-title');
       const panel=document.createElement('div');panel.className='tg103-emergency-inner';
@@ -4166,14 +4217,16 @@ function renderFullCatalog(){
       const help=document.createElement('small');help.textContent='O áudio foi interrompido neste aparelho. Não enviaremos notas finais nem retomaremos automaticamente.';
       const exit=document.createElement('button');exit.type='button';exit.textContent='Sair do palco neste aparelho';exit.addEventListener('click',()=>void tg23ExitLocal());
       panel.append(title,text,help,exit);d.append(panel);document.body.append(d);d.addEventListener('cancel',e=>e.preventDefault());}
+    d.dataset.reason=reason;
+    $('tg23-emergency-title').textContent=reason==='connection'?'Conexão com o servidor não confirmada':'Palco em pausa de segurança';
     $('tg23-emergency-message').textContent=message;
     if(!d.open&&!$('tg-beta-emergency')?.open){try{d.showModal();}catch(e){console.warn('Diálogo de segurança:',e);}}
   }
-  function tg23Suspend(message){
+  function tg23Suspend(message,reason='security'){
     if(!state.room||state.emergencyClosing)return;
     state.emergencyBlocked=true;
     if(!state.emergencyLatch){
-      state.emergencyLatch=true;++tg07SessionEpoch;tgR19CancelSoloRequest();tgR20CancelMicRequest();
+      state.emergencyLatch=true;++tg07SessionEpoch;tgR25ClearSoloReport();tgR19CancelSoloRequest();tgR20CancelMicRequest();
       // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
       state.isPlaying=false;state.finishing=false;state.playMetrics=null;
       tg18AbortDictation();window.TG74_DIVA_STUDIO?.reset();
@@ -4197,7 +4250,7 @@ function renderFullCatalog(){
       tgR07SyncSoloDock();if($('tg18-solo-status'))$('tg18-solo-status').textContent='Microfone interrompido por segurança.';
       if($('tg18-remote-feedback'))$('tg18-remote-feedback').textContent='Comandos suspensos; não serão reenviados.';
     }
-    tg23Dialog(message);
+    tg23Dialog(message,reason);
   }
   async function tg23Poll(){
     if(!state.room||!state.user||tg23Leaving||state.emergencyClosing)return false;
@@ -4209,7 +4262,7 @@ function renderFullCatalog(){
         if(!tg07Current(scope)||tg23Pending!==ticket)return false;
         if(response?.error||typeof response?.data?.suspended!=='boolean')throw Error('Estado não confirmado');
         if(response.data.suspended){tg23Suspend('A produção suspendeu esta modalidade. Seus registros confirmados continuam no servidor.');return false;}
-        if(state.emergencyLatch){tg23Dialog('O servidor não indica suspensão neste momento. Saia deste palco; não haverá retomada automática desta sessão.');return false;}
+        if(state.emergencyLatch){const reason=$('tg23-emergency')?.dataset.reason||'security';tg23Dialog('O servidor voltou a responder e não indica suspensão neste momento. Saia deste palco e entre novamente; não haverá retomada automática.',reason);return false;}
         const generation=Object.hasOwn(response.data,'signal_generation')?response.data.signal_generation:null;
         if(!tg24GenerationValid(generation))throw Error('Geração de segurança inválida');
         if(state.emergencyGeneration!==undefined&&state.emergencyGeneration!==generation){
@@ -4217,7 +4270,7 @@ function renderFullCatalog(){
         }
         state.emergencyGeneration=generation;
         state.emergencyBlocked=false;return true;
-      }catch{if(tg07Current(scope)&&tg23Pending===ticket)tg23Suspend('Não foi possível confirmar a segurança deste palco. Por precaução, interrompemos a sessão local.');return false;}
+      }catch{if(tg07Current(scope)&&tg23Pending===ticket)tg23Suspend('Não conseguimos consultar a segurança da sala. O áudio foi interrompido por precaução; isso não confirma uma suspensão administrativa. Verifique a conexão e entre novamente.', 'connection');return false;}
       finally{clearTimeout(timer);if(tg23Pending===ticket)tg23Pending=null;}
     })();return ticket.promise;
   }
