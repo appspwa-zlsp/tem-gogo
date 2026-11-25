@@ -1208,17 +1208,20 @@
     ]
   };
   let tg193TourView='guest',tg193TourStep=0,tg193TourTimer=null;
+  function tg31TourBusy(view){
+    if(view==='stage')return !!(state.isPlaying||state.currentSong||state.preflight||state.finishing||!$('final-overlay')?.hidden||!$('tg123-post-score')?.hidden);
+    return (view==='guest'||view==='tg18-remote')&&callActive();
+  }
   function tg193OpenTour(force=false){
     if(state.recoveryIntent)return;
     const view=document.body.dataset.currentView;
     const kind=view==='stage'&&state.room?.room_mode==='solo'?'solo':view;
     if(!tg193TourSteps[kind])return;
     // Nunca bloquear música, chamada da Diva ou microfone durante um show.
-    if(!force && ((view==='stage' && (state.isPlaying || state.currentSong || state.preflight)) || ((view==='guest'||view==='tg18-remote') && callActive())))return;
+    if(tg31TourBusy(view)){if(force)toast('Conclua a apresentação e o resultado para refazer o tour.',true);return;}
     const key='tem-gogo-tour-r26-'+kind;
     if(!force&&localStorage.getItem(key)==='seen')return;
     if($('tg193-tour-dialog').open||document.querySelector('dialog[open]'))return;
-    if(force&&((view==='stage'&&(state.currentSong||state.preflight||state.finishing))||(['guest','tg18-remote'].includes(view)&&callActive()))){toast('Conclua a apresentação para refazer o tour.',true);return;}
     tg193TourView=kind;tg193TourStep=0;tg193RenderTour();$('tg193-tour-dialog').showModal();
     localStorage.setItem(key,'seen');
   }
