@@ -1,8 +1,17 @@
-const CACHE='tem-gogo-30-r33-festival';
-const SHELL=["./capa-pop.webp","./capa-rock.webp","./capa-funk.webp","./capa-sertanejo.webp","./capa-pagode-samba.webp","./capa-forro.webp","./capa-rap-trap.webp","./capa-mpb.webp","./capa-internacional.webp","./capa-outras.webp","./pop-fogos.wav","./pop-vinheta.wav","./ux-r26.css?v=r33","./tg26-navigation.js?v=r29","./pop-recado.wav","./pop-suspense.wav","./pop-palmas.wav","./","./index.html","./ux-revisao.css?v=r22","./termos.html","./privacidade.html","./bora-pro-role-logo.png","./diva.png","./diva-busto.png","./cantor-urbano.png","./cantor-esporte.png","./cantora-ruiva.png","./cantora-oculos.png","./manifest.webmanifest","./icon-192.png","./icon-512.png","./tem-gogo.css?v=r10","./qr-local.js?v=3beta05","./tg73-invitations.js?v=3beta05","./tg73-battle-gate.js?v=3beta05","./tg-dialogs.js?v=r10","./tg30-voice.js?v=3beta05","./tg30-voice-shadow.js?v=3beta05","./tg30-voice-ui.js?v=3beta05","./tg30-diva-result.js?v=3beta05","./app.js?v=r32","./beta10.js?v=3beta05","./beta12.js?v=r30","./tg124-enhance.js?v=3beta05","./tg20.js?v=3beta05","./tg21-shortcuts.js?v=3beta05","./tg70-ux.js?v=r33","./tg74-voice-catalog.js?v=3beta05","./tg74-diva-studio.js?v=r32b","./tg75-battle-core.js?v=3beta05","./tg75-battle-bridge.js?v=3beta05","./tg75-battle-panel.js?v=r33","./tg100-story.js?v=3beta05","./tg30-campaign.js?v=3beta05","./tg-premium-interface.js?v=r31"];
+const CACHE='tem-gogo-30-r34-auditoria';
+const SHELL=["./capa-pop.webp","./capa-rock.webp","./capa-funk.webp","./capa-sertanejo.webp","./capa-pagode-samba.webp","./capa-forro.webp","./capa-rap-trap.webp","./capa-mpb.webp","./capa-internacional.webp","./capa-outras.webp","./pop-fogos.wav","./pop-vinheta.wav","./ux-r26.css?v=r34","./tg26-navigation.js?v=r29","./pop-recado.wav","./pop-suspense.wav","./pop-palmas.wav","./","./index.html","./ux-revisao.css?v=r22","./termos.html","./privacidade.html","./bora-pro-role-logo.png","./diva.png","./diva-busto.png","./cantor-urbano.png","./cantor-esporte.png","./cantora-ruiva.png","./cantora-oculos.png","./manifest.webmanifest","./icon-192.png","./icon-512.png","./tem-gogo.css?v=r10","./qr-local.js?v=3beta05","./tg73-invitations.js?v=3beta05","./tg73-battle-gate.js?v=3beta05","./tg-dialogs.js?v=r10","./tg30-voice.js?v=3beta05","./tg30-voice-shadow.js?v=3beta05","./tg30-voice-ui.js?v=3beta05","./tg30-diva-result.js?v=3beta05","./app.js?v=r32","./beta10.js?v=3beta05","./beta12.js?v=r30","./tg124-enhance.js?v=3beta05","./tg20.js?v=3beta05","./tg21-shortcuts.js?v=3beta05","./tg70-ux.js?v=r33","./tg74-voice-catalog.js?v=3beta05","./tg74-diva-studio.js?v=r32b","./tg75-battle-core.js?v=3beta05","./tg75-battle-bridge.js?v=3beta05","./tg75-battle-panel.js?v=r33","./tg100-story.js?v=3beta05","./tg30-campaign.js?v=3beta05","./tg-premium-interface.js?v=r31"];
 // Cache apenas de recursos estáticos inventariados e deste escopo.
 const scopeURL=()=>new URL(self.registration.scope);
 const isShell=url=>SHELL.some(path=>new URL(path,scopeURL()).href===url.href);
+function safeNotificationTarget(value,base=scopeURL()){
+  try{
+    if(typeof value!=='string'||!value.startsWith('./')||value.length>2048)return base.href;
+    const u=new URL(value,base);
+    if(u.origin!==base.origin||!u.pathname.startsWith(base.pathname)||u.username||u.password)return base.href;
+    const path=u.pathname.slice(base.pathname.length);
+    return path===''||path==='index.html'?u.href:base.href;
+  }catch{return base.href;}
+}
 const cacheable=response=>response.ok&&!response.redirected&&!/\b(?:private|no-store)\b/i.test(response.headers.get('cache-control')||'');
 const ownCache=key=>caches.match(key,{cacheName:CACHE});
 self.addEventListener('install',event=>{
@@ -20,7 +29,10 @@ self.addEventListener('fetch',event=>{
   // Prévia de voz: não armazenar MP3 em cache, evitar uso desnecessário no celular.
   if(/^voz-\d{2}\.mp3$/i.test(url.pathname.split('/').pop()||''))return;
   // A configuração deve refletir sempre a versão mais recente, sem cache de credenciais.
-  if(url.pathname.endsWith('/config.js'))return;
+  if(url.pathname===new URL('./config.js',scopeURL()).pathname){
+    event.respondWith(fetch(request,{cache:'no-store'}));
+    return;
+  }
   if(request.mode==='navigate'){
     const base=new URL(self.registration.scope);
     const relative=url.pathname.startsWith(base.pathname)?url.pathname.slice(base.pathname.length):null;
@@ -45,12 +57,14 @@ self.addEventListener('push',event=>{
   const title=String(data.title||'🎤 Tem Gogó: é sua vez!').slice(0,90);
   const options={body:String(data.body||'Abra o Tem Gogó e prepare seu microfone.').slice(0,180),
     icon:'./icon-192.png',badge:'./icon-192.png',tag:'tem-gogo-call-'+String(data.songId||''),
-    renotify:true,data:{url:typeof data.url==='string'&&data.url.startsWith('./')?data.url:'./'}};
+    renotify:true,data:{url:safeNotificationTarget(data.url)}};
   event.waitUntil(self.registration.showNotification(title,options));
 });
 self.addEventListener('notificationclick',event=>{
   event.notification.close();
-  const target=new URL(event.notification.data?.url||'./',self.registration.scope).href;
+  const base=scopeURL();let raw=event.notification.data?.url;
+  if(typeof raw==='string'&&raw.startsWith(base.href))raw='./'+raw.slice(base.href.length);
+  const target=safeNotificationTarget(raw,base);
   event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async clients=>{
     const same=clients.find(c=>c.url.startsWith(self.registration.scope));
     if(same){await same.focus();return same.navigate(target);}
