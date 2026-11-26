@@ -8,7 +8,7 @@
  const VOICE='tem-gogo-diva-preview-volume', POP='tem-gogo-pop-volume', REVIEW='tg05-voice-reviewed-v1';
  const events=Object.freeze({recado:['voz-32'],avaliacao:['voz-19'],sem_sinal:['voz-34'],video_indisponivel:['voz-36'],abertura_classico:['voz-11'],elogio:['voz-13','voz-18','voz-33']});
  // R67 — somente as mídias fornecidas pelo titular; não retornar a efeitos antigos.
- const effects=Object.freeze({suspense:['./audio/transition.mp3',7800],recado:['./audio/whoosh.mp3',4500],palmas:['./audio/applause.mp3',9600],celebration:['./audio/cheering.mp3',18000],low:['./audio/funny-fail.mp3',4600],mid:['./audio/disappoint.mp3',5700],fail:['./audio/fail-drum.mp3',6600],sad:['./audio/sad-trombone.mp3',9100]});
+ const effects=Object.freeze({suspense:['./transition.mp3',7800],recado:['./whoosh.mp3',4500],palmas:['./applause.mp3',9600],celebration:['./cheering.mp3',18000],low:['./funny-fail.mp3',4600],mid:['./disappoint.mp3',5700],fail:['./fail-drum.mp3',6600],sad:['./sad-trombone.mp3',9100]});
  let current=null,mounted=false,unlocked=false,auto=false,review={},epoch=0,lookup=false,captionTimer=null,captionScope=null;
  const lastByEvent=new Map();
  const TRIMS='tg26-local-voice-trims-v1';let trims={};try{trims=JSON.parse(root.localStorage.getItem(TRIMS)||'{}')||{};}catch{}
