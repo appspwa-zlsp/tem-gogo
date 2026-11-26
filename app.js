@@ -1542,7 +1542,8 @@
     const uid=state.user?.id,epoch=tg07SessionEpoch,roomId=state.room?.id;
     if(state.emergencyClosing||state.finishing||state.startingSong){toast('Aguarde a conclusão da operação atual antes de trocar de sala.',true);return;}
     const active=state.role==='host'&&(state.currentSong||state.preflight)||(['remote','guest'].includes(state.role)&&callActive());
-    if(active&&!await window.TG_UI.confirm('Ao trocar de sala, a apresentação ou o microfone deste aparelho será interrompido. A festa continuará aberta.',{title:'Trocar de sala',confirmText:'Ir para Minhas salas'}))return;
+    const solo=state.room?.room_mode==='solo';
+    if(active&&!await window.TG_UI.confirm(solo?'Ao sair, a apresentação e o microfone deste aparelho serão interrompidos. Sua sessão continuará aberta.':'Ao trocar de sala, a apresentação ou o microfone deste aparelho será interrompido. A festa continuará aberta.',{title:solo?'Voltar aos modos':'Trocar de sala',confirmText:solo?'Voltar aos modos':'Ir para Minhas salas'}))return;
     if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room?.id!==roomId||state.emergencyClosing||state.finishing||state.startingSong)return;
     await stopSession();
     if(state.user?.id!==uid||tg07SessionEpoch!==epoch+1||state.room)return;
@@ -2033,7 +2034,7 @@
     const songs=state.songs.filter(s=>s.status==='playing'||s.status==='queued');
     if(state.role==='host') {
       $('queue-counter').textContent=`${songs.filter(s=>s.status==='queued').length} MÚSICAS`;
-      $('queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="queue-item ${s.status==='playing'?'playing':''}"><div class="queue-num">${s.status==='playing'?'♫':String(i+1).padStart(2,'0')}</div><div class="queue-text"><strong>${escapeHTML(s.title)}</strong><small>${s.status==='playing'?'● Tocando • ':''}${escapeHTML(songSingerLabel(s))}</small></div>${s.status==='queued'?`<span class="queue-actions"><button class="queue-play" type="button" data-play-song="${s.id}" aria-label="Tocar esta música">▶</button><button class="queue-remove" type="button" data-remove-song="${s.id}" aria-label="Remover esta música">✕</button></span>`:'<span class="queue-play">ON</span>'}</div>`).join(''):'<div class="queue-empty">'+(state.room?.room_mode==='solo'?'Escolha sua primeira música. 🎶':'A fila ainda tá vazia. Mostre o QR Code! 🎶')+'</div>';
+      $('queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="queue-item ${s.status==='playing'?'playing':''}"><div class="queue-num">${s.status==='playing'?'♫':String(i+1).padStart(2,'0')}</div><div class="queue-text"><strong>${escapeHTML(s.title)}</strong><small>${state.room?.room_mode==='solo'?(s.status==='playing'?'● Tocando':'Na sua lista'):(s.status==='playing'?'● Tocando • ':'')+escapeHTML(songSingerLabel(s))}</small></div>${s.status==='queued'?`<span class="queue-actions"><button class="queue-play" type="button" data-play-song="${s.id}" aria-label="Tocar esta música">▶</button><button class="queue-remove" type="button" data-remove-song="${s.id}" aria-label="Remover esta música">✕</button></span>`:'<span class="queue-play">ON</span>'}</div>`).join(''):'<div class="queue-empty">'+(state.room?.room_mode==='solo'?'Escolha sua primeira música. 🎶':'A fila ainda tá vazia. Mostre o QR Code! 🎶')+'</div>';
     }
     if(isPhoneSingerRole()) {
       if(state.role==='remote'){syncGuestTurn(songs.find(s=>s.status==='playing')||null);renderRemote();return;}
@@ -3270,7 +3271,7 @@ function catalogCard(item,host){
     const hint=document.createElement('small');hint.textContent='A Central revisará sua sugestão.';details.append(hint);
   }
   const toggle=document.createElement('button');toggle.type='button';toggle.className='tg123-track-toggle';
-  toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent=state.room?.room_mode==='solo'?'+ LISTA':'+ FILA';if(state.room?.room_mode==='solo'){toggle.removeAttribute('aria-expanded');toggle.setAttribute('aria-label','Adicionar '+item.title+' à minha lista');}
+  toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent=state.room?.room_mode==='solo'?'+ Lista':'+ Fila';if(state.room?.room_mode==='solo'){toggle.removeAttribute('aria-expanded');toggle.setAttribute('aria-label','Adicionar '+item.title+' à minha lista');}
   const expanded=document.createElement('div');expanded.className='tg123-track-choice';expanded.hidden=true;
   const hint=document.createElement('span');hint.textContent='Como vai ser o show?';hint.className='tg123-track-hint';
   const modes=document.createElement('div');modes.className='tg123-track-modes';modes.setAttribute('role','group');modes.setAttribute('aria-label','Formato da apresentação');
@@ -3814,7 +3815,8 @@ function renderFullCatalog(){
     if(state.role==='remote'&&callActive()){toast('Finalize sua participação antes de encerrar a festa.',true);return;}
     const initialRoom=state.room.id,initialScope=tg07Scope();
     if(state.finishing){toast('Concluindo a música atual. Aguarde um instante para encerrar a festa.');return;}
-    if(!await window.TG_UI.confirm('Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:'Finalizar a festa',confirmText:'Encerrar festa',danger:true}))return;
+    const solo=state.room.room_mode==='solo';
+    if(!await window.TG_UI.confirm(solo?'Encerrar sua sessão Solo? As músicas pendentes serão encerradas.':'Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:solo?'Finalizar sessão':'Finalizar a festa',confirmText:solo?'Encerrar sessão':'Encerrar festa',danger:true}))return;
     if(state.emergencyBlocked||!tg07Current(initialScope)||!canDirectDiva()||!tg13Recreational()||state.room?.id!==initialRoom||state.finishing||(state.role==='remote'&&callActive()))return;
     const id=state.room.id,scope=tg07Scope();
     const button=$(state.role==='remote'?'tg04-remote-end':'stage-exit');
@@ -3840,7 +3842,7 @@ function renderFullCatalog(){
       if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;
       try{await openLobby();}catch(error){console.error('Festa encerrada no banco; falha ao atualizar Minhas festas',error);show('lobby');}
       if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;state.recapAvatars=avatars;
-      try{showPartyRecap(recap,id);}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
+      try{if(solo)toast('Sessão Solo encerrada. Consulte o histórico quando quiser.');else showPartyRecap(recap,id);}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
     }finally{
       if(tg07Current(scope)||!state.room){state.finishing=false;if(button)button.disabled=false;}
     }
