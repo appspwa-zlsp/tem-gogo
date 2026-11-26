@@ -21,13 +21,18 @@ function navigateHub(which){
  if(modes)modes.hidden=which!=='create';
  if(history)history.hidden=which!=='history';
  if(form)form.hidden=true;
+ const choices=$('tg92-hub-choices');if(choices)choices.hidden=which!=='main';
  hubCreate?.setAttribute('aria-expanded',String(which==='create'));
  $('tg92-hub-history')?.setAttribute('aria-expanded',String(which==='history'));
  if(which==='create'){modes?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});$('tg70-go-classic')?.focus({preventScroll:true});}
  if(which==='history'){history?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});$('tg93-history-title')?.setAttribute('tabindex','-1');$('tg93-history-title')?.focus({preventScroll:true});}
 }
 hubCreate?.addEventListener('click',()=>navigateHub('create'));
-$('tg92-hub-join')?.addEventListener('click',()=>$('hub-join-room')?.click());
+$('tg92-hub-join')?.addEventListener('click',()=>{$('tg83-join-menu')?.showModal();});
+$('tg83-join-back')?.addEventListener('click',()=>$('tg83-join-menu')?.close());
+$('tg83-join-code')?.addEventListener('click',()=>{$('tg83-join-menu')?.close();$('hub-join-room')?.click();});
+$('tg83-join-scan')?.addEventListener('click',()=>{$('tg83-join-menu')?.close();document.querySelector('#room-hub [data-scan-qr]')?.click();});
+$('tg83-modes-back')?.addEventListener('click',()=>navigateHub('main'));
 $('tg92-hub-history')?.addEventListener('click',()=>navigateHub('history'));
 $('tg93-history-back')?.addEventListener('click',()=>navigateHub('main'));
 // R82 — trailer educativo. A arte é independente dos avatares de perfil.

@@ -58,24 +58,38 @@
  }
  function remoteNav(){
   const r=$('tg18-remote'),header=q('.tg18-remote-header',r),control=$('tg19-remote-control'),info=$('tg19-remote-singing');if(!header||!control||!info||r.dataset.tg28Ready)return;r.dataset.tg28Ready='true';
-  const more=el('details','tg26-remote-more');more.append(el('summary','','☰ Sala e ajuda'));
-  const wrap=el('div','tg26-remote-menu');more.append(wrap);
-  const help=q('.tg193-remote-help',header);wrap.append(el('h3','','Festa'));move(wrap,$('tg18-remote-back'),$('tg04-remote-end'),$('tg18-remote-stage'));wrap.append(el('h3','','Ajuda'));move(wrap,help);
-  header.append(more);
-  const moderation=$('tg-beta-host-moderate');if(moderation)move(wrap,moderation);legacy($('tg-beta-remote-nav'));
-  const closeMenu=()=>{more.open=false;};wrap.addEventListener('click',e=>{if(e.target.closest('button'))closeMenu();});
-  const music=$('tg18-remote-music');if(music){music.textContent='Músicas';music.classList.add('tg28-remote-catalog','button-primary');q('.tg18-remote-grid',control)?.append(music);}
+  // R83: menu em diálogo de largura independente do cabeçalho.
+  const more=button('Sala e ajuda',()=>{if(!r.hidden&&!document.body.classList.contains('tg103-remote-mic-focus')&&!menu.open)menu.showModal();});more.classList.add('tg83-remote-menu-button');more.setAttribute('aria-haspopup','dialog');more.setAttribute('aria-controls','tg83-remote-menu');header.append(more);
+  const menu=el('dialog','tg81-mobile-drawer tg83-remote-menu');menu.id='tg83-remote-menu';menu.setAttribute('aria-labelledby','tg83-remote-menu-title');
+  const heading=el('header','tg81-drawer-head'),title=el('h2','','Minha sala');title.id='tg83-remote-menu-title';heading.append(title,button('Voltar',()=>menu.close()));
+  const wrap=el('div','tg81-drawer-content');menu.append(heading,wrap);r.append(menu);
+  const help=q('.tg193-remote-help',header),moderation=$('tg-beta-host-moderate');
+  const group=(label,...nodes)=>{const section=el('section','tg81-room-actions');section.append(el('h3','',label));move(section,...nodes);wrap.append(section);return section;};
+  const end=$('tg04-remote-end'),back=$('tg18-remote-back'),share=$('tg04-remote-invite'),stage=$('tg18-remote-stage'),appearance=q('.open-settings',control);
+  if(end){end.textContent='Encerrar festa para todos';end.title='Finaliza para todos após confirmação';end.classList.add('tg83-danger');}
+  if(back){back.textContent='Minhas salas';back.title='Volta às suas salas sem encerrar a festa';}
+  if(stage){stage.textContent='Abrir palco neste aparelho';stage.title='Feche o palco anterior primeiro';}
+  if(appearance)appearance.textContent='Aparência da TV';
+  if(moderation)moderation.textContent='Segurança';
+  group('Festa',share,back,stage,appearance,end);group('Ajuda e segurança',help,moderation);
+  legacy($('tg-beta-remote-nav'));
+  const closeMenu=()=>{if(menu.open)menu.close();};wrap.addEventListener('click',e=>{if(e.target.closest('button'))closeMenu();},true);
+  menu.addEventListener('click',e=>{if(e.target===menu)closeMenu();});menu.addEventListener('close',()=>{if(!r.hidden&&!document.querySelector('dialog[open]')&&!document.body.classList.contains('tg103-remote-mic-focus'))more.focus({preventScroll:true});});
+  const music=$('tg18-remote-music'),tabs=q('.tg19-remote-tabs',r);if(music&&tabs){music.textContent='♫ Escolher música · + Fila';music.classList.add('tg83-remote-music','button-primary');tabs.before(music);}
+  const sync=()=>{if(r.hidden||document.body.classList.contains('tg103-remote-mic-focus'))closeMenu();};
+  new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
   const audio=q('.tg05-remote-audio',control);if(audio){audio.open=false;const summary=q('summary',audio);if(summary)summary.textContent='🎚 Mesa de áudio da TV';
    const effects=el('section','tg28-effects');effects.append(el('h3','','Drag Diva'));const pads=el('section','tg26-effects');
    const send=(command,value)=>window.dispatchEvent(new CustomEvent('temgogo:remote-audio',{detail:{command,value}}));
    for(const [cmd,value,label] of [['diva-auto',1,'Ativar narração'],['diva-auto',0,'Desativar narração']])pads.append(button(label,()=>send(cmd,value)));
    const status=el('p','tg26-note','A narração inclui efeitos automáticos. Consulte a TV.');status.id='tg26-remote-audio-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');pads.append(status);effects.append(pads);audio.append(effects);
   }
-  const recado=$('tg04-remote-send')?.closest('details');if(recado){const label=q('summary',recado);if(label)label.textContent='💌 Recado para a TV';recado.open=false;}const appearance=q('.open-settings',control);if(appearance){appearance.textContent='Aparência da TV';wrap.insertBefore(appearance,help?.previousElementSibling||help||null);}const remoteHint=q('.tg-remote-help-note',control),queue=q('.tg19-remote-queue',control),feedback=$('tg18-remote-feedback'),grid=q('.tg18-remote-grid',control);if(feedback&&grid)grid.after(feedback);if(queue&&recado)queue.after(recado);if(remoteHint&&queue){const hint=q('.tg19-remote-queue-hint',queue);if(hint){hint.textContent='Toque em Preparar para chamar um cantor.';legacy(remoteHint);}else queue.prepend(remoteHint);}
-  legacy($('tg18-remote-rename')); // existing profile menu delegates to this action
-  const end=$('tg04-remote-end');if(end){end.textContent='⏻ Encerrar festa para todos';end.title='Finaliza para todos após confirmação';}
-  const back=$('tg18-remote-back');if(back){back.textContent='⇄ Minhas salas';back.title='Volta às suas salas sem encerrar a festa';}const share=$('tg04-remote-invite');if(share)wrap.insertBefore(share,back||wrap.firstChild);
-  window.addEventListener('temgogo:view',()=>{more.open=false;});
+  const recado=$('tg04-remote-send')?.closest('details');if(recado){const label=q('summary',recado);if(label)label.textContent='💌 Recado para a TV';recado.open=false;}
+  const remoteHint=q('.tg-remote-help-note',control),queue=q('.tg19-remote-queue',control),feedback=$('tg18-remote-feedback'),grid=q('.tg18-remote-grid',control);
+  if(feedback&&grid)grid.after(feedback);if(queue&&recado)queue.after(recado);if(remoteHint&&queue){const hint=q('.tg19-remote-queue-hint',queue);if(hint){hint.textContent='Toque em Preparar para chamar um cantor.';legacy(remoteHint);}else queue.prepend(remoteHint);}
+  legacy($('tg18-remote-rename'));
+  window.addEventListener('temgogo:view',closeMenu);
+
  }
  function guestNav(){
   const guest=$('guest'),top=q('.tg12-participant-top',guest),music=$('tg-r05-catalog-tab');if(!guest||!top||!music||guest.dataset.tg58Ready)return;
@@ -121,14 +135,26 @@
   const blocked=()=>document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg103-remote-mic-focus');
   const open=()=>{if(blocked())return;const b=window.TG_BETA_BRIDGE?.();if(!b?.user)return;for(const d of [$('tg50-drawer'),quick,$('tg20-host-profile-dialog'),guest,social])if(d?.open)d.close();
     if(!b.isAnonymous(b.user)){window.TG_BETA_OPEN_TAB?.('profile');return;}
-    if(b.role!=='guest')return;const own=b.members?.find(m=>m.user_id===b.user.id);$('guest-profile-name').value=own?.display_name||$('guest-display-name').textContent;const chosen=[...$('profile-avatar-options').querySelectorAll('input')].find(n=>n.value===b.avatar);if(chosen)chosen.checked=true;guest.showModal();
+    if(b.role!=='guest')return;const own=b.members?.find(m=>m.user_id===b.user.id);$('guest-profile-name').value=own?.display_name||$('guest-display-name').textContent;const chosen=[...$('profile-avatar-options').querySelectorAll('input')].find(n=>n.value===b.avatar);if(chosen)chosen.checked=true;const preview=$('tg83-guest-avatar-preview');if(preview)preview.src=avatarPaths[b.avatar]||avatarPaths.urbano;guest.showModal();
   };
+  const headerButtons=[];
+  const avatarPaths={urbano:'./cantor-urbano.png',esporte:'./cantor-esporte.png',ruiva:'./cantora-ruiva.png',oculos:'./cantora-oculos.png'};
+  for(const root of ['#lobby .simple-header .header-control-group','#tg18-remote .tg18-remote-header']){
+    const node=q(root),b=q('.tg124-profile-shortcut',node);if(!b)continue;
+    b.hidden=false;b.classList.remove('tg26-legacy');b.classList.add('tg83-header-avatar');b.dataset.tg83ProfileMenu='1';b.setAttribute('aria-label','Menu do perfil');b.setAttribute('aria-haspopup','dialog');b.setAttribute('aria-controls',quick.id);
+    const img=el('img');img.alt='';img.dataset.tg83AccountAvatar='1';img.src=avatarPaths[window.TG_BETA_BRIDGE?.()?.avatar]||avatarPaths.urbano;b.replaceChildren(img,el('span','','Perfil'));headerButtons.push(b);
+  }
+  const quickOpen=()=>{if(blocked())return;const b=window.TG_BETA_BRIDGE?.();if(!b?.user)return;
+    const lobby=document.body.dataset.currentView==='lobby',anon=b.isAnonymous(b.user);for(const key of ['change','leave','privacy']){const x=q('[data-tg124-action="'+key+'"]',quick);if(x)x.hidden=key==='privacy'||lobby;}
+    const history=q('[data-tg124-action="history"]',quick);if(history)history.hidden=anon;
+    const exit=q('[data-tg124-action="logout"]',quick);if(exit){exit.hidden=anon;exit.textContent='Sair do app / conta';}
+    if(!quick.open)quick.showModal();};
   const selectors='[data-tg124-profile],[data-tg-beta-open="profile"],#tg-beta-stage-profile,#tg-beta-lobby-profile,#tg-beta-remote-profile,#edit-guest-profile,#tg18-remote-rename,[data-tg124-action="edit"],[data-tg124-action="privacy"]';
-  document.addEventListener('click',e=>{if(!e.target.closest(selectors))return;e.preventDefault();e.stopImmediatePropagation();open();},true);
+  document.addEventListener('click',e=>{if(!e.target.closest(selectors))return;e.preventDefault();e.stopImmediatePropagation();if(e.target.closest('[data-tg83-profile-menu]'))quickOpen();else open();},true);
   document.addEventListener('keydown',e=>{if(!['Enter',' '].includes(e.key)||!e.target.matches('[data-tg124-profile]:not(button)'))return;e.preventDefault();e.stopImmediatePropagation();open();},true);
   for(const id of ['tg-beta-stage-profile','tg-beta-lobby-profile','tg-beta-remote-profile','edit-guest-profile','account-password-open','logout-button'])legacy($(id));
   legacy(q('#lobby .header-control-group .open-settings'));legacy(q('#guest .guest-live .open-settings'));
-  for(const b of document.querySelectorAll('.tg124-profile-shortcut'))b.textContent='Meu perfil';
+  for(const b of document.querySelectorAll('.tg124-profile-shortcut:not([data-tg83-profile-menu])'))b.textContent='Meu perfil';
   const panel=q('[data-tg-beta-panel="profile"]',social),save=$('tg-p-save'),anonInner=q('.modal-inner',guest);
   if(panel&&save){
     const socialDetails=el('details','tg60-social-options');socialDetails.append(el('summary','','Redes sociais e privacidade'));socialDetails.open=false;
@@ -145,9 +171,12 @@
     target.append(box);
   };
   actions(panel,false);actions(anonInner,true);
+  if(anonInner){const preview=el('img','tg83-guest-preview');preview.id='tg83-guest-avatar-preview';preview.alt='Prévia do avatar';preview.src=avatarPaths.urbano;const name=$('guest-profile-name');name?.before(preview);
+    $('profile-avatar-options')?.addEventListener('change',e=>{const key=e.target?.value;if(Object.hasOwn(avatarPaths,key))preview.src=avatarPaths[key];});
+  }
   const syncEntry=()=>{const b=window.TG_BETA_BRIDGE?.(),name=$('guest-name');if(name)name.readOnly=!!(b?.user&&!b.isAnonymous(b.user));};
   window.addEventListener('temgogo:view',syncEntry);syncEntry();
-  for(const d of [quick,$('tg20-host-profile-dialog')])if(d)new MutationObserver(()=>{if(d.open)open();}).observe(d,{attributes:true,attributeFilter:['open']});
+  for(const d of [$('tg20-host-profile-dialog')])if(d)new MutationObserver(()=>{if(d.open)open();}).observe(d,{attributes:true,attributeFilter:['open']});
  }
  function faq(){
   const dlg=$('faq-dialog'),inner=q('.modal-inner',dlg);if(!inner)return;
