@@ -1349,7 +1349,7 @@
   }
   async function init() {
     initPWA();loadPreferences();renderAvatarOptions();
-    document.getElementById('tg-beta-external-go')?.addEventListener('click',()=>{const input=$('tg07-external-query');input.value=$('catalog-search').value.trim();input.focus();if(input.value.length>=2)void searchYoutube(state.role==='host',true,true);});
+    document.getElementById('tg-beta-external-go')?.addEventListener('click',()=>{const input=$('tg07-external-query'),main=$('catalog-search');input.value=main.value.trim();if(input.value.length>=2)void searchYoutube(state.role==='host',true,true);else{main.focus();toast('Digite uma música ou artista na busca acima.');}});
     $('video-frame').appendChild($('stage-preflight'));
     setupHostCockpit();
     attachEvents();tg193AttachEvents();
@@ -3138,7 +3138,7 @@ function tg26FavoriteState(){const uid=tg26FavoriteAccount();if(tg26Favorites.ui
 function tg26FavoritePaint(){
   const f=tg26FavoriteState(),opt=$('catalog-favorites-option'),status=$('tg26-favorite-status');
   if(opt){opt.hidden=!f.uid;opt.disabled=!f.uid;}
-  if(status)status.textContent=!f.uid?'Entre com uma conta para salvar favoritos.':f.status==='loading'?'Carregando seus favoritos…':f.status==='error'?'Favoritos indisponíveis. Toque em Atualizar favoritos para tentar novamente.':f.status==='ready'?'Seus favoritos são privados e acompanham sua conta.':'';
+  if(status)status.textContent=!f.uid?'':f.status==='loading'?'Carregando favoritos…':f.status==='error'?'Favoritos indisponíveis. Atualize para tentar novamente.':'';
   const refresh=$('tg26-favorite-refresh');if(refresh){refresh.hidden=!f.uid||f.status==='ready';refresh.disabled=f.status==='loading'||f.writes.size>0;}const quick=$('tg28-favorites-quick');if(quick){quick.hidden=!f.uid;quick.setAttribute('aria-pressed',String(state.catalogFilter==='favorites'));}
   for(const b of document.querySelectorAll('[data-tg26-favorite]')){
     const id=b.dataset.tg26Favorite,on=f.items.has(id);b.hidden=!f.uid||b.dataset.tg26Uid!==f.uid;b.disabled=f.status!=='ready'||f.writes.has(id);b.textContent=on?'♥':'♡';b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',(on?'Remover dos favoritos: ':'Favoritar: ')+b.dataset.title);b.title=on?'Remover favorito':'Salvar favorito';
@@ -3162,9 +3162,11 @@ async function tg26ToggleFavorite(item,origin){
 }
 // R27: capa gráfica por classificação oficial, nunca por inferência do título.
 const tg27Covers=Object.freeze({pop:'pop',rock:'rock',funk:'funk',sertanejo:'sertanejo',pagode:'pagode-samba',samba:'pagode-samba',forro:'forro',rap:'rap-trap',mpb:'mpb',internacional:'internacional',outros:'outras'});
-const tg27ExtraIcons=Object.freeze({reggae:'🌿',eletronica:'🎛️',axe:'☀️',infantil:'🎈',gospel:'✦'});
+const tg27ExtraIcons=Object.freeze({reggae:'🌿',eletronica:'🎛️',axe:'☀️',infantil:'🎈'});
+// R66: taxonomia pública homologada; não excluir músicas do acervo.
+const tg66AllowedGenre=g=>g&&typeof g.code==='string'&&g.code.toLowerCase()!=='gospel';
 function tg27Genre(item){
- const official=(state.catalogGenres||[]).find(g=>g.code===item?.genre);
+ const official=(state.catalogGenres||[]).find(g=>tg66AllowedGenre(g)&&g.code===item?.genre);
  const code=official?.code||'outros';
  return {code,label:code==='outros'?'Outras':String(official.label||code),cover:Object.hasOwn(tg27Covers,code)?tg27Covers[code]:null};
 }
@@ -3174,7 +3176,7 @@ function tg27Cover(item){
  if(genre.cover){const img=document.createElement('img');img.alt='';img.width=256;img.height=256;img.loading='lazy';img.decoding='async';img.addEventListener('error',()=>img.remove(),{once:true});img.src='./capa-'+genre.cover+'.webp';cover.append(img);}
  return cover;
 }
-function tg27GenreOptions(){const list=(state.catalogGenres||[]).filter(g=>g.code!=='outros');return [...list,{code:'outros',label:'Outras'}];}
+function tg27GenreOptions(){const list=(state.catalogGenres||[]).filter(g=>tg66AllowedGenre(g)&&g.code!=='outros');return [...list,{code:'outros',label:'Outras'}];}
 function catalogResults(query='',filter='all'){
   if(filter==='favorites'){const f=tg26FavoriteState();if(!f.uid||f.status!=='ready')return [];const official=new Map(state.catalog.map(x=>[x.video_id,x]));return [...f.items].map(([video_id,title])=>official.get(video_id)||{video_id,title,plays:0,source_kind:'external'}).filter(x=>matchesMusic(x,query)).sort((a,b)=>a.title.localeCompare(b.title,'pt-BR'));}
   const records=state.catalog.filter(song=>(filter==='played'?Number(song.plays)>0:
@@ -3204,7 +3206,7 @@ async function loadCatalog(force=false){
       if((data||[]).length<batch){complete=true;break;}
     }
     if(!current())return [];
-    state.catalog=[...loaded.values()];state.catalogIncomplete=!complete;state.catalogGenres=genreUnavailable?[]:genres;state.catalogGenreUnavailable=genreUnavailable;const genreFilter=$('catalog-filter');if(genreFilter){for(const opt of [...genreFilter.options])if(opt.value.startsWith('genre:'))opt.remove();for(const g of tg27GenreOptions()){const opt=document.createElement('option');opt.value='genre:'+g.code;opt.textContent=g.label;genreFilter.append(opt);}if([...genreFilter.options].some(o=>o.value===state.catalogFilter))genreFilter.value=state.catalogFilter;else{state.catalogFilter='all';genreFilter.value='all';}}
+    state.catalog=[...loaded.values()];state.catalogIncomplete=!complete;state.catalogGenres=genreUnavailable?[]:genres.filter(tg66AllowedGenre);state.catalogGenreUnavailable=genreUnavailable;const genreFilter=$('catalog-filter');if(genreFilter){for(const opt of [...genreFilter.options])if(opt.value.startsWith('genre:'))opt.remove();for(const g of tg27GenreOptions()){const opt=document.createElement('option');opt.value='genre:'+g.code;opt.textContent=g.label;genreFilter.append(opt);}if([...genreFilter.options].some(o=>o.value===state.catalogFilter))genreFilter.value=state.catalogFilter;else{state.catalogFilter='all';genreFilter.value='all';}}
     state.catalogError=null;tg39CatalogRetryAt=0;
     state.catalogFetchedAt=Date.now();
     renderCatalog();
@@ -3261,10 +3263,10 @@ function catalogCard(item,host){
         finally{tgR16EndCurate(ticket);select.disabled=false;send.disabled=!select.value;}
       });details.append(label,send);
     }
-    const hint=document.createElement('small');hint.textContent='Sugestões passam pela curadoria; o catálogo não muda imediatamente.';details.append(hint);
+    const hint=document.createElement('small');hint.textContent='A Central revisará sua sugestão.';details.append(hint);
   }
   const toggle=document.createElement('button');toggle.type='button';toggle.className='tg123-track-toggle';
-  toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent='+ FILA';
+  toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Escolher formato para '+item.title);toggle.textContent=state.room?.room_mode==='solo'?'+ LISTA':'+ FILA';if(state.room?.room_mode==='solo'){toggle.removeAttribute('aria-expanded');toggle.setAttribute('aria-label','Adicionar '+item.title+' à minha lista');}
   const expanded=document.createElement('div');expanded.className='tg123-track-choice';expanded.hidden=true;
   const hint=document.createElement('span');hint.textContent='Como vai ser o show?';hint.className='tg123-track-hint';
   const modes=document.createElement('div');modes.className='tg123-track-modes';modes.setAttribute('role','group');modes.setAttribute('aria-label','Formato da apresentação');
@@ -3309,6 +3311,7 @@ function catalogCard(item,host){
   expanded.append(hint,modes,partnerBox,add);
   toggle.addEventListener('click',()=>{
     if(!tg07Current(scope)){toast('A sala mudou. Abra o catálogo novamente.',true);return;}
+    if(state.room?.room_mode==='solo'&&state.role==='host'){void addSearchedVideo({id:videoId,title:item.title},true,toggle,card,'solo',[]);return;}
     const opening=expanded.hidden;
     document.querySelectorAll('.tg123-track-choice:not([hidden])').forEach(el=>{if(el!==expanded){el.hidden=true;el.closest('.tg123-track')?.querySelector('.tg123-track-toggle')?.setAttribute('aria-expanded','false');}});
     expanded.hidden=!opening;toggle.setAttribute('aria-expanded',String(opening));
