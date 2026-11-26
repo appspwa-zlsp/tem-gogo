@@ -250,3 +250,25 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
 #stage[data-tg50-ready] #tg17-console .tg05-voice-controls .tg26-effects:not([hidden]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--tg-border,var(--line))}
 #stage[data-tg50-ready] #tg17-console .tg26-effects :is(h3,p){grid-column:1/-1;margin:0}
 #stage[data-tg50-ready] #tg17-console .tg26-effects button,#tg18-remote .tg28-effects button{min-height:44px;white-space:normal}
+
+/* R67 — cinematic preview, actual approved character art, no live voting. */
+#tg70-battle-guide{width:min(94vw,860px)!important;max-height:94dvh!important;overflow:auto}
+#tg70-battle-guide .tg70-guide-inner{padding:clamp(10px,2vw,22px);min-width:0}
+#tg67-guide-scene{position:relative;display:flex;align-items:end;justify-content:space-around;gap:8px;aspect-ratio:16/9;overflow:hidden;border-radius:14px;background:radial-gradient(ellipse at 50% 25%,#752c99,#24133c 60%,#110b1c);border:1px solid #a86ac1;padding:8px;box-sizing:border-box;color:#fff}
+#tg67-guide-scene img{object-fit:contain;min-width:0;max-height:100%}
+#tg67-guide-scene .tg67-guide-diva{width:30%;max-height:94%;z-index:1}
+#tg67-guide-scene .tg67-guide-cast{flex:1;min-width:0;height:90%;display:flex;align-items:end;justify-content:center;gap:6px;flex-wrap:wrap}
+#tg67-guide-scene .tg67-guide-cast>img{width:21%;max-height:84%}
+#tg67-guide-scene[data-scene=qualify] .tg67-guide-cast>img,#tg67-guide-scene[data-scene=duel] .tg67-guide-cast>img,#tg67-guide-scene[data-scene=vote] .tg67-guide-cast>img{width:34%}
+#tg67-guide-scene .tg67-guide-cast span{font-weight:700;font-size:clamp(12px,2vw,22px);text-shadow:0 1px 4px #000}
+#tg67-guide-scene .tg67-podium-step{display:grid;justify-items:center;width:30%;height:70%;background:#713e8a;border-radius:8px 8px 0 0}
+#tg67-guide-scene .tg67-podium-step:nth-child(2){height:95%;background:#936221}
+#tg67-guide-scene .tg67-podium-step:nth-child(3){height:58%;background:#864f39}
+#tg67-guide-scene .tg67-podium-step img{width:100%;height:100%;min-height:0}
+#tg67-guide-scene .tg67-podium-step span{padding:4px}
+#tg70-battle-guide .tg67-guide-controls{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+#tg70-battle-guide .tg67-guide-controls button{flex:1 1 100px;min-height:44px}
+#tg70-battle-guide #tg70-guide-text{font-size:clamp(13px,2vw,17px);margin:4px 0}
+@keyframes tg67-enter{from{opacity:.15;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:no-preference){body:not(.tg93-reduce-motion) #tg67-guide-scene .tg67-guide-cast{animation:tg67-enter .6s ease-out}}
+@media(max-width:480px){#tg70-battle-guide .tg70-guide-top>img{display:none}#tg67-guide-scene{aspect-ratio:4/3}}
