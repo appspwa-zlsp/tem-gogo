@@ -26,5 +26,7 @@ window.TEM_GOGO_CONFIG = {
   VAPID_PUBLIC_KEY: '',
   // V7.5: não ativar enquanto API, notas, recuperação e QA não forem homologados.
   BATTLE_API_RELEASE_ALLOWED: false,
+  // R108: somente sala piloto expressamente autorizada no Supabase. Não ativar em produção.
+  HOST_LEASE_PILOT: false,
   MAX_ACTIVE_MICS: 8
 };

@@ -21,6 +21,93 @@
   };
 
 
+
+  // R108-B2: camada piloto, inativa por padrão. O token fica na closure do adapter.
+  let tg108Started=false,tg108Ready=false,tg108Transition=false,tg108PairDialog=null,tg108PairTimer=null;
+  const tg108=window.TG108_HOST_LEASE.create({
+    enabled:cfg.HOST_LEASE_PILOT===true,
+    context:()=>({room:state.room?.id,uid:state.user?.id,role:state.role,epoch:tg07SessionEpoch,battle:state.room?.tg30_battle_reserved===true}),
+    rpc:async(name,params)=>{const {data,error}=await state.client.rpc(name,params);if(error)throw error;return data;},
+    onStop:()=>{if(state.room&&!state.emergencyClosing&&!state.emergencyLatch)tg23Suspend('Autoridade do palco não confirmada. Entre novamente; nenhuma música será retomada automaticamente.','connection');}
+  });
+  const tg108Protected=()=>cfg.HOST_LEASE_PILOT===true&&tg13Recreational()&&tg108Started&&!tg108.snapshot().legacy;
+  const tg108Safe=()=>!tg108Protected()||tg108.snapshot().live;
+  function tg108ClearPair(){clearInterval(tg108PairTimer);tg108PairTimer=null;if(tg108PairDialog){tg108PairDialog.remove();tg108PairDialog=null;}}
+  function tg108Reset(){tg108ClearPair();tg108.reset();tg108Started=false;tg108Ready=false;tg108Transition=false;$('tg108-pair-controls')?.remove();$('tg108-pair-entry')?.remove();}
+  function tg108Wait(mode){
+    state.emergencyBlocked=true;
+    const isRemote=state.role==='remote';
+    const message=mode==='expired'?'O palco anterior perdeu a validade. Abra o palco para recuperar a festa com confirmação.':mode==='occupied'?'Outro palco está autorizado. Aguarde a expiração antes de recuperar.':mode==='awaiting_host'?'Aguardando autorização inicial do palco.':isRemote?'Vincule este celular no palco antes de controlar a festa.':'Aguardando o palco autorizado. Entre novamente quando estiver disponível.';
+    tg23Dialog(message,'lease');
+    if(!isRemote||!['unbound','live'].includes(mode))return;
+    let box=$('tg108-pair-entry');if(box)return;
+    box=document.createElement('div');box.id='tg108-pair-entry';
+    const label=document.createElement('label');label.textContent='Código temporário do palco';
+    const input=document.createElement('input');input.type='text';input.autocomplete='off';input.spellcheck=false;input.maxLength=64;input.setAttribute('aria-label','Código temporário de pareamento');
+    const send=document.createElement('button');send.type='button';send.className='button button-primary';send.textContent='Solicitar vínculo';
+    const status=document.createElement('p');status.setAttribute('role','status');
+    const again=document.createElement('button');again.type='button';again.textContent='Entrar novamente no controle';
+    send.onclick=async()=>{const code=input.value.trim().toLowerCase();input.value='';send.disabled=true;try{await tg108.request(code);status.textContent='Pedido enviado. Confirme no palco e entre novamente.';}catch{status.textContent='Código inválido, expirado ou pedido não autorizado.';}finally{send.disabled=false;}};
+    again.onclick=async()=>{const room=state.room;if(room&&state.role==='remote')await enterRoomAsRemote(room);};
+    label.append(input);box.append(label,send,status,again);$('tg23-emergency')?.querySelector('.tg103-emergency-inner')?.append(box);
+  }
+  async function tg108Gate(scope,initial){
+    if(cfg.HOST_LEASE_PILOT!==true||!tg13Recreational())return true;
+    let s;
+    if(!tg108Started){tg108Started=true;s=await tg108.begin();}else s=await tg108.refresh();
+    if(!tg07Current(scope)||state.emergencyLatch)return false;
+    if(initial&&state.role==='host'&&['awaiting_host','expired'].includes(s.mode)){
+      const recovering=s.mode==='expired';
+      const ok=await window.TG_UI.confirm(recovering?'A música interrompida ficará sem nota e poderá voltar à fila. Nenhuma música será iniciada automaticamente.':'Autorizar este aparelho como palco da festa piloto?',{title:recovering?'Recuperar festa':'Autorizar palco',confirmText:recovering?'Recuperar':'Autorizar'});
+      if(!tg07Current(scope)||!ok){tg108Wait(s.mode);return false;}
+      if(recovering){await tg108.recover(true);await fetchRoom();}else await tg108.claim(true);
+      if(!tg07Current(scope))return false;s=tg108.snapshot();
+    }
+    if(s.legacy||s.live){
+      if(initial){tg108Ready=true;return true;}
+      if(tg108Ready)return true;
+      tg108Wait(s.mode);return false;
+    }
+    tg108Wait(s.mode);return false;
+  }
+  const tg108Idle=()=>state.role==='host'&&tg108.snapshot().live&&!state.emergencyBlocked&&!state.emergencyLatch&&!state.currentSong&&!state.room?.current_song_id&&!state.preflight&&!state.startingSong&&!state.finishing&&!state.localStream&&!state.soloMic&&!state.peers.size;
+  function tg108Controls(){
+    $('tg108-pair-controls')?.remove();if(!tg108Protected()||state.role!=='host'||state.room?.room_mode!=='classic')return;
+    const root=$('tg30-control-qr-details')||$('stage-host-qr')?.parentElement;if(!root)return;
+    const wrap=document.createElement('div');wrap.id='tg108-pair-controls';wrap.className='tg30-control-qr-details';
+    const pair=document.createElement('button');pair.type='button';pair.className='button button-primary';pair.textContent='Vincular controle';
+    const revoke=document.createElement('button');revoke.type='button';revoke.className='button button-soft';revoke.textContent='Desconectar controle';
+    pair.onclick=()=>void tg108OpenPair();revoke.onclick=async()=>{if(!tg108Idle()){toast('Aguarde o intervalo, sem chamada ou microfone ativo.',true);return;}if(!await window.TG_UI.confirm('Desconectar o celular e invalidar os comandos pendentes?',{title:'Desconectar controle',confirmText:'Desconectar',danger:true}))return;await tg108Rotate(()=>tg108.revoke(true));};
+    wrap.append(pair,revoke);root.append(wrap);
+  }
+  async function tg108Rotate(action){
+    if(!tg108Idle()||tg108Transition)return false;const scope=tg07Scope();tg108Transition=true;
+    try{await state.signalChain;if(!tg07Current(scope)||!tg108Idle())return false;
+      const old=tg108.snapshot().generation;await action();if(!tg07Current(scope))return false;
+      if(old!==tg108.snapshot().generation){state.processedSignals.clear();state.candidateBuffer.clear();tgR14ClearRemote();tg90ResetUpcoming();}
+      tg108ClearPair();toast('Vínculo do controle atualizado.');return true;
+    }catch{if(tg07Current(scope))toast('Não foi possível confirmar o vínculo. Confira o estado do palco.',true);return false;}finally{tg108Transition=false;}
+  }
+  async function tg108OpenPair(){
+    if(!tg108Idle()){toast('Vincule o celular entre apresentações, sem chamada ou microfone ativo.',true);return;}
+    if(!await window.TG_UI.confirm('Gerar um código temporário para o celular que usa sua conta?',{title:'Vincular controle',confirmText:'Gerar código'}))return;
+    const scope=tg07Scope();if(!tg108Idle())return;
+    try{const result=await tg108.issue(true);if(!tg07Current(scope))return;tg108ClearPair();
+      const d=document.createElement('dialog');d.className='tg103-emergency';d.setAttribute('aria-label','Vincular controle remoto');tg108PairDialog=d;
+      const panel=document.createElement('div');panel.className='tg103-emergency-inner';
+      const title=document.createElement('h2');title.textContent='Vincular controle';
+      const hint=document.createElement('p');hint.textContent='Abra o controle com a mesma conta. Cole o código temporário e confirme o pedido aqui.';
+      const code=document.createElement('input');code.readOnly=true;code.value=result.code;code.setAttribute('aria-label','Código temporário');
+      const copy=document.createElement('button');copy.type='button';copy.textContent='Copiar código';copy.onclick=async()=>{try{await navigator.clipboard.writeText(code.value);toast('Código copiado.');}catch{code.select();}};
+      const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Aguardando pedido…';
+      const approve=document.createElement('button');approve.type='button';approve.textContent='Autorizar celular';approve.disabled=true;approve.onclick=()=>void tg108Rotate(()=>tg108.review('approve',true));
+      const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';cancel.onclick=async()=>{try{await tg108.review('cancel',true);}catch{}tg108ClearPair();};
+      d.addEventListener('cancel',e=>{e.preventDefault();cancel.click();});panel.append(title,hint,code,copy,status,approve,cancel);d.append(panel);document.body.append(d);d.showModal();
+      let polling=false;tg108PairTimer=setInterval(async()=>{if(polling||tg108Transition)return;if(!tg07Current(scope)||!tg108Safe()){tg108ClearPair();return;}polling=true;try{const r=await tg108.review('status',false);if(d!==tg108PairDialog)return;approve.disabled=r.state!=='pending'||!tg108Idle();status.textContent=r.state==='pending'?'Pedido recebido. Autorize o celular somente se for o seu.':'Aguardando pedido…';}catch{if(d===tg108PairDialog){status.textContent='Pedido expirado ou indisponível. Feche e gere outro código.';approve.disabled=true;code.value='';copy.disabled=true;clearInterval(tg108PairTimer);}}finally{polling=false;}},2000);
+    }catch{toast('Não foi possível gerar o código. Confira o palco.',true);}
+  }
+  const tg108ActionMap=Object.freeze({tg30_start_song_bound:'start',tg30_finish_song_bound:'finish',karaoke_remove_song:'remove',karaoke_confirm_playback:'playback',karaoke_finalize_party:'finalize',karaoke_close_room:'close',karaoke_clean_signals:'clean'});
+
   // V7.5: contexto de leitura compartilhado com o painel isolado da Batalha.
   // Nunca expor segredos administrativos, nem permitir que o painel altere state.
   Object.defineProperty(window,'TG_APP_CONTEXT',{value:Object.freeze({
@@ -183,6 +270,7 @@
     const song=state.songs.find(s=>s.id===songId&&s.status==='queued');
     if(!song||!await window.TG_UI.confirm('Remover “'+song.title+'” da fila?',{title:'Organizar fila',confirmText:'Remover música',danger:true}))return;
     if(state.emergencyBlocked||!tg07Current(scope)||state.role!=='remote'||callActive()||!state.songs.some(s=>s.id===songId&&s.status==='queued'))return;
+    if(tg108Protected()){await remoteCommand('remove-song',null,songId);return;}
     try{await callRPC('karaoke_remove_song',{p_room:scope.room,p_song:song.id});if(!tg07Current(scope))return;await fetchSongs();toast('Música removida da fila.');}
     catch(err){toast('Não foi possível remover a música: '+humanError(err),true);}
   }
@@ -274,7 +362,7 @@
   async function remoteCommand(cmd,value,songId=null){
     if(state.emergencyBlocked)return;
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
-    const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song','stage-theme','diva-preview-volume','pop-volume','stage-status','diva-auto','pop-effect'];
+    const allowed=['play','pause','toggle','next','prepare','start','resend','playback-volume','mic-volume','prepare-song','stage-theme','diva-preview-volume','pop-volume','stage-status','diva-auto','pop-effect','remove-song','end-party'];
     if(!allowed.includes(cmd))return;
     if(callActive() && !['start','resend'].includes(cmd)){toast('Durante sua vez o controle fica protegido; use o painel do microfone.',true);return;}
     if((cmd==='stage-status'||cmd==='stage-theme'||cmd==='diva-auto'||cmd==='pop-effect'||Object.hasOwn(tgR14Volumes,cmd))&&[...state.remotePending.values()].some(p=>p.cmd===cmd))return;
@@ -312,7 +400,7 @@
           $('tg18-remote-feedback').textContent='⚠ A TV não confirmou este comando. Confira a tela antes de tocar novamente; não repetimos ações automaticamente.';
         }else toast('A TV não confirmou '+(tgR14CommandNames[cmd]||'o comando')+'. Consulte os ajustes antes de repetir.',true);
       },12000);
-      await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'||(cmd==='stage-theme'&&THEMES.includes(value))?value:null,songId:typeof songId==='string'?songId:null,...(cmd==='next'?{expectedSongId}:{}),at:Date.now(),id});
+      await sendSignal(state.user.id,'host-remote',{command:cmd,value:typeof value==='number'||(cmd==='stage-theme'&&THEMES.includes(value))?value:null,songId:typeof songId==='string'?songId:null,...(['next','end-party'].includes(cmd)?{expectedSongId}:{}),at:Date.now(),id});
       // O ACK pode chegar pelo Realtime antes de o INSERT terminar.
       if(state.emergencyBlocked||!tg07Current(scope))return;
       if(state.remotePending.has(id)&&state.remoteLatestCommandId===id){
@@ -350,7 +438,11 @@
       const playbackSongId=state.currentSong?.id??null;
       const toggleHadSong=cmd==='toggle'&&Boolean(state.currentSong);
       const toggleTarget=toggleHadSong?(state.isPlaying?2:1):null;
-      if(cmd==='prepare-song'){
+      if(cmd==='remove-song'&&tg108Protected()){
+        await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;const song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');if(!song)throw Error('Música não está mais na fila.');await callRPC('karaoke_remove_song',{p_room:scope.room,p_song:song.id});await fetchSongs();renderQueue();
+      }else if(cmd==='end-party'&&tg108Protected()){
+        if(!Object.hasOwn(data,'expectedSongId')||data.expectedSongId!==(state.currentSong?.id??null))throw Error('A apresentação mudou. Confira a TV.');await exitStage({remoteConfirmed:true});return;
+      }else if(cmd==='prepare-song'){
         let song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');
         if(!song){await fetchSongs();song=state.songs.find(s=>s.id===data.songId&&s.status==='queued');}
         if(state.emergencyBlocked||!tg07Current(scope))return;
@@ -1465,7 +1557,7 @@
   }
   function isAnonymous(user) {return user?.is_anonymous===true || user?.app_metadata?.provider==='anonymous';}
   function checkBackend() {if (!state.client){toast('Antes de usar, configure o Supabase em config.js.',true);return false;}return true;}
-  async function callRPC(name,params) {const {data,error}=await state.client.rpc(name,params);if(error)throw error;return data;}
+  async function callRPC(name,params) {const action=tg108ActionMap[name];if(action&&tg108Protected()){if(state.role!=='host'||params?.p_room!==state.room?.id||!tg108Safe()||tg108Transition)throw Error('Comando exige o palco autorizado.');return tg108.command(action,{song:params.p_song,emergencyGeneration:params.p_generation,skipped:params.p_skipped,results:params.p_results,played:params.p_played_seconds,duration:params.p_duration_seconds});}const {data,error}=await state.client.rpc(name,params);if(error)throw error;return data;}
 
   function openGuestEntry(roomCode) {
     $('tab-host').classList.remove('active');$('tab-host').setAttribute('aria-selected','false');
@@ -1751,6 +1843,7 @@
 
   let tgR15StageTicket=null;
   async function tgR15RequestStage(){
+    if(tg108Protected()){toast('Para recuperar, volte a Minhas festas e abra o palco após a expiração do anterior.',true);return false;}
     const scope=tg07Scope();
     const allowed=()=>tg07Current(scope)&&state.role==='remote'&&canDirectDiva()&&!state.emergencyBlocked&&!callActive()&&!state.localStream&&!state.remotePending.size;
     if(!allowed()){toast('Conclua sua apresentação e aguarde os comandos da TV antes de abrir o palco.',true);return false;}
@@ -1842,7 +1935,7 @@
       const el=$(id); if(!el)continue;el.textContent=label;el.dataset.status=mode;
     }
   }
-  async function hydrateRoom() {const scope=tg07Scope();await tg83RestoreAvatar();if(!tg07Current(scope))return;await fetchRoom();if(!tg07Current(scope))return;await tg23Start();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;renderAll();void fetchStageTheme();if(state.role==='host')void syncPartyMessages();}
+  async function hydrateRoom() {const scope=tg07Scope();await tg83RestoreAvatar();if(!tg07Current(scope))return;await fetchRoom();if(!tg07Current(scope))return;await tg23Start();if(!tg07Current(scope)||state.emergencyBlocked)return;if(state.role==='host')tg108Controls();await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;renderAll();void fetchStageTheme();if(state.role==='host')void syncPartyMessages();}
   let tgR15SyncTicket=null;
   async function refreshRoomSnapshot(){
     if(state.emergencyBlocked||state.emergencyClosing||!state.room)return;
@@ -2235,7 +2328,7 @@
   // C24: a geração é escolhida pelo servidor, nunca pelo relógio do aparelho.
   const tg24GenerationValid=g=>g===null||typeof g==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(g);
   function tg24AcceptSignal(signal){
-    return (signal?.payload?._tg30Generation??null)===(state.emergencyGeneration??null);
+    return (signal?.payload?._tg30Generation??null)===(state.emergencyGeneration??null)&&(!tg108Protected()||!tg108Transition&&tg108.accepts(signal?.payload));
   }
   function receiveSignal(signal) {
     if(state.emergencyBlocked||!tg24AcceptSignal(signal))return;
@@ -2250,6 +2343,7 @@
     if(!state.room||!state.user)return;
     payload={...payload};delete payload._tg30Generation;
     if(state.emergencyGeneration)payload._tg30Generation=state.emergencyGeneration;
+    if(tg108Protected()){if(tg108Transition||!tg108Safe())throw Error('Sinalização suspensa.');if(state.role==='host')return tg108.signal(to,kind,{...payload,_device:state.deviceId});payload=tg108.decorate(payload);}
     // Conta do host em TV e celular tem o MESMO UID. O banco antigo de sinais
     // não permite (ou distingue) envio para si próprio. Canal dedicado + RLS.
     if(to===state.user.id&&state.room.owner_id===state.user.id&&['host','remote'].includes(state.role)){
@@ -3899,6 +3993,7 @@ function renderFullCatalog(){
     clearInterval(state.ticker);let cycles=0;
     state.ticker=setInterval(()=>{
       if(!state.room||state.emergencyBlocked)return;
+      if(!tg108Safe()){tg23Suspend('Validade do palco não confirmada. Entre novamente.','connection');return;}
       if(tg18Recognition&&(isMyTurn()||callActive()))tg18AbortDictation();
       window.TG74_DIVA_STUDIO?.guard();window.TG75_BATTLE_PANEL?.guardShowAudio?.();
       tg105Tick();sampleAudio();cycles++;if(cycles%35===0)tg102WakeTick();
@@ -3909,7 +4004,7 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
-    tg105Reset();tg100ReportReset();tg102ReleaseWake();
+    tg108Reset();tg105Reset();tg100ReportReset();tg102ReleaseWake();
     window.TG75_BATTLE_PANEL?.stopShowAudio?.();++tg07SessionEpoch;tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
@@ -4089,7 +4184,7 @@ function renderFullCatalog(){
     const reference=code?' (código '+code+')':'';
     return 'Não foi possível confirmar o encerramento no Supabase'+reference+'. '+humanError(error);
   }
-  async function exitStage(){
+  async function exitStage(options={}){
     if(state.emergencyBlocked)return;
     if(!canDirectDiva()||!state.room)return;
     if(!tg13Recreational()){toast('Use a aba Prêmios do festival para encerrar o palco competitivo após o resultado oficial.',true);return;}
@@ -4097,8 +4192,9 @@ function renderFullCatalog(){
     const initialRoom=state.room.id,initialScope=tg07Scope();
     if(state.finishing){toast('Concluindo a música atual. Aguarde um instante para encerrar a festa.');return;}
     const solo=state.room.room_mode==='solo';
-    if(!await window.TG_UI.confirm(solo?'Encerrar sua sessão Solo? As músicas pendentes serão encerradas.':'Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:solo?'Finalizar sessão':'Finalizar a festa',confirmText:solo?'Encerrar sessão':'Encerrar festa',danger:true}))return;
+    if(options.remoteConfirmed!==true&&!await window.TG_UI.confirm(solo?'Encerrar sua sessão Solo? As músicas pendentes serão encerradas.':'Encerrar a festa e apresentar o TOP 3? A fila será encerrada.',{title:solo?'Finalizar sessão':'Finalizar a festa',confirmText:solo?'Encerrar sessão':'Encerrar festa',danger:true}))return;
     if(state.emergencyBlocked||!tg07Current(initialScope)||!canDirectDiva()||!tg13Recreational()||state.room?.id!==initialRoom||state.finishing||(state.role==='remote'&&callActive()))return;
+    if(state.role==='remote'&&tg108Protected()){await remoteCommand('end-party');return;}
     const id=state.room.id,scope=tg07Scope();
     const studio=window.TG74_DIVA_STUDIO,localNarration=state.role==='host'&&studio?.getAuto()===true,localSound=localNarration&&studio?.isUnlocked()===true;
     const button=$(state.role==='remote'?'tg04-remote-end':'stage-exit');
@@ -4726,7 +4822,7 @@ function renderFullCatalog(){
   }
   function tg23Suspend(message,reason='security'){
     if(!state.room||state.emergencyClosing)return;
-    state.emergencyBlocked=true;tg105Reset();tg102ReleaseWake();window.TG75_BATTLE_PANEL?.stopShowAudio?.();tg89CloseSound();tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
+    state.emergencyBlocked=true;tg108Reset();tg105Reset();tg102ReleaseWake();window.TG75_BATTLE_PANEL?.stopShowAudio?.();tg89CloseSound();tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
     if(!state.emergencyLatch){
       state.emergencyLatch=true;++tg07SessionEpoch;tgR25ClearSoloReport();tgR19CancelSoloRequest();tgR20CancelMicRequest();
       // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
@@ -4760,7 +4856,7 @@ function renderFullCatalog(){
     }
     tg23Dialog(message,reason);
   }
-  async function tg23Poll(){
+  async function tg23Poll(initial=false){
     if(!state.room||!state.user||tg23Leaving||state.emergencyClosing)return false;
     if(tg23Pending)return tg23Pending.promise;
     const scope=tg07Scope(),ticket={};tg23Pending=ticket;
@@ -4777,6 +4873,7 @@ function renderFullCatalog(){
           tg23Suspend('Houve uma mudança de segurança enquanto este aparelho estava conectado. Entre novamente no palco para receber somente os comandos atuais.');return false;
         }
         state.emergencyGeneration=generation;
+        if(!await tg108Gate(scope,initial)||!tg07Current(scope))return false;
         state.emergencyBlocked=false;return true;
       }catch{if(tg07Current(scope)&&tg23Pending===ticket)tg23Suspend('Não conseguimos consultar a segurança da sala. O áudio foi interrompido por precaução; isso não confirma uma suspensão administrativa. Verifique a conexão e entre novamente.', 'connection');return false;}
       finally{clearTimeout(timer);if(tg23Pending===ticket)tg23Pending=null;}
@@ -4792,7 +4889,7 @@ function renderFullCatalog(){
     tg102WakeRetryAt=0;void unlockWakeLock();
     void refreshRoomSnapshot();void fetchRecentSignals();void fetchHostDeviceSignals();
   }
-  async function tg23Start(){clearInterval(tg23Timer);tg23Timer=setInterval(()=>{void tg23Poll();},4000);return tg23Poll();}
+  async function tg23Start(){clearInterval(tg23Timer);tg23Timer=setInterval(()=>{void tg23Poll();},4000);return tg23Poll(true);}
   function tg23Reset(){clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;state.emergencyBlocked=true;state.emergencyLatch=false;state.emergencyGeneration=undefined;state.emergencyClosing=false;state.startingSong=null;state.playerSongId=null;if($('tg23-emergency')?.open)$('tg23-emergency').close();}
   async function tg23ExitLocal(){if(tg23Leaving)return;tg23Leaving=true;try{await stopSession();history.replaceState(null,'',new URL('./',location.href).href);localStorage.removeItem('tem-gogo-pending-room');localStorage.removeItem('tem-gogo-pending-remote');if(state.user&&!isAnonymous(state.user))await openLobby();else showGuestEntry('');}finally{tg23Leaving=false;}}
   // Bloqueio administrativo – recursos locais param quando o estado chega ao navegador.
