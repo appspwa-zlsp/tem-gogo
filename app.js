@@ -2315,7 +2315,7 @@
       if(!tg105Audio){const clip=new Audio('./artissizm-football-cup-brazil-funk-565894.mp3');clip.loop=true;clip.preload='none';tg105Audio=clip;clip.onerror=()=>{if(tg105Audio===clip){tg105Denied=true;tg105Pause();}};}
       const clip=tg105Audio;clip.volume=tg105Volume();clip.muted=false;if(!clip.paused)return;
       const ticket={clip};tg105Pending=ticket;
-      Promise.resolve(clip.play()).then(()=>{if(tg105Audio!==clip||!tg105Eligible()){clip.muted=true;clip.pause();}}).catch(()=>{if(tg105Audio===clip){tg105Denied=true;tg105Pause();}}).finally(()=>{if(tg105Pending===ticket)tg105Pending=null;});
+      Promise.resolve(clip.play()).then(()=>{if(tg105Audio!==clip||!tg105Eligible()){clip.muted=true;clip.pause();}}).catch(err=>{if(tg105Audio===clip){if(err?.name!=='AbortError')tg105Denied=true;tg105Pause();}}).finally(()=>{if(tg105Pending===ticket)tg105Pending=null;});
     }catch{tg105Denied=true;tg105Pause();tg105Pending=null;}
   }
   function tg105Unlock(){
