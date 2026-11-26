@@ -44,7 +44,7 @@
   window.addEventListener('resize',measure);window.addEventListener('temgogo:view',()=>{if(drawer.open)drawer.close();measure();});document.addEventListener('fullscreenchange',measure);
   const cat=$('catalog-dialog');cat?.addEventListener('close',()=>{if(!stage.hidden&&!document.querySelector('dialog[open]')&&music.isConnected)music.focus({preventScroll:true});});
   const syncSolo=()=>{
-    const solo=stage.dataset.tg100Mode==='solo'||document.body.classList.contains('tg104-single-device');
+    const solo=stage.dataset.tg100Mode==='solo';
     stage.dataset.tg63Experience=solo?'solo':'classic';
     queueButton.textContent=solo?'Minha lista':'Fila';music.textContent=solo?'Escolher música':'Músicas';roomButton.textContent=solo?'Opções':'Sala';
     sections.get('fila').label=solo?'Minha lista de músicas':'Fila e participantes';
@@ -71,7 +71,7 @@
    for(const [cmd,value,label] of [['diva-auto',1,'Autorizar falas'],['diva-auto',0,'Silenciar falas']])pads.append(button(label,()=>send(cmd,value)));
    const status=el('p','tg26-note','Consulte a TV para conferir as falas.');status.id='tg26-remote-audio-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');pads.append(status);effects.append(pads);audio.append(effects);
   }
-  const recado=$('tg04-remote-send')?.closest('details');if(recado){const label=q('summary',recado);if(label)label.textContent='💌 Recado para a TV';recado.open=false;}const appearance=q('.open-settings',control);if(appearance){appearance.textContent='Aparência e humor da TV';wrap.insertBefore(appearance,help?.previousElementSibling||help||null);}const remoteHint=q('.tg-remote-help-note',control),queue=q('.tg19-remote-queue',control),feedback=$('tg18-remote-feedback'),grid=q('.tg18-remote-grid',control);if(feedback&&grid)grid.after(feedback);if(queue&&recado)queue.after(recado);if(remoteHint&&queue){const hint=q('.tg19-remote-queue-hint',queue);if(hint){hint.textContent='Toque em Preparar para chamar um cantor.';legacy(remoteHint);}else queue.prepend(remoteHint);}
+  const recado=$('tg04-remote-send')?.closest('details');if(recado){const label=q('summary',recado);if(label)label.textContent='💌 Recado para a TV';recado.open=false;}const appearance=q('.open-settings',control);if(appearance){appearance.textContent='Aparência da TV';wrap.insertBefore(appearance,help?.previousElementSibling||help||null);}const remoteHint=q('.tg-remote-help-note',control),queue=q('.tg19-remote-queue',control),feedback=$('tg18-remote-feedback'),grid=q('.tg18-remote-grid',control);if(feedback&&grid)grid.after(feedback);if(queue&&recado)queue.after(recado);if(remoteHint&&queue){const hint=q('.tg19-remote-queue-hint',queue);if(hint){hint.textContent='Toque em Preparar para chamar um cantor.';legacy(remoteHint);}else queue.prepend(remoteHint);}
   legacy($('tg18-remote-rename')); // existing profile menu delegates to this action
   const end=$('tg04-remote-end');if(end){end.textContent='⏻ Encerrar festa para todos';end.title='Finaliza para todos após confirmação';}
   const back=$('tg18-remote-back');if(back){back.textContent='⇄ Minhas salas';back.title='Volta às suas salas sem encerrar a festa';}const share=$('tg04-remote-invite');if(share)wrap.insertBefore(share,back||wrap.firstChild);
