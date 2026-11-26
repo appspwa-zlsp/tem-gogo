@@ -81,7 +81,7 @@ $('tg67-guide-sound')?.addEventListener('click',()=>{if(!theme)return;theme.mute
 dialog?.addEventListener('close',()=>{stopGuide();fromPanel=false;});dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});$('tg75-open-workspace')?.addEventListener('click',stopGuide);$('tg75-battle-panel')?.addEventListener('close',()=>{if(fromPanel&&dialog.open)dialog.close();});document.addEventListener('visibilitychange',()=>{if(document.hidden)stopGuide();});window.addEventListener('pagehide',stopGuide);
 window.addEventListener('temgogo:view',()=>{if(dialog.open)dialog.close();});
 const faq=$('faq-dialog')?.querySelector('.tg193-faq-actions');if(faq){const btn=document.createElement('button');btn.type='button';btn.className='button button-outline';btn.textContent='🏆 Rever apresentação da Batalha';btn.addEventListener('click',()=>{if($('faq-dialog')?.open)$('faq-dialog').close();openGuide();});faq.append(btn);}
-if(battle){battle.disabled=true;battle.setAttribute('aria-disabled','true');}
+if(battle){const release=window.TEM_GOGO_CONFIG?.BATTLE_API_RELEASE_ALLOWED===true;battle.disabled=!release;battle.setAttribute('aria-disabled',String(!release));if(release){battle.title='O servidor confirma a disponibilidade';const small=battle.querySelector('small');if(small)small.textContent='Criar ou entrar · disponibilidade confirmada pelo servidor';}battle.addEventListener('click',()=>{if(window.TEM_GOGO_CONFIG?.BATTLE_API_RELEASE_ALLOWED===true)void window.TG75_BATTLE_PANEL?.open();});}
 // Preferencias individuais de acessibilidade (nao ligam audio automaticamente).
 function readPreference(key,fallback){
  try{const value=localStorage.getItem('tem-gogo-a11y-'+key);return value===null?fallback:value==='true';}
