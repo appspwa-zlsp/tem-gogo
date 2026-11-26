@@ -30,17 +30,35 @@ hubCreate?.addEventListener('click',()=>navigateHub('create'));
 $('tg92-hub-join')?.addEventListener('click',()=>$('hub-join-room')?.click());
 $('tg92-hub-history')?.addEventListener('click',()=>navigateHub('history'));
 $('tg93-history-back')?.addEventListener('click',()=>navigateHub('main'));
+// R67: apresentação cinematográfica em seis cenas, sem acionamento de competição.
 const guides=[
- ['Bem-vindos à Batalha!', 'A Drag Diva apresenta o festival: inscrições, apresentações, confrontos e um pódio oficial. Talento ajuda, mas coragem também conta!'],
- ['Vamos montar o elenco!', 'O anfitrião abre as inscrições e aprova de dois a doze competidores. Depois do fechamento do elenco, ninguém entra como novo competidor; espectadores podem solicitar participação conforme as regras.'],
- ['Hora da classificatória!', 'Cada competidor sobe ao palco e recebe sua avaliação. A classificação segue as regras oficiais do festival e a nota recreativa não mede afinação.'],
- ['Começam os confrontos!', 'O chaveamento depende da quantidade de competidores. Avanços e vitórias só aparecem quando o resultado é confirmado pelo servidor.'],
- ['Todo voto importa!', 'Votantes habilitados avaliam de uma a cinco estrelas. São 150 segundos com uma única prorrogação possível de 30 segundos. O eleitorado é congelado ao abrir a votação e o voto confirmado não pode ser trocado.'],
- ['O grande pódio!', 'A Drag Diva comemora conquistas oficiais de ouro, prata e bronze, persistentes somente na Batalha. Se não houver um resultado justo e válido, ninguém recebe um título inventado.']
- ];let i=0;const dialog=$('tg70-battle-guide');function showGuide(){const g=guides[i];$('tg70-guide-counter').textContent=`Cena ${i+1} de ${guides.length}`;const progress=$('tg33-guide-progress');if(progress){progress.max=guides.length;progress.value=i+1;}$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';}
-$('tg70-battle-story-open')?.addEventListener('click',()=>{i=0;showGuide();dialog?.showModal();});$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());
-$('tg70-guide-skip')?.addEventListener('click',()=>dialog?.close());$('tg70-guide-prev')?.addEventListener('click',()=>{i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{if(i===guides.length-1){dialog.close();return;}i++;showGuide();});dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
-const faq=$('faq-dialog')?.querySelector('.tg193-faq-actions');if(faq){const btn=document.createElement('button');btn.type='button';btn.className='button button-outline';btn.textContent='🏆 Rever apresentação da Batalha';btn.addEventListener('click',()=>{if($('faq-dialog')?.open)$('faq-dialog').close();i=0;showGuide();dialog?.showModal();});faq.append(btn);}
+ ['Batalha de Estrelas','O palco é seu!','opening'],
+ ['O elenco','2 a 12 cantores aprovados pelo anfitrião.','cast'],
+ ['Classificatória','Cada cantor se apresenta. A classificação define os confrontos.','qualify'],
+ ['Confrontos','Os classificados disputam uma vaga na próxima fase.','duel'],
+ ['Votação','Eleitores habilitados: 1 a 5 estrelas. 150 s + uma extensão de 30 s.','vote'],
+ ['O grande pódio','Ouro, prata e bronze após resultado confirmado.','podium']
+];let i=0,guideTimer=null,playing=false;const dialog=$('tg70-battle-guide'),theme=$('tg67-guide-theme');
+const art=['cantor-urbano.png','cantora-ruiva.png','cantor-esporte.png','cantora-oculos.png'];
+function avatar(n){const img=document.createElement('img');img.src='./'+art[n];img.alt='Avatar ilustrativo do Tem Gogó';return img;}
+function showGuide(){const g=guides[i],scene=$('tg67-guide-scene');$('tg70-guide-counter').textContent='Cena '+(i+1)+' de '+guides.length;$('tg33-guide-progress').value=i+1;$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';scene.replaceChildren();scene.dataset.scene=g[2];const diva=document.createElement('img');diva.src='./diva-busto.png';diva.alt='Drag Diva';diva.className='tg67-guide-diva';scene.append(diva);const cast=document.createElement('div');cast.className='tg67-guide-cast';const label=t=>{const el=document.createElement('span');el.textContent=t;return el;};
+if(g[2]==='opening'){cast.append(avatar(0),avatar(1),avatar(2),avatar(3));}
+if(g[2]==='cast'){for(let n=0;n<4;n++)cast.append(avatar(n));cast.append(label('2–12'));}
+if(g[2]==='qualify'){cast.append(avatar(1),label('🎙 → classificação'));}
+if(g[2]==='duel'){cast.append(avatar(0),label('×'),avatar(2));}
+if(g[2]==='vote'){cast.append(avatar(0),avatar(2),label('★ ★ ★ ★ ★'),label('2:30'));}
+if(g[2]==='podium'){for(const [n,medal] of [[1,'🥈'],[0,'🥇'],[2,'🥉']]){const p=document.createElement('div');p.className='tg67-podium-step';p.append(avatar(n),label(medal));cast.append(p);}}
+scene.append(cast);$('tg67-guide-toggle').textContent=playing?'Pausar':'Reproduzir';}
+function stopGuide(){clearTimeout(guideTimer);guideTimer=null;playing=false;theme?.pause();$('tg67-guide-toggle').textContent='Reproduzir';}
+function schedule(){clearTimeout(guideTimer);if(!playing)return;guideTimer=setTimeout(()=>{if(!dialog.open||document.hidden){stopGuide();return;}if(i===guides.length-1){stopGuide();return;}i++;showGuide();schedule();},7000);}
+function startGuide(){playing=true;showGuide();if(theme&&!theme.muted){theme.volume=.18;theme.play().catch(()=>{});}schedule();}
+function openGuide(){i=0;stopGuide();if(theme){theme.currentTime=0;}if(!dialog.open)dialog.showModal();if(matchMedia('(prefers-reduced-motion:reduce)').matches||document.body.classList.contains('tg93-reduce-motion'))showGuide();else startGuide();}
+$('tg70-battle-story-open')?.addEventListener('click',openGuide);$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());$('tg70-guide-skip')?.addEventListener('click',()=>dialog.close());
+$('tg70-guide-prev')?.addEventListener('click',()=>{stopGuide();i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{stopGuide();if(i===guides.length-1){dialog.close();return;}i++;showGuide();});
+$('tg67-guide-toggle')?.addEventListener('click',()=>{if(playing)stopGuide();else{if(i===guides.length-1){i=0;if(theme)theme.currentTime=0;}startGuide();}});
+$('tg67-guide-sound')?.addEventListener('click',()=>{if(!theme)return;theme.muted=!theme.muted;$('tg67-guide-sound').textContent=theme.muted?'Ativar trilha':'Silenciar trilha';$('tg67-guide-sound').setAttribute('aria-pressed',String(!theme.muted));if(theme.muted)theme.pause();else if(playing)theme.play().catch(()=>{});});
+dialog?.addEventListener('close',stopGuide);dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});$('tg75-open-workspace')?.addEventListener('click',stopGuide);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopGuide();});window.addEventListener('pagehide',stopGuide);
+const faq=$('faq-dialog')?.querySelector('.tg193-faq-actions');if(faq){const btn=document.createElement('button');btn.type='button';btn.className='button button-outline';btn.textContent='🏆 Rever apresentação da Batalha';btn.addEventListener('click',()=>{if($('faq-dialog')?.open)$('faq-dialog').close();openGuide();});faq.append(btn);}
 if(battle){battle.disabled=true;battle.setAttribute('aria-disabled','true');}
 // Preferencias individuais de acessibilidade (nao ligam audio automaticamente).
 function readPreference(key,fallback){
