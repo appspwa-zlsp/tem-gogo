@@ -348,8 +348,7 @@
         if(!canDirectDiva()||!tg13Recreational()||![0,1].includes(data.value)||!window.TG74_DIVA_STUDIO?.setAuto)throw Error('Ajuste da Diva inválido ou indisponível.');
         window.TG74_DIVA_STUDIO.setAuto(data.value===1);
       }else if(cmd==='pop-effect'){
-        const effect=['palmas','fogos','vinheta','suspense'][data.value];
-        if(!canDirectDiva()||!tg13Recreational()||!Number.isInteger(data.value)||!effect||!data.id||!await window.TG74_DIVA_STUDIO?.manualPop(effect,'remote:'+data.id))throw Error('Efeito indisponível: aguarde o intervalo e ative o som na TV.');
+        throw Error('Os efeitos fazem parte da narração automática da Drag Diva.');
       }else if(cmd==='stage-status'){
         // Leitura local do palco, devolvida no ACK.
       }else if(cmd==='diva-preview-volume'){
@@ -2977,7 +2976,12 @@
           $('tg192-result-tier').textContent='AGUARDANDO SINCRONIZAÇÃO';
           $('final-caption').textContent='O resultado ainda não foi confirmado nesta tela. Consulte o placar após a sincronização. Nenhuma nota foi inventada.';
         }
-        if(decision?.count&&studio)void (async()=>{if(decision.praise){await studio.pop('palmas','palmas:'+eventKey);if(stillCurrent())await studio.pop('fogos','fogos:'+eventKey);}else await studio.pop('vinheta','reveal:'+eventKey);})();
+        // R67: reação contextual somente com resultado completo confirmado; nunca por falta de sinal.
+        if(decision?.count===singers.length&&studio&&stillCurrent()){
+          const values=verifiedRows.map(row=>row.score),mean=values.reduce((a,b)=>a+b,0)/values.length;
+          const effect=decision.praise?'palmas':mean<40?'low':mean<60?'mid':null;
+          if(effect)void studio.pop(effect,'reveal:'+eventKey);
+        }
         // Nota permanece visível; painel de próximas ações aparece depois, sem avançar sozinho.
         const nextMenu=$('tg123-post-score');if(nextMenu)nextMenu.hidden=true;
         state.scoreOverlayTimer=setTimeout(()=>{
@@ -4485,7 +4489,7 @@ function renderFullCatalog(){
     try{for(const peer of state.peers.values()){peer?.pc?.close?.();peer?.peer?.close?.();peer?.gain?.disconnect?.();}state.peers.clear();}catch(e){console.warn(e);}
     state.isPlaying=false;
   };
-  window.addEventListener('temgogo:remote-audio',e=>{const {command,value}=e.detail||{};if((command==='diva-auto'&&[0,1].includes(value))||(command==='pop-effect'&&[0,1,2,3].includes(value)))void remoteCommand(command,value);});
+  window.addEventListener('temgogo:remote-audio',e=>{const {command,value}=e.detail||{};if(command==='diva-auto'&&[0,1].includes(value))void remoteCommand(command,value);});
   // Beta 1.0: apenas a interface social usa este contexto; não expõe chaves administrativas.
   window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
     members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,tg60SyncIdentity,
