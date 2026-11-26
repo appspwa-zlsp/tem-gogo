@@ -529,3 +529,6 @@ body.high-contrast .tg90-next-card:not([hidden]){background:#000!important;color
 #final-overlay .tg93-reveal-actions button,.tg93-guest-result-actions button{min-height:44px;white-space:normal;line-height:1.2;flex:1 1 140px;margin:0!important;font-size:13px}
 #guest .tg93-guest-result-actions{width:100%;grid-column:1/-1}
 @media(max-width:440px){#final-overlay .tg93-reveal-actions button,.tg93-guest-result-actions button{flex-basis:100%}}
+
+/* R94: explicit hidden state wins over legacy flex/button rules. */
+#tg93-final-bis[hidden],#tg93-after-bis[hidden],#tg94-guest-bis[hidden],#tg123-after-prepare[hidden]{display:none!important}
