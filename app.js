@@ -1494,6 +1494,8 @@
     if(!configured()){$('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';return;}
     if(!window.supabase?.createClient){toast('Não foi possível carregar a biblioteca Supabase. Verifique a internet.',true);return;}
     state.client=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    // Camarim: somente visual; não muda som, nota, ranking nem credenciais.
+    try{window.TG109_CAMARIM?.start(state.client,cfg.SUPABASE_URL,()=>!state.currentSong&&!state.room?.current_song_id&&!state.preflight&&!state.startingSong&&!state.finishing&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.peers.size&&!recadoShowing&&$('final-overlay')?.hidden!==false);}catch{}
     // IMPORTANTE: receber PASSWORD_RECOVERY antes de ler/restaurar convites ou abrir o lobby.
     state.client.auth.onAuthStateChange((event,session)=>{
       const favoriteIdentityChanged=tg26FavoriteAccount()!==tg36FavoriteIdentity(session?.user);
@@ -3697,9 +3699,9 @@ function tg05RenderGenreNav(){
   nav.hidden=!genres.length;if(!genres.length){strip.replaceChildren();delete strip.dataset.signature;return;}
   const icons={sertanejo:'🤠',pop:'✨',reggae:'🌿',rock:'🎸',pagode:'🥁',samba:'🪘',mpb:'🎼',funk:'🔊',forro:'🪗',rap:'🎤',eletronica:'🎛️',axe:'☀️',infantil:'🎈',outros:'♫'};
   const counts=new Map();let totalMatches=0;for(const song of state.catalog){if(matchesMusic(song,state.catalogQuery)){totalMatches++;const code=tg27Genre(song).code;counts.set(code,(counts.get(code)||0)+1);}}
-  const entries=[{code:'all',label:'Todos'},...genres];const signature=JSON.stringify(entries.map(g=>[g.code,g.label]));
-  if(strip.dataset.signature!==signature){strip.dataset.signature=signature;strip.replaceChildren();for(const g of entries){const btn=document.createElement('button');btn.type='button';btn.className='tg05-genre-chip';btn.dataset.filter=g.code==='all'?'all':'genre:'+g.code;btn.dataset.genre=g.code;btn.textContent=(icons[g.code]||'♫')+' '+g.label;btn.addEventListener('click',()=>{if(![...select.options].some(o=>o.value===btn.dataset.filter))return;select.value=btn.dataset.filter;select.dispatchEvent(new Event('change',{bubbles:true}));});strip.append(btn);}}
-  for(const btn of strip.querySelectorAll('button')){const code=btn.dataset.genre,n=code==='all'?totalMatches:counts.get(code)||0;btn.setAttribute('aria-pressed',String(btn.dataset.filter===state.catalogFilter));btn.title=n+' música(s) na busca atual';}
+  const favorite=tg26FavoriteState();const entries=[{code:'all',label:'Todos',filter:'all'},...(favorite.uid&&favorite.status==='ready'?[{code:'favorites',label:'Favoritos',filter:'favorites'}]:[]),{code:'played',label:'Mais tocadas',filter:'played'},...genres];const signature=JSON.stringify(entries.map(g=>[g.code,g.label,g.filter||null]));
+  if(strip.dataset.signature!==signature){strip.dataset.signature=signature;strip.replaceChildren();for(const g of entries){const btn=document.createElement('button');btn.type='button';btn.className='tg05-genre-chip';btn.dataset.filter=g.filter||'genre:'+g.code;btn.dataset.genre=g.code;btn.textContent=({favorites:'♥',played:'🔥',...icons}[g.code]||'♫')+' '+g.label;btn.addEventListener('click',()=>{if(![...select.options].some(o=>o.value===btn.dataset.filter))return;select.value=btn.dataset.filter;select.dispatchEvent(new Event('change',{bubbles:true}));});strip.append(btn);}}
+  for(const btn of strip.querySelectorAll('button')){const code=btn.dataset.genre,n=code==='all'?totalMatches:code==='favorites'||code==='played'?catalogResults(state.catalogQuery,code).length:counts.get(code)||0;btn.setAttribute('aria-pressed',String(btn.dataset.filter===state.catalogFilter));btn.title=n+' música(s) na busca atual';}
 }
 function renderFullCatalog(){
   if(!$('catalog-dialog')?.open)return;
