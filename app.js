@@ -705,7 +705,7 @@
     const pre=state.preflight,box=$('stage-preflight');
     box.hidden=!pre;showHostCommand();if(!pre)return;
     $('stage-preflight-track').textContent=pre.song.title;
-    $('tg19-next-singer').textContent='VOCÊ É O PRÓXIMO: '+songSingerLabel(pre.song).toUpperCase();
+    $('tg19-next-singer').textContent=state.room?.room_mode==='solo'?'PREPARE SEU MICROFONE':'VOCÊ É O PRÓXIMO: '+songSingerLabel(pre.song).toUpperCase();
     setDivaStageState('preflight');
     const singers=songSingers(pre.song);
     tgBetaStageAvatars(singers,'preflight');
@@ -715,7 +715,7 @@
       return `<div class="preflight-singer"><img alt="" src="${avatarSrc(state.avatars.get(uid))}"><div><strong>${escapeHTML(memberName(uid))}</strong><small>${online}</small><span>${label}</span></div></div>`;
     }).join('');
     const completed=singers.filter(uid=>{const s=pre.statuses.get(uid);return s?.ready&&s?.mic&&Date.now()-s.at<25000;}).length;
-    $('stage-preflight-feedback').textContent=`${completed} de ${singers.length} confirmado(s) • o vídeo só começa depois do seu comando`;
+    $('stage-preflight-feedback').textContent=state.room?.room_mode==='solo'?(completed===singers.length?'Microfone pronto. Comece quando quiser.':'Ative o microfone deste aparelho.'):`${completed} de ${singers.length} confirmado(s) • o vídeo só começa depois do seu comando`;
     $('stage-preflight-start').disabled=completed!==singers.length||pre.starting;
     if(completed===singers.length&&!pre.notifiedReady){pre.notifiedReady=true;updateVoxLine('ready');}
   }
@@ -2033,7 +2033,7 @@
     const songs=state.songs.filter(s=>s.status==='playing'||s.status==='queued');
     if(state.role==='host') {
       $('queue-counter').textContent=`${songs.filter(s=>s.status==='queued').length} MÚSICAS`;
-      $('queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="queue-item ${s.status==='playing'?'playing':''}"><div class="queue-num">${s.status==='playing'?'♫':String(i+1).padStart(2,'0')}</div><div class="queue-text"><strong>${escapeHTML(s.title)}</strong><small>${s.status==='playing'?'● Tocando • ':''}${escapeHTML(songSingerLabel(s))}</small></div>${s.status==='queued'?`<span class="queue-actions"><button class="queue-play" type="button" data-play-song="${s.id}" aria-label="Tocar esta música">▶</button><button class="queue-remove" type="button" data-remove-song="${s.id}" aria-label="Remover esta música">✕</button></span>`:'<span class="queue-play">ON</span>'}</div>`).join(''):'<div class="queue-empty">A fila ainda tá vazia. Mostre o QR Code! 🎶</div>';
+      $('queue-list').innerHTML=songs.length?songs.map((s,i)=>`<div class="queue-item ${s.status==='playing'?'playing':''}"><div class="queue-num">${s.status==='playing'?'♫':String(i+1).padStart(2,'0')}</div><div class="queue-text"><strong>${escapeHTML(s.title)}</strong><small>${s.status==='playing'?'● Tocando • ':''}${escapeHTML(songSingerLabel(s))}</small></div>${s.status==='queued'?`<span class="queue-actions"><button class="queue-play" type="button" data-play-song="${s.id}" aria-label="Tocar esta música">▶</button><button class="queue-remove" type="button" data-remove-song="${s.id}" aria-label="Remover esta música">✕</button></span>`:'<span class="queue-play">ON</span>'}</div>`).join(''):'<div class="queue-empty">'+(state.room?.room_mode==='solo'?'Escolha sua primeira música. 🎶':'A fila ainda tá vazia. Mostre o QR Code! 🎶')+'</div>';
     }
     if(isPhoneSingerRole()) {
       if(state.role==='remote'){syncGuestTurn(songs.find(s=>s.status==='playing')||null);renderRemote();return;}
