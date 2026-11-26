@@ -2603,11 +2603,20 @@
       $('mic-volume-title').textContent=capturing?'NÍVEL DO SOM • RECEBENDO ÁUDIO':'NÍVEL DO SOM • SEM ÁUDIO DETECTADO';
     }
   }
+  // R106: SQL74, somente estimativa recreativa; notas persistidas nao passam novamente pela curva.
+  function tg106RecreationalScore(raw,room){
+    if(room?.tg30_battle_reserved!==false||!['classic','solo'].includes(room?.room_mode)||raw<=0)return raw;
+    if(raw<=20)return Math.floor((raw*5+1)/2);
+    if(raw<=35)return 50+(raw-20);
+    if(raw<=60)return 65+Math.floor(((raw-35)*17*2+25)/50);
+    if(raw<=80)return 82+Math.floor(((raw-60)*11*2+20)/40);
+    return 93+Math.floor(((raw-80)*7*2+20)/40);
+  }
   function liveScore(stat,frames){
     if(!stat||frames<=0||stat.sung<=0)return 0;
     const participation=Math.min(1,stat.sung/frames);
     const volume=Math.min(1,stat.intensity/stat.sung);
-    return Math.max(0,Math.min(100,Math.round((participation*.72+volume*.28)*100)));
+    return tg106RecreationalScore(Math.max(0,Math.min(100,Math.round((participation*.72+volume*.28)*100))),state.room);
   }
   function renderMics(){
     if(state.role!=='host')return;
@@ -2751,14 +2760,14 @@
       const observedSeconds=Math.max(1,Number((frames*.14).toFixed(2)));
       const sungSeconds=Math.min(observedSeconds,report.vocal*.25);
       const volume=report.vocal?Math.min(1,report.intensity/(report.vocal*1000)):0;
-      return {score:Math.round(Math.min(100,72*sungSeconds/observedSeconds+28*volume)),sungSeconds,observedSeconds,source:'microfone solo (Supabase)'};
+      return {score:tg106RecreationalScore(Math.round(Math.min(100,72*sungSeconds/observedSeconds+28*volume)),state.room),sungSeconds,observedSeconds,source:'microfone solo (Supabase)'};
     }
     const solo=state.soloMic;
     if(uid===state.user?.id&&solo?.songId===state.currentSong?.id&&solo.samples>=8){
       const observedSeconds=Math.max(1,(state.songFrames||0)*.14);
       const sungSeconds=Math.min(observedSeconds,solo.vocal*.25);
       const volume=solo.vocal?Math.min(1,solo.volume/solo.vocal):0;
-      return {score:Math.round(Math.min(100,(sungSeconds/observedSeconds)*72+volume*28)),sungSeconds,observedSeconds,source:'microfone solo local'};
+      return {score:tg106RecreationalScore(Math.round(Math.min(100,(sungSeconds/observedSeconds)*72+volume*28)),state.room),sungSeconds,observedSeconds,source:'microfone solo local'};
     }
     const cloud=state.cloudMicStats.get(uid);
     if(frames<=0 || !cloud || Number(cloud.samples)<8)return null;
@@ -2767,7 +2776,7 @@
     const sungSeconds=Math.min(observedSeconds,Math.max(0,Number(cloud.vocal_samples)||0)*.25);
     const volume=Number(cloud.vocal_samples)>0
       ?Math.min(1,Math.max(0,Number(cloud.intensity_sum)||0)/(Number(cloud.vocal_samples)*1000)):0;
-    const score=Math.round(Math.min(100,Math.max(0,(sungSeconds/observedSeconds)*72+volume*28)));
+    const score=tg106RecreationalScore(Math.round(Math.min(100,Math.max(0,(sungSeconds/observedSeconds)*72+volume*28))),state.room);
     return {score,sungSeconds,observedSeconds,source:'somente celular (Supabase)'};
   }
   // ----- YouTube e avaliação de atividade vocal (não de afinação). -----
