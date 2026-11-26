@@ -212,3 +212,9 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
  #stage[data-tg63-experience=solo][data-tg50-ready] .stage-header .stage-identity{flex:1 1 auto!important;min-width:0}
  #stage[data-tg63-experience=solo][data-tg50-ready] .stage-header .stage-actions{flex:0 1 auto!important;width:auto!important;justify-content:flex-end}
 }
+
+/* R63.1 — small voter profile shortcut; no loss of pending ballot. */
+#tg75-battle-panel #tg63-voter-profile{min-height:44px;white-space:normal}
+#tg75-battle-panel #tg63-voter-profile[hidden]{display:none!important}
+#tg75-battle-panel[data-tg62-audience]:not([data-tg62-audience=""]) .tg75-header{flex-wrap:wrap;gap:6px}
+#stage[data-tg63-experience=solo] #stage-preflight-resend{display:none!important}
