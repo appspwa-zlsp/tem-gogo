@@ -155,6 +155,7 @@
   function renderRemote(){
     if(state.role!=='remote'||!state.room)return;
     const playing=state.songs.find(x=>x.status==='playing');
+    tg100ReportCapture(playing);tg100ReportPaint();
     const next=state.songs.find(x=>x.status==='queued');
     $('tg18-remote-now').textContent=playing?.title||'Palco aguardando música';
     $('tg18-remote-next').textContent=next?.title||'Fim da fila';
@@ -4236,7 +4237,7 @@ function renderFullCatalog(){
   const tg100ReportUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   let tg100ReportLast=null,tg100ReportPending=null,tg100ReportSent=new Set();
   function tg100ReportAllowed(scope){
-    return tg07Current(scope)&&!state.emergencyBlocked&&!state.emergencyClosing&&tg13Recreational()&&state.room?.status==='open'&&navigator.onLine!==false&&['host','guest'].includes(state.role);
+    return tg07Current(scope)&&!state.emergencyBlocked&&!state.emergencyClosing&&tg13Recreational()&&state.room?.status==='open'&&navigator.onLine!==false&&(['host','guest'].includes(state.role)||(state.role==='remote'&&state.room.owner_id===scope.uid));
   }
   function tg100ReportCapture(song){
     const scope=tg07Scope();
@@ -4251,10 +4252,10 @@ function renderFullCatalog(){
   }
   function tg100ReportPaint(){
     const t=tg100ReportTarget(),key=t?t.scope.uid+':'+t.id:null;
-    for(const id of ['tg100-report-host','tg100-report-guest','tg100-report-result','tg100-report-error']){
+    for(const id of ['tg100-report-host','tg100-report-guest','tg100-report-result','tg100-report-error','tg100-report-remote']){
       const b=$(id);if(!b)continue;
       const host=state.role==='host',current=state.room?.current_song_id===t?.id;
-      const allowed=!!t&&(id==='tg100-report-guest'?!host:host)&&(id!=='tg100-report-error'||(current&&state.failedVideoSong?.id===t.id))&&(id!=='tg100-report-result'||!state.room?.current_song_id);
+      const allowed=!!t&&(id==='tg100-report-guest'?state.role==='guest':id==='tg100-report-remote'?state.role==='remote':host)&&(id!=='tg100-report-error'||(current&&state.failedVideoSong?.id===t.id))&&(id!=='tg100-report-result'||!state.room?.current_song_id);
       b.hidden=!allowed;
       b.disabled=!allowed||tg100ReportSent.has(key)||!!tg100ReportPending;
       b.textContent=tg100ReportSent.has(key)?'✓ Relato enviado':current?'⚑ Relatar problema':'⚑ Relatar última música';
@@ -4279,7 +4280,7 @@ function renderFullCatalog(){
   }
 
   function attachEvents(){
-    for(const id of ['tg100-report-host','tg100-report-guest','tg100-report-result','tg100-report-error'])$(id)?.addEventListener('click',event=>void tg100ReportSend(event.currentTarget));
+    for(const id of ['tg100-report-host','tg100-report-guest','tg100-report-result','tg100-report-error','tg100-report-remote'])$(id)?.addEventListener('click',event=>void tg100ReportSend(event.currentTarget));
     window.addEventListener('online',tg100ReportPaint);window.addEventListener('offline',tg100ReportPaint);
     setupProfileQuickMenu();setupCatalogSuggestions();
     window.TG30VoiceUI?.install({user:()=>state.user,notify:(text)=>toast(text,true),compare:()=>callRPC('tg30_voice_shadow_history',{}),erase:async()=>{tg30RevokeShadow();return callRPC('tg30_voice_shadow_erase',{});},revoke:tg30RevokeShadow,save:async(profile,uid)=>{
