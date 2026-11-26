@@ -35,7 +35,7 @@
 
 
 <script defer src="./tg30-campaign.js?v=3beta05"></script><script defer src="./tg-premium-interface.js?v=r31"></script><link rel="stylesheet" href="./ux-r26.css?v=r34"/>
-<script defer src="./tg26-navigation.js?v=r64"></script><link rel="stylesheet" href="./ux-r57.css?v=r64"/><script defer src="./tg57-experience.js?v=r61"></script></head>
+<script defer src="./tg26-navigation.js?v=r64"></script><link rel="stylesheet" href="./ux-r57.css?v=r64.1"/><script defer src="./tg57-experience.js?v=r61"></script></head>
 <body data-theme="glam">
 <div aria-hidden="true" class="grain"></div>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
@@ -117,6 +117,7 @@
   <button type="button" id="tg70-go-solo"><span aria-hidden="true">🎙️</span><strong>Carreira Solo</strong><small>Cante no mesmo aparelho · sem QR de convidados</small></button>
   <button type="button" id="tg70-go-battle" disabled aria-disabled="true" title="Disponível após validação do banco"><span aria-hidden="true">🏆</span><strong>Modo Batalha</strong><small>Em preparação · entrada indisponível</small></button>
  </div>
+ <label class="tg64-narration tg64-solo-choice"><input type="checkbox" id="tg64-solo-narration"> <span>Narração no Solo<small>Marque antes de abrir a Carreira Solo.</small></span></label>
  <button type="button" id="tg70-battle-story-open" class="tg70-story-cta">🎬 Conhecer a Batalha com a Drag Diva →</button>
  </section>
 <section id="tg93-history-panel" class="tg93-history-panel" hidden aria-labelledby="tg93-history-title">
@@ -133,7 +134,7 @@
 <button class="button button-primary full" type="submit">🎉 CRIAR FESTA AGORA <span>→</span></button>
 </form>
 </div>
-<div class="tg64-solo-entry"><button class="button button-soft full" id="tg103-solo-entry" type="button">🎙️ Aparelho único · vou cantar sozinho(a)</button><label class="tg64-narration"><input type="checkbox" id="tg64-solo-narration"> <span>Narração no Solo</span></label></div><button class="button button-soft full" id="hub-join-room" type="button">🎟️ ENTRAR EM OUTRA FESTA</button><button class="button button-primary full" data-scan-qr="" type="button">📷 Ler QR de outra festa</button>
+<button class="button button-soft full" id="tg103-solo-entry" type="button">🎙️ Aparelho único · vou cantar sozinho(a)</button><button class="button button-soft full" id="hub-join-room" type="button">🎟️ ENTRAR EM OUTRA FESTA</button><button class="button button-primary full" data-scan-qr="" type="button">📷 Ler QR de outra festa</button>
 <p class="hub-security">🔐 Sua conta continua protegida por senha. O QR da festa é um convite: compartilhe com quem vai participar.</p>
 </div>
 </main>
