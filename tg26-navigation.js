@@ -29,7 +29,7 @@
   if(theme){theme.classList.remove('full');theme.textContent='Tema';theme.setAttribute('aria-label','Trocar tema do palco');q('.stage-actions',header)?.prepend(theme);}
   if(settings)settings.textContent='Ajustes e acessibilidade';
   const roomActions=el('div','tg50-room-actions');const switcher=$('stage-switch'),end=$('stage-exit');if(switcher)switcher.textContent='Minhas salas';if(end)end.textContent='Encerrar festa';
-  move(roomActions,settings,voice,switcher,el('small','tg26-note','A festa permanece aberta.'),end,el('small','tg26-note','Finaliza para todos após confirmação.'));room.prepend(roomActions);
+  move(roomActions,settings,voice,switcher,end);if(switcher)switcher.setAttribute('title','Volta às suas salas sem encerrar a festa');if(end)end.setAttribute('title','Encerra para todos, após confirmação');room.prepend(roomActions);
   if(remoteQR)room.append(remoteQR);if(help&&tools){move(tools,...help.children);help.remove();}
   window.TG74_DIVA_STUDIO?.mount();legacy($('tg74-voice-preview'));legacy(q('.tg26-effects',consoleNode));
   const voiceControls=q('.tg05-voice-controls',consoleNode);if(voiceControls)voiceControls.setAttribute('aria-label','Drag Diva');
@@ -49,21 +49,21 @@
   const r=$('tg18-remote'),header=q('.tg18-remote-header',r),control=$('tg19-remote-control'),info=$('tg19-remote-singing');if(!header||!control||!info||r.dataset.tg28Ready)return;r.dataset.tg28Ready='true';
   const more=el('details','tg26-remote-more');more.append(el('summary','','☰ Sala e ajuda'));
   const wrap=el('div','tg26-remote-menu');more.append(wrap);
-  const help=q('.tg193-remote-help',header);wrap.append(el('h3','','Gerenciar festa'));move(wrap,$('tg18-remote-back'));wrap.append(el('small','tg26-note','Volta às suas salas sem encerrar a festa.'));move(wrap,$('tg04-remote-end'));wrap.append(el('small','tg26-note','Encerra a festa para todos, mediante confirmação.'));move(wrap,$('tg18-remote-stage'));wrap.append(el('h3','','Ajuda'));move(wrap,help);
+  const help=q('.tg193-remote-help',header);wrap.append(el('h3','','Festa'));move(wrap,$('tg18-remote-back'),$('tg04-remote-end'),$('tg18-remote-stage'));wrap.append(el('h3','','Ajuda'));move(wrap,help);
   header.append(more);
   const moderation=$('tg-beta-host-moderate');if(moderation)move(wrap,moderation);legacy($('tg-beta-remote-nav'));
   const closeMenu=()=>{more.open=false;};wrap.addEventListener('click',e=>{if(e.target.closest('button'))closeMenu();});
-  const music=$('tg18-remote-music');if(music){music.textContent='Músicas';music.classList.add('tg28-remote-catalog','button-primary');q('.tg18-remote-grid',control)?.after(music);}
+  const music=$('tg18-remote-music');if(music){music.textContent='Músicas';music.classList.add('tg28-remote-catalog','button-primary');q('.tg18-remote-grid',control)?.append(music);}
   const audio=q('.tg05-remote-audio',control);if(audio){audio.open=false;const summary=q('summary',audio);if(summary)summary.textContent='🎚 Mesa de áudio da TV';
-   const effects=el('details','tg192-remote-advanced tg28-effects');effects.append(el('summary','','✦ Drag Diva e efeitos da TV'));const pads=el('section','tg26-effects');pads.append(el('p','tg26-note','A TV precisa estar com o som ativo. Falas exigem publicação pela Central; efeitos somente no intervalo.'));
+   const effects=el('section','tg28-effects');effects.append(el('h3','','Drag Diva'));const pads=el('section','tg26-effects');
    const send=(command,value)=>window.dispatchEvent(new CustomEvent('temgogo:remote-audio',{detail:{command,value}}));
    for(const [cmd,value,label] of [['diva-auto',1,'Autorizar falas'],['diva-auto',0,'Silenciar falas']])pads.append(button(label,()=>send(cmd,value)));
-   const status=el('p','tg26-note','Consulte a TV para conferir as falas.');status.id='tg26-remote-audio-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');pads.append(status);effects.append(pads);audio.after(effects);
+   const status=el('p','tg26-note','Consulte a TV para conferir as falas.');status.id='tg26-remote-audio-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');pads.append(status);effects.append(pads);audio.append(effects);
   }
-  const recado=$('tg04-remote-send')?.closest('details');if(recado){const hint=el('p','tg26-note','O texto fica na fila de recados e aparece no intervalo da TV. Não é uma gravação de voz.');recado.insertBefore(hint,$('tg04-remote-send'));}
+  const recado=$('tg04-remote-send')?.closest('details');if(recado){const label=q('summary',recado);if(label)label.textContent='💌 Recado para a TV';recado.open=false;}const appearance=q('.open-settings',control);if(appearance){appearance.textContent='Aparência e humor da TV';wrap.insertBefore(appearance,help?.previousElementSibling||help||null);}const remoteHint=q('.tg-remote-help-note',control);if(remoteHint)remoteHint.textContent='Para chamar um cantor, toque em Preparar na fila.';
   legacy($('tg18-remote-rename')); // existing profile menu delegates to this action
-  const end=$('tg04-remote-end');if(end)end.textContent='⏻ Encerrar festa para todos';
-  const back=$('tg18-remote-back');if(back)back.textContent='⇄ Minhas salas';
+  const end=$('tg04-remote-end');if(end){end.textContent='⏻ Encerrar festa para todos';end.title='Finaliza para todos após confirmação';}
+  const back=$('tg18-remote-back');if(back){back.textContent='⇄ Minhas salas';back.title='Volta às suas salas sem encerrar a festa';}const share=$('tg04-remote-invite');if(share)wrap.insertBefore(share,back||wrap.firstChild);
   window.addEventListener('temgogo:view',()=>{more.open=false;});
  }
  function guestNav(){
@@ -71,12 +71,12 @@
   guest.dataset.tg58Ready='true';
   const more=el('details','tg58-guest-more');more.append(el('summary','','Sala'));const menu=el('div','tg58-guest-menu');more.append(menu);
   const people=$('tg96-party-open'),help=$('open-guest-faq'),sw=$('guest-switch'),leave=$('leave-party'),bottom=q('.guest-bottom',guest),helpTools=q('.tg193-help-tools',bottom);
-  if(people)people.textContent='Pessoas da festa';if(help)help.textContent='Ajuda';if(sw)sw.textContent='Minhas salas';if(leave)leave.textContent='Sair desta festa';
+  if(people)people.textContent='Pessoas da festa';if(help)help.textContent='Ajuda';if(sw){sw.textContent='Minhas salas';sw.title='Trocar de sala sem encerrar a festa';}if(leave)leave.textContent='Sair desta festa';
   move(menu,people,sw,help,helpTools,leave);top.append(more);
   const extra=q('.guest-song-search-card',guest),install=$('guest-install');if(install)menu.append(install);
-  legacy(extra);legacy(q('.guest-hit-library',guest));for(const n of guest.querySelectorAll('.tg16-guest-actions [data-catalog-open]'))legacy(n);
+  legacy(extra);legacy(q('.guest-hit-library',guest));for(const n of guest.querySelectorAll('.tg16-guest-actions [data-catalog-open],#tg16-queue-shortcut,#tg16-score-shortcut'))legacy(n);const latest=$('guest-all-scores');if(latest)latest.textContent='Placar completo';
   const recado=$('tg17-guest-message');if(recado){const d=el('details','tg61-guest-extra');d.append(el('summary','','Recados'));recado.before(d);d.append(recado);}
-  const promo=q('.tg18-account-promo',guest);if(promo){const d=el('details','tg61-guest-extra');d.append(el('summary','','Conta, histórico e notificações'));promo.before(d);d.append(promo);}
+  const promo=q('.tg18-account-promo',guest);if(promo){const d=el('details','tg61-guest-extra');d.append(el('summary','','Conta e notificações'));promo.before(d);d.append(promo);const sync=()=>{const b=window.TG_BETA_BRIDGE?.();if(!b?.user)return;d.querySelector('summary').textContent=b.isAnonymous(b.user)?'Salvar minha participação':'Minha conta e notificações';};window.addEventListener('temgogo:view',sync);sync();}
   const nav=q('.mobile-switch',guest);if(nav)nav.setAttribute('aria-label','Músicas, fila, microfone, placar e perfil');
   music.setAttribute('aria-label','Músicas');const labels=music.querySelectorAll('span');if(labels.length>1)labels[1].textContent='Músicas';
   menu.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});window.addEventListener('temgogo:view',()=>{more.open=false;});
