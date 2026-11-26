@@ -523,3 +523,9 @@ body.high-contrast #stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-
 #stage .stage-meta #tg90-stage-next:not([hidden]){flex:1 1 100%;width:100%;margin-top:5px}#stage .stage-meta:has(#tg90-stage-next:not([hidden])){flex-wrap:wrap!important}
 #guest #tg90-phone-next:not([hidden]),#tg18-remote #tg90-remote-next:not([hidden]){position:fixed;z-index:30;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:420px;margin:0 auto;box-shadow:0 5px 18px #0005}
 body.high-contrast .tg90-next-card:not([hidden]){background:#000!important;color:#fff!important;border-color:#fff!important}
+
+/* R93: bis and next presentation use the existing catalog and queue. */
+#final-overlay .tg93-reveal-actions,.tg93-guest-result-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;min-width:0}
+#final-overlay .tg93-reveal-actions button,.tg93-guest-result-actions button{min-height:44px;white-space:normal;line-height:1.2;flex:1 1 140px;margin:0!important;font-size:13px}
+#guest .tg93-guest-result-actions{width:100%;grid-column:1/-1}
+@media(max-width:440px){#final-overlay .tg93-reveal-actions button,.tg93-guest-result-actions button{flex-basis:100%}}

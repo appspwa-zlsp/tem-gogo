@@ -104,5 +104,5 @@
  root.addEventListener('temgogo:view',e=>{if(e.detail?.view!=='stage')reset();});root.addEventListener('pagehide',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
  function ready(){mount();if($('stage'))new MutationObserver(guard).observe($('stage'),{attributes:true,attributeFilter:['hidden']});}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});else ready();root.addEventListener('temgogo:host-cockpit-ready',mount);
- root.TG74_DIVA_STUDIO=Object.freeze({mount,stop,stopVoice,reset,guard,unlock,announce,pop,manualPop,waitForCaption,getVolume,setVolume,getPopVolume,setPopVolume,getAuto:()=>auto,setAuto,catalogLength:all.length});
+ root.TG74_DIVA_STUDIO=Object.freeze({mount,stop,stopVoice,reset,guard,unlock,announce,pop,manualPop,waitForCaption,getVolume,setVolume,getPopVolume,setPopVolume,getAuto:()=>auto,isUnlocked:()=>unlocked,setAuto,catalogLength:all.length});
 })(window);
