@@ -79,6 +79,7 @@
     if($('final-overlay')&&!$('final-overlay').hidden)hideFinal();
   }
   function avatarSrc(key){return AVATARS[key]||AVATARS.urbano;}
+  function avatarForMember(uid){return avatarSrc(state.avatars.get(uid)||(uid===state.user?.id?state.avatar:undefined));}
   function isPhoneSingerRole(){return state.role==='guest'||state.role==='remote';}
   function updateMicPersona(){
     const who=state.user?.id ? memberName(state.user.id) : 'Estrela';
@@ -99,25 +100,28 @@
   function tg83SetAvatar(key){
     if(!Object.hasOwn(AVATARS,key))return false;
     state.avatar=key;tg83AvatarRevision++;
+    if(state.room&&state.user?.id)state.avatars.set(state.user.id,key);
     try{localStorage.setItem('tem-gogo-avatar',key);if(state.user?.id)localStorage.setItem(tg83AvatarKey(state.user.id),key);}catch{}
     renderAvatarOptions();updateMicPersona();return true;
   }
   async function tg83RestoreAvatar(){
     const uid=state.user?.id,epoch=tg07SessionEpoch,revision=tg83AvatarRevision,client=state.client;
     if(!uid||!client)return;
-    const current=()=>uid===state.user?.id&&epoch===tg07SessionEpoch&&revision===tg83AvatarRevision&&client===state.client&&!state.emergencyBlocked;
+    const current=()=>uid===state.user?.id&&epoch===tg07SessionEpoch&&revision===tg83AvatarRevision&&client===state.client;
     if(isAnonymous(state.user)){
       let cached;try{cached=localStorage.getItem(tg83AvatarKey(uid));}catch{}
-      if(current()&&cached&&Object.hasOwn(AVATARS,cached))tg83SetAvatar(cached);
+      if(current())tg83SetAvatar(cached&&Object.hasOwn(AVATARS,cached)?cached:'urbano');
       return;
     }
     try{const {data,error}=await client.from('tg_profiles').select('avatar_key').eq('user_id',uid).maybeSingle();
-      if(!error&&current()&&data&&Object.hasOwn(AVATARS,data.avatar_key))tg83SetAvatar(data.avatar_key);
+      if(!error&&current()){let cached;try{cached=localStorage.getItem(tg83AvatarKey(uid));}catch{}tg83SetAvatar(data&&Object.hasOwn(AVATARS,data.avatar_key)?data.avatar_key:cached&&Object.hasOwn(AVATARS,cached)?cached:'urbano');}
     }catch(e){console.warn('Avatar da conta não consultado:',e);}
   }
   function renderAvatarOptions(){
     for(const id of ['entry-avatar-options','profile-avatar-options']){
       const root=$(id);if(!root)continue;
+      // Preserve an unsaved guest avatar choice while room hydration completes.
+      if(id==='profile-avatar-options'&&$('guest-profile-dialog')?.open&&root.children.length)continue;
       root.innerHTML=Object.entries(AVATARS).map(([key,src])=>`<label class="avatar-option"><input type="radio" name="${id}" value="${key}" ${key===state.avatar?'checked':''}><img src="${src}" alt="Avatar ${AVATAR_NUMBERS[key]}" loading="lazy"><span>${AVATAR_NUMBERS[key]}</span></label>`).join('');
       root.onchange=event=>{if(id==='profile-avatar-options')return;const key=event.target?.value;if(Object.hasOwn(AVATARS,key)&&(!state.user||isAnonymous(state.user)))tg83SetAvatar(key);else for(const input of root.querySelectorAll('input'))input.checked=input.value===state.avatar;};
     }
@@ -724,7 +728,7 @@
     $('command-mics').textContent='🎙️ Áudio na TV: '+[...state.peers.values()].filter(x=>x.connection==='connected').length;
     $('command-live-state').textContent=state.preflight?'🟡 Preparando cantores':state.currentSong?'🟢 Música no palco':'⚪ Em espera';
     const singing=state.currentSong||state.preflight?.song||next;
-    $('stage-command-participants').innerHTML=singing?songSingers(singing).map(uid=>`<div class="command-singer"><img alt="" src="${avatarSrc(state.avatars.get(uid))}"><span><b>${escapeHTML(memberName(uid))}</b><small>${micStatusLabel(uid)}</small></span></div>`).join(''):'<span class="command-placeholder">Escaneie o QR para a plateia escolher músicas.</span>';
+    $('stage-command-participants').innerHTML=singing?songSingers(singing).map(uid=>`<div class="command-singer"><img alt="" src="${avatarForMember(uid)}"><span><b>${escapeHTML(memberName(uid))}</b><small>${micStatusLabel(uid)}</small></span></div>`).join(''):'<span class="command-placeholder">Escaneie o QR para a plateia escolher músicas.</span>';
   }
   function renderPreflightHost(){
     if(state.preflight&&state.soloMic&&isSinger(state.preflight.song,state.user?.id)&&state.soloMic.stream.getAudioTracks().some(t=>t.readyState==='live'))state.preflight.statuses.set(state.user.id,{mic:true,ready:true,at:Date.now(),localSolo:true});
@@ -739,7 +743,7 @@
     $('stage-preflight-singers').innerHTML=singers.map(uid=>{
       const raw=pre.statuses.get(uid);const s=raw&&Date.now()-raw.at<25000?raw:null;const online=s?.mic?'🎙️ MIC LIBERADO':'🔇 MIC DESLIGADO';
       const label=s?.ready&&s.mic?'✅ PRONTO(A)':s?.mic?'🟡 AGUARDANDO CONFIRMAÇÃO':'🔴 NÃO PREPARADO(A)';
-      return `<div class="preflight-singer"><img alt="" src="${avatarSrc(state.avatars.get(uid))}"><div><strong>${escapeHTML(memberName(uid))}</strong><small>${online}</small><span>${label}</span></div></div>`;
+      return `<div class="preflight-singer"><img alt="" src="${avatarForMember(uid)}"><div><strong>${escapeHTML(memberName(uid))}</strong><small>${online}</small><span>${label}</span></div></div>`;
     }).join('');
     const completed=singers.filter(uid=>{const s=pre.statuses.get(uid);return s?.ready&&s?.mic&&Date.now()-s.at<25000;}).length;
     $('stage-preflight-feedback').textContent=state.room?.room_mode==='solo'?(completed===singers.length?'Microfone pronto. Comece quando quiser.':'Ative o microfone deste aparelho.'):`${completed} de ${singers.length} confirmado(s) • o vídeo só começa depois do seu comando`;
@@ -848,7 +852,7 @@
       const {data,error}=await state.client.from('karaoke_members').update({display_name:name}).eq('room_id',scope.room).eq('user_id',scope.uid).select('display_name');
       if(!tg07Current(scope)||state.emergencyBlocked)return;
       if(error||data?.length!==1||data[0].display_name!==name)throw error||Error('Apelido não confirmado.');
-      localStorage.setItem('tem-gogo-display-name',name);$('guest-display-name').textContent=name;
+      try{localStorage.setItem('tem-gogo-display-name',name);}catch{}$('guest-display-name').textContent=name;
       state.members=state.members.map(m=>m.user_id===scope.uid?{...m,display_name:name}:m);
       if(Object.hasOwn(AVATARS,avatar))tg83SetAvatar(avatar);
       renderAll();await sendProfileToHost();if(!tg07Current(scope))return;
@@ -1954,7 +1958,7 @@
     $('guest-latest-score-value').textContent=value+'/100';
     if(isAnonymous(state.user))$('tg18-account-cta').hidden=false;
     $('guest-latest-score-comment').textContent='Drag Diva: '+(value>=85?'Meu amor, que estrela!':value>=65?'Você entregou espetáculo!':value>=40?'A próxima apresentação promete!':'Coragem também é show. Vamos de bis?');
-    if($('tg05-guest-score-avatar'))$('tg05-guest-score-avatar').src=avatarSrc(state.avatars.get(state.user.id));
+    if($('tg05-guest-score-avatar'))$('tg05-guest-score-avatar').src=avatarSrc(state.avatar);
   }
   function memberName(userId) {const member=state.members.find(m=>m.user_id===userId);if(member)return member.display_name;if(userId===state.room?.owner_id)return userId===state.user?.id?(localStorage.getItem('tem-gogo-display-name')||'Anfitrião'):'Anfitrião';return 'Artista';}
   let tg07SessionEpoch=0;
@@ -2799,7 +2803,7 @@
     const el=$(mode==='preflight'?'tg-beta-stage-avatars':'tg-beta-result-avatars');if(!el)return;
     el.replaceChildren();for(const uid of singers.slice(0,4)){
       const card=document.createElement('div');card.className='tg-beta-stage-artist';
-      const img=document.createElement('img');img.src=avatarSrc(state.avatars.get(uid));img.alt='Avatar original do cantor';
+      const img=document.createElement('img');img.src=avatarForMember(uid);img.alt='Avatar original do cantor';
       const name=document.createElement('strong');name.textContent=memberName(uid);card.append(img,name);el.append(card);
     }
   }
@@ -3380,12 +3384,14 @@ function renderCatalog(){
   });
 }
 async function openFullCatalog(){
-  if(state.emergencyBlocked||(isPhoneSingerRole()&&callActive())){toast('Conclua sua apresentação antes de escolher músicas.',true);return;}
+  if(state.emergencyBlocked){toast('A sala está em pausa de segurança. Aguarde a reconexão.',true);return;}
+  if(isPhoneSingerRole()&&callActive()){toast('Conclua sua apresentação antes de escolher músicas.',true);return;}
   if(!state.room){toast('Entre em uma festa para ver o catálogo.',true);return;}
   if($('song-dialog')?.open)$('song-dialog').close();
   state.catalogPage=1;state.catalogQuery='';state.catalogFilter='all';
   $('catalog-search').value='';$('catalog-filter').value='all';
   $('tg07-external-query').value='';$('tg07-external-results').replaceChildren();$('tg07-link').value='';$('tg07-link-title').value='';
+  if($('catalog-dialog').open)return;
   $('catalog-dialog').showModal();
   if(document.body.dataset.currentView==='stage')$('catalog-close').focus({preventScroll:true});
   $('catalog-list').textContent='Abrindo a biblioteca do povo... 🎶';
@@ -4182,7 +4188,7 @@ function renderFullCatalog(){
       else void window.TG_UI.shareLink(message,url.href);
     });
     $('tg18-remote-back').addEventListener('click',()=>void goToMyRooms());
-    $('tg18-remote-music').addEventListener('click',()=>{if(canDirectDiva()&&state.role==='remote'&&!callActive()&&!state.emergencyBlocked)void openFullCatalog();});
+    $('tg18-remote-music').addEventListener('click',()=>{if(!canDirectDiva()||state.role!=='remote'){toast('Reconecte o controle com a conta anfitriã.',true);return;}void openFullCatalog();});
     $('tg18-remote-rename').addEventListener('click',()=>void renameRemoteSinger());
     $('tg19-tab-control').addEventListener('click',()=>switchRemoteTab('control'));
     $('tg19-tab-singing').addEventListener('click',()=>switchRemoteTab('singing'));

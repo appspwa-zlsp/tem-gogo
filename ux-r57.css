@@ -370,7 +370,9 @@ html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle:disabl
 @media(max-width:480px){#tg70-battle-guide .tg70-guide-inner{padding:10px!important}#tg70-battle-guide .tg70-guide-buttons button{flex-basis:90px}}
 
 /* R83 — homologação mobile: menu remoto fora do grid, avatar universal e listas compactas. */
-#tg18-remote .tg18-remote-header{grid-template-areas:"title title" "profile help"!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:center!important;padding:10px 12px!important}
+#tg18-remote .tg18-remote-header{display:grid!important;grid-template-areas:"title title" "profile help"!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:center!important;padding:10px 12px!important;box-sizing:border-box;max-width:100%;min-width:0}
+#tg18-remote .tg18-remote-header>b{grid-area:title;overflow-wrap:normal!important;word-break:normal!important;text-align:center}
+#tg18-remote .tg18-remote-header>.tg83-header-avatar{grid-area:profile;justify-self:start;min-width:0;max-width:100%}
 #tg18-remote .tg83-remote-menu-button{grid-area:help;justify-self:end;min-height:44px;max-width:100%;white-space:normal;overflow-wrap:normal;word-break:normal}
 #tg18-remote .tg83-remote-music{display:block;width:100%;min-height:48px;margin:8px 0 12px;white-space:normal;box-sizing:border-box}
 #tg18-remote .tg83-remote-music[hidden],body.tg103-remote-mic-focus #tg18-remote .tg83-remote-music{display:none!important}
@@ -385,7 +387,8 @@ html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle:disabl
 #tg18-remote .tg83-remote-menu button[hidden]{display:none!important}
 #tg18-remote .tg83-remote-menu .tg81-room-actions .tg83-danger{color:var(--tg-error,#ffb0b0)!important}
 #lobby .simple-header{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;flex-wrap:nowrap!important}
-#lobby .simple-header .brand{min-width:0}
+#lobby .simple-header .brand{min-width:0;flex:1 1 auto}
+@media(max-width:380px){#lobby .tg83-header-avatar span{display:none}#lobby .simple-header .brand{font-size:clamp(16px,5.5vw,23px)}}
 #lobby .simple-header .header-control-group{display:flex!important;flex:0 0 auto!important;gap:0!important;width:auto!important;align-items:center!important}
 :is(#lobby,#tg18-remote) .tg83-header-avatar{display:inline-flex!important;align-items:center!important;gap:6px;min-height:44px!important;flex:0 0 auto!important;white-space:nowrap!important;padding:4px 9px!important}
 .tg83-header-avatar img{width:40px!important;height:40px!important;border-radius:50%;object-fit:contain!important;object-position:center;background:var(--tg-surface-raised,var(--surface-2));display:block}
@@ -408,6 +411,10 @@ html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle:disabl
 #guest[data-tg58-ready] #guest-queue-panel .tg81-library #guest-library.hit-library-list .tg123-track-toggle{width:auto!important;max-width:none!important;flex:1 1 auto!important;min-width:0!important;min-height:44px!important;font-size:13px!important;background:var(--tg-cta,var(--violet))!important;color:var(--tg-on-primary,#fff)!important;border-radius:12px!important}
 #guest[data-tg58-ready] #guest-queue-panel .tg81-library #guest-library.hit-library-list .tg-r16-curation:not([open]){grid-area:curation!important;align-self:center!important}
 #guest .tg81-library #guest-library .history-song-info small{color:var(--tg-muted,var(--text))!important}
+#guest .tg81-library #guest-library .history-song-info,#catalog-dialog .history-song-info{min-width:0;overflow-wrap:anywhere}
+#guest .tg81-library #guest-library .tg26-track-actions{flex-direction:row!important;min-width:0!important}
+#guest .tg81-library #guest-library .tg26-favorite{flex:0 0 44px!important;width:44px!important;min-height:44px!important}
+#guest .tg81-library #guest-library .tg-r16-curation:not([open])>summary{min-width:44px;min-height:44px;display:grid;place-items:center}
 @media(max-width:680px){#catalog-dialog #catalog-list .history-song-card.tg123-track:has(>.tg26-track-actions){grid-template-columns:56px minmax(0,1fr) 44px!important;grid-template-areas:"cover info info" "toggle toggle curation"!important;grid-template-rows:auto auto!important;gap:6px 8px!important}
 #catalog-dialog #catalog-list .history-song-card.tg123-track:has(>.tg-r16-curation[open]){grid-template-areas:"cover info info" "toggle toggle toggle" "curation curation curation"!important;grid-template-rows:auto auto auto!important}
 #catalog-dialog #catalog-list .history-song-card.tg123-track>img{width:56px!important;height:56px!important}
