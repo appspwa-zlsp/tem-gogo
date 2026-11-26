@@ -1889,14 +1889,14 @@
     if(state.role==='guest') setGuestNowPlaying(found||null);
   }
   // R94: an invitation to sing again is not an invitation to bypass the queue.
-  let tg94QueueScope=null,tg94BisPending=null;
+  let tg94QueueScope=null,tg94BisPending=null,tg97QueueAt=-Infinity,tg97QueueRead=0;
   function tg94CanBis(){
-    if(!state.room||state.room.status!=='open'||state.emergencyBlocked||state.emergencyClosing||!tg13Recreational()||!tg07Current(tg94QueueScope||{})||!['host','guest'].includes(state.role)||state.currentSong||state.room.current_song_id||state.preflight||state.guestPreflightSong||state.startingSong||state.isPlaying)return false;
-    return state.room.room_mode==='solo'?state.role==='host':(state.room.room_mode==='classic'||state.room.room_mode==null)&&!state.songs.some(s=>s.status==='queued');
+    if(!state.room||state.room.status!=='open'||state.emergencyBlocked||state.emergencyClosing||!tg13Recreational()||!tg07Current(tg94QueueScope||{})||navigator.onLine===false||performance.now()-tg97QueueAt>15000||!['host','guest'].includes(state.role)||state.currentSong||state.room.current_song_id||state.preflight||state.guestPreflightSong||state.startingSong||state.isPlaying)return false;
+    return !state.songs.some(s=>s.status==='playing')&&(state.room.room_mode==='solo'?state.role==='host':(state.room.room_mode==='classic'||state.room.room_mode==null)&&!state.songs.some(s=>s.status==='queued'));
   }
   function tg94PaintBis(){
     const eligible=tg94CanBis(),queued=state.songs.some(s=>s.status==='queued');
-    const host=state.role==='host'&&tg13Recreational(),fresh=tg07Current(tg94QueueScope||{});
+    const host=state.role==='host'&&tg13Recreational(),fresh=tg07Current(tg94QueueScope||{})&&navigator.onLine!==false&&performance.now()-tg97QueueAt<=15000;
     for(const id of ['tg93-final-bis','tg93-after-bis']){const b=$(id);if(b)b.hidden=!host||!eligible;}
     const guest=$('tg94-guest-bis');if(guest)guest.hidden=state.role!=='guest'||!eligible;
     const prepare=$('tg123-after-prepare');if(prepare)prepare.hidden=!host||!fresh||!queued;
@@ -1908,8 +1908,9 @@
     if(tg94BisPending||!tg94CanBis()||state.finishing)return;
     const scope=tg07Scope(),ticket={};tg94BisPending=ticket;
     try{
-      await fetchSongs();
-      if(!tg07Current(scope)||state.finishing||!tg94CanBis()){
+      await fetchRoom();if(!tg07Current(scope))return;
+      const confirmed=await fetchSongs();
+      if(!confirmed||!tg07Current(scope)||state.finishing||!tg94CanBis()){
         if(tg07Current(scope)){tg94PaintBis();toast('A fila mudou. O próximo artista tem prioridade.');}
         return;
       }
@@ -1919,12 +1920,12 @@
     finally{if(tg94BisPending===ticket)tg94BisPending=null;}
   }
   async function fetchSongs() {
-    if(!state.room||state.emergencyBlocked)return;const requestedRoom=state.room.id,scope=tg07Scope();
+    if(!state.room||state.emergencyBlocked)return false;const requestedRoom=state.room.id,scope=tg07Scope(),read=++tg97QueueRead;
     const {data,error}=await state.client.from('karaoke_songs').select('*').eq('room_id',requestedRoom)
       .in('status',['queued','playing']).order('created_at',{ascending:true}).limit(150);
-    if(!tg07Current(scope)||state.emergencyBlocked)return;
-    if(error)throw error;
-    state.songs=data||[];tg94QueueScope=scope;
+    if(!tg07Current(scope)||state.emergencyBlocked||read!==tg97QueueRead)return false;
+    if(error){tg94QueueScope=null;tg94PaintBis();throw error;}
+    state.songs=data||[];tg94QueueScope=scope;tg97QueueAt=performance.now();
     // A fila confirmada também encerra chamadas cujo cancelamento não chegou por sinalização.
     if(state.role==='host'&&state.preflight&&!state.preflight.starting&&!state.songs.some(s=>s.id===state.preflight.song.id&&s.status==='queued'))clearHostPreflight();
     if(isPhoneSingerRole()&&state.guestPreflightSong&&!state.songs.some(s=>s.id===state.guestPreflightSong.id&&isSinger(s,state.user?.id))){
@@ -1936,6 +1937,7 @@
     tg94PaintBis();if(isPhoneSingerRole())tg90PaintPhone();
     if(state.role==='remote')renderRemote();
     if(state.role==='guest')setGuestNowPlaying(state.songs.find(s=>s.id===state.room?.current_song_id)||null);
+    return tg07Current(scope)&&!state.emergencyBlocked&&read===tg97QueueRead;
   }
   async function fetchMembers() {
     if(!state.room||state.emergencyBlocked)return;const requestedRoom=state.room.id,scope=tg07Scope();
@@ -2967,7 +2969,7 @@
     if(!tg13Recreational()){tg13ScorePrivacy();return;}
     const value=Math.max(0,Math.min(100,Math.round(Number(result?.score)||0)));
     const meme=selectedMeme(value);
-    const verdict=value<40?'CORAGEM TAMBÉM É SHOW!':value<60?'A DIVA QUER BIS (COM ENSAIO)':value<80?'A DIVA APROVOU':value<95?'A DIVA APLAUDIU DE PÉ':'A DIVA COROOU';
+    const verdict=value<40?'CORAGEM TAMBÉM É SHOW!':value<60?'O BRILHO ESTÁ CHEGANDO!':value<80?'A DIVA APROVOU':value<95?'A DIVA APLAUDIU DE PÉ':'A DIVA COROOU';
     $('tg192-result-tier').textContent=verdict;
     $('final-overlay').dataset.phase='revealed';$('final-overlay').querySelector('.tg05-result-wait').hidden=true;$('final-overlay').querySelector('.tg05-result-reveal').hidden=false;$('final-overlay').dataset.verdict=value<40?'shade':value<60?'tease':value<80?'good':value<95?'great':'legend';
     clearGif();
@@ -3014,6 +3016,7 @@
       if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
       if(skipped){try{state.player?.stopVideo();}catch{}}
       state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;tgR25ClearSoloReport();
+      if(tg13Recreational())void fetchSongs().catch(err=>console.debug('Fila após apresentação:',err));
       // D001: pontuação registrada ANTES de liberar o microfone solo.
       if(state.soloMic)stopSoloMic();
       // Privacidade: feche os microfones ao fim do show.
@@ -3921,8 +3924,9 @@ function renderFullCatalog(){
     try{
       const audio=new Audio(new URL(v.file,document.baseURI).href);job.audio=audio;audio.volume=studio.getVolume()/100;
       const finish=()=>{if(tg93Farewell!==job)return;clearTimeout(job.timer);try{audio.pause();audio.removeAttribute('src');audio.load();}catch{}job.audio=null;};
+      const cut=studio.getTrimEnd?.(v.id);audio.ontimeupdate=()=>{if(tg93Farewell!==job||!valid()||document.body.classList.contains('tg93-voice-previews-off')||!(studio.getVolume()>0)||Number.isFinite(cut)&&audio.currentTime>=cut){finish();return;}audio.volume=studio.getVolume()/100;};
       audio.onended=finish;audio.onerror=finish;job.timer=setTimeout(finish,Math.min(18000,Math.ceil((v.duration_seconds+3)*1000)));
-      await audio.play();if(!valid())finish();
+      await audio.play();if(!valid()){try{audio.pause();audio.removeAttribute('src');audio.load();}catch{}finish();}
     }catch{if(valid()&&job.audio){clearTimeout(job.timer);try{job.audio.pause();}catch{}job.audio=null;}}
   }
   function tg15ClearRecap(){
@@ -4682,6 +4686,7 @@ function renderFullCatalog(){
     members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,tg60SyncIdentity,setDivaCaption:tg87SetDivaCaption,
     campaignSafe:!state.emergencyBlocked&&!state.room?.current_song_id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.guestMicLock,
     canAnnounceOpening:()=>!state.emergencyBlocked&&tg13Recreational()&&['classic','solo'].includes(state.room?.room_mode)&&state.role==='host'&&!state.currentSong&&!state.preflight&&!state.songs.some(s=>s.status==='done'||s.status==='playing'||s.status==='skipped'),
+    canInviteBis:()=>tg94CanBis(),
     canContextualDiva:()=>!state.startingSong&&!state.emergencyBlocked&&!state.emergencyClosing&&tg13Recreational()&&state.role==='host'&&state.room?.status==='open'&&state.room.owner_id===state.user?.id&&!state.currentSong&&!state.room.current_song_id&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size,
     canManualAudio:()=>!state.startingSong&&!state.finishing&&!recadoShowing&&!!$('final-overlay')?.hidden,
     canPreviewVoices:()=>!state.startingSong&&!state.emergencyBlocked&&tg13Recreational()&&state.role==='host'&&state.room?.status==='open'&&state.room.owner_id===state.user?.id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size,
