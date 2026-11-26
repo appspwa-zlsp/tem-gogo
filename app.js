@@ -28,7 +28,7 @@
     enabled:cfg.HOST_LEASE_PILOT===true,
     context:()=>({room:state.room?.id,uid:state.user?.id,role:state.role,epoch:tg07SessionEpoch,battle:state.room?.tg30_battle_reserved===true}),
     rpc:async(name,params)=>{const {data,error}=await state.client.rpc(name,params);if(error)throw error;return data;},
-    onStop:()=>{if(state.room&&!state.emergencyClosing&&!state.emergencyLatch)tg23Suspend('Autoridade do palco não confirmada. Entre novamente; nenhuma música será retomada automaticamente.','connection');}
+    onStop:()=>{if(state.room&&!state.emergencyClosing&&!state.emergencyLatch){tg23Suspend('Autoridade do palco não confirmada. Entre novamente; nenhuma música será retomada automaticamente.','connection');void fetchRoom().catch(()=>{});}}
   });
   const tg108Protected=()=>cfg.HOST_LEASE_PILOT===true&&tg13Recreational()&&tg108Started&&!tg108.snapshot().legacy;
   const tg108Safe=()=>!tg108Protected()||tg108.snapshot().live;
@@ -59,7 +59,7 @@
     if(initial&&state.role==='host'&&['awaiting_host','expired'].includes(s.mode)){
       const recovering=s.mode==='expired';
       const ok=await window.TG_UI.confirm(recovering?'A música interrompida ficará sem nota e poderá voltar à fila. Nenhuma música será iniciada automaticamente.':'Autorizar este aparelho como palco da festa piloto?',{title:recovering?'Recuperar festa':'Autorizar palco',confirmText:recovering?'Recuperar':'Autorizar'});
-      if(!tg07Current(scope)||!ok){tg108Wait(s.mode);return false;}
+      if(!tg07Current(scope))return false;if(!ok){tg108Wait(s.mode);return false;}
       if(recovering){await tg108.recover(true);await fetchRoom();}else await tg108.claim(true);
       if(!tg07Current(scope))return false;s=tg108.snapshot();
     }
@@ -4704,7 +4704,9 @@ function renderFullCatalog(){
     $('qr-bubble').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('qr-bubble').classList.toggle('qr-expanded');}});
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void tg38Reconnect(false);});
     window.addEventListener('online',()=>{void tg38Reconnect(true);});
-    window.addEventListener('offline',()=>{if(state.room)tg23Suspend('Conexão interrompida. Não foi possível confirmar a segurança do palco.','connection');setSyncStatus('offline');toast('Sem internet: o palco e a fila podem parar.',true);});
+    window.addEventListener('pagehide',()=>{if(tg108Protected()&&state.room&&!state.emergencyClosing&&tg108.snapshot().mode!=='ended')tg23Suspend('A página foi interrompida. Reentre para validar o palco.','connection');});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.role==='host'&&tg108Protected()&&tg108.snapshot().live&&!state.emergencyClosing)tg23Suspend('O palco saiu da tela ativa. Reentre para confirmar sua autoridade.','connection');});
+  window.addEventListener('offline',()=>{if(state.room)tg23Suspend('Conexão interrompida. Não foi possível confirmar a segurança do palco.','connection');setSyncStatus('offline');toast('Sem internet: o palco e a fila podem parar.',true);});
     window.addEventListener('popstate',event=>{
       if(state.role==='guest'&&state.room){
         if(event.state?.view==='guest'&&['mic','queue'].includes(event.state.tab)){switchMobileTab(event.state.tab,false);return;}
@@ -4858,6 +4860,7 @@ function renderFullCatalog(){
   }
   async function tg23Poll(initial=false){
     if(!state.room||!state.user||tg23Leaving||state.emergencyClosing)return false;
+    if(state.finishing&&tg108.snapshot().mode==='ended')return false;
     if(tg23Pending)return tg23Pending.promise;
     const scope=tg07Scope(),ticket={};tg23Pending=ticket;
     ticket.promise=(async()=>{let timer;
