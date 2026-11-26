@@ -110,7 +110,7 @@ function initParticipant(){
  const row=guest.querySelector('.guest-profile-row');const name=$('guest-display-name');
  const top=mk('div',{class:'tg12-participant-top'});
  const avatar=$('guest-profile-avatar');
- const avatarBtn=button('','tg12-avatar-button');avatarBtn.setAttribute('aria-label','Editar foto, apelido e avatar');avatarBtn.addEventListener('click',e=>{if(e.target!==avatar)avatar?.click();});
+ const avatarBtn=button('','tg12-avatar-button');avatarBtn.setAttribute('aria-label','Editar apelido e avatar');avatarBtn.addEventListener('click',e=>{if(e.target!==avatar)avatar?.click();});
  if(avatar){avatar.removeAttribute('tabindex');avatar.removeAttribute('role');avatar.removeAttribute('aria-label');avatarBtn.append(avatar);}top.append(avatarBtn);
  const label=mk('div',{class:'tg12-participant-label'});label.innerHTML='<span>MEU CAMARIM</span><strong id="tg12-party-title">Festa</strong>';
  top.append(label);

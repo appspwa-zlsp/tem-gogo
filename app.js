@@ -606,8 +606,8 @@
     if(Date.now()<nextGuestRecadoAt){toast('Espere alguns segundos antes de outro recado.',true);return;}
     const scope=tg07Scope(),roomId=scope.room,uid=scope.uid,ticket={};tg04HostSending=ticket;setLoading($(buttonId),true,'Enviando…');
     try{
-      const {error}=await state.client.from('tg_party_messages').insert({room_id:roomId,author_id:uid,nickname:'Anfitrião',body:text,status:'sent'});
-      if(error)throw error;
+      const {data,error}=await state.client.from('tg_party_messages').insert({room_id:roomId,author_id:uid,nickname:'Anfitrião',body:text,status:'sent'}).select('id').single();
+      if(error)throw error;if(!data?.id)throw Error('O servidor não confirmou o recado.');
       if(!tg07Current(scope))return;
       $(inputId).value='';nextGuestRecadoAt=Date.now()+25000;
       toast('Recado registrado. A TV o exibirá no intervalo.');if(state.role==='host')void syncPartyMessages();

@@ -80,17 +80,41 @@
  function guestNav(){
   const guest=$('guest'),top=q('.tg12-participant-top',guest),music=$('tg-r05-catalog-tab');if(!guest||!top||!music||guest.dataset.tg58Ready)return;
   guest.dataset.tg58Ready='true';
-  const more=el('details','tg58-guest-more');more.append(el('summary','','Sala'));const menu=el('div','tg58-guest-menu');more.append(menu);
-  const people=$('tg96-party-open'),help=$('open-guest-faq'),sw=$('guest-switch'),leave=$('leave-party'),bottom=q('.guest-bottom',guest),helpTools=q('.tg193-help-tools',bottom);
-  if(people)people.textContent='Pessoas da festa';if(help)help.textContent='Ajuda';if(sw){sw.textContent='Minhas salas';sw.title='Trocar de sala sem encerrar a festa';}if(leave)leave.textContent='Sair desta festa';
-  move(menu,people,sw,help,helpTools,leave);top.append(more);
-  const extra=q('.guest-song-search-card',guest),install=$('guest-install');if(install)menu.append(install);const push=$('tg19-push-shortcut'),pushBackup=$('tg18-push-cta');if(push&&pushBackup){push.textContent='🔔 Avisar minha vez';const syncPush=()=>pushBackup.classList.toggle('tg26-legacy',!push.hidden&&!push.closest('[hidden]'));syncPush();window.addEventListener('temgogo:view',syncPush);new MutationObserver(syncPush).observe(push,{attributes:true,attributeFilter:['hidden']});}
-  legacy(extra);legacy(q('.guest-hit-library',guest));for(const n of guest.querySelectorAll('.tg16-guest-actions [data-catalog-open],#tg16-queue-shortcut,#tg16-score-shortcut'))legacy(n);const latest=$('guest-all-scores');if(latest)latest.textContent='Placar completo';
-  const recado=$('tg17-guest-message');if(recado){const d=el('details','tg61-guest-extra');d.append(el('summary','','Recados'));recado.before(d);d.append(recado);}
-  const promo=q('.tg18-account-promo',guest);if(promo){const d=el('details','tg61-guest-extra');d.append(el('summary','','Conta e notificações'));promo.before(d);d.append(promo);const sync=()=>{const b=window.TG_BETA_BRIDGE?.();if(!b?.user)return;d.querySelector('summary').textContent=b.isAnonymous(b.user)?'Salvar minha participação':'Minha conta e notificações';};window.addEventListener('temgogo:view',sync);sync();}
-  const nav=q('.mobile-switch',guest);if(nav)nav.setAttribute('aria-label','Músicas, fila, microfone, placar e perfil');
+  const nav=q('.mobile-switch',guest),bottom=q('.guest-bottom',guest);
+  const locked=()=>guest.hidden||document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg18-singing')||!$('guest-preflight')?.hidden||!$('your-turn-banner')?.hidden;
+  function drawer(id,title,opener){
+    const d=el('dialog','tg81-mobile-drawer');d.id=id;d.setAttribute('aria-labelledby',id+'-title');
+    const h=el('header','tg81-drawer-head'),label=el('h2','',title);label.id=id+'-title';const back=button('Voltar',()=>d.close());
+    h.append(label,back);const content=el('div','tg81-drawer-content');d.append(h,content);guest.append(d);
+    const open=()=>{if(locked())return;if(!d.open)d.showModal();content.scrollTop=0;back.focus({preventScroll:true});};
+    d.addEventListener('close',()=>{if(!guest.hidden&&!document.querySelector('dialog[open]')&&!locked())opener?.focus({preventScroll:true});});
+    d.addEventListener('click',e=>{if(e.target===d)d.close();});return {d,content,open};
+  }
+  const roomButton=button('Sala',()=>room.open());roomButton.classList.add('tg81-room-button');top.append(roomButton);roomButton.setAttribute('aria-haspopup','dialog');roomButton.setAttribute('aria-controls','tg81-room-dialog');
+  const room=drawer('tg81-room-dialog','Minha sala',roomButton);
+  const info=el('div','tg81-room-info'),title=el('strong','','Sua festa'),code=el('small','','');info.append(title,code);room.content.append(info);
+  function syncRoom(){title.textContent=$('guest-room-title')?.textContent||'Sua festa';code.textContent='Código: '+($('guest-room-code')?.textContent||'—');}
+  for(const id of ['guest-room-title','guest-room-code']){const source=$(id);if(source)new MutationObserver(syncRoom).observe(source,{childList:true,characterData:true,subtree:true});}syncRoom();
+  const people=$('tg96-party-open'),help=$('open-guest-faq'),sw=$('guest-switch'),leave=$('leave-party'),helpTools=q('.tg193-help-tools',bottom);
+  if(people)people.textContent='Pessoas da festa';if(sw){sw.textContent='Trocar de sala';sw.title='Volta às suas salas sem encerrar a festa';}if(leave){leave.textContent='Sair desta festa';leave.classList.add('button','button-outline','tg81-leave');}if(help)help.textContent='Ajuda';
+  const group=(heading,...nodes)=>{const section=el('section','tg81-room-actions');section.append(el('h3','',heading));move(section,...nodes);room.content.append(section);};
+  group('Festa',people,sw,leave);group('Ajuda',helpTools||help);if(helpTools)legacy(help);
+  room.content.addEventListener('click',e=>{if(e.target.closest('button'))room.d.close();},true);
+  const recado=$('tg17-guest-message'),recadoButton=el('button','mobile-tab tg81-recado-tab');recadoButton.id='tg81-recado-tab';recadoButton.type='button';const icon=el('span','','✉');icon.setAttribute('aria-hidden','true');recadoButton.append(icon,el('span','','Recados'));
+  recadoButton.setAttribute('aria-haspopup','dialog');recadoButton.setAttribute('aria-controls','tg81-recado-dialog');
+  const messages=drawer('tg81-recado-dialog','Recados',recadoButton);
+  if(recado){messages.content.append(recado);const heading=q('h3',recado),copy=q('p',recado),eyebrow=q('.card-eyebrow',recado);if(heading)heading.textContent='Seu recado para a Diva';if(copy)copy.textContent='Escreva ou dite. O recado aparece na TV entre as músicas.';if(eyebrow)eyebrow.hidden=true;const submit=$('tg17-send-message');if(submit)submit.textContent='Enviar';}
+  recadoButton.addEventListener('click',messages.open);const profileTab=q('[data-tg-beta-open="profile"]',nav);if(profileTab)profileTab.before(recadoButton);else nav?.append(recadoButton);
+  const extra=q('.guest-song-search-card',guest),library=q('.guest-hit-library',guest),install=$('guest-install');
+  legacy(extra);legacy(install);legacy(q('.tg18-account-promo',guest));legacy($('tg19-push-shortcut'));
+  if(library){library.classList.remove('tg26-legacy');library.classList.add('tg81-library');const h=q('h2',library),copy=q('p',library),eyebrow=q('.card-eyebrow',library),open=q('[data-catalog-open]',library);if(h)h.textContent='Escolha seu próximo hit';if(copy)copy.hidden=true;if(eyebrow)eyebrow.hidden=true;if(open)open.textContent='Buscar todas as músicas';const list=$('guest-library');if(list)list.setAttribute('aria-live','polite');}
+  for(const x of guest.querySelectorAll('.tg16-guest-actions [data-catalog-open],#tg16-queue-shortcut,#tg16-score-shortcut'))legacy(x);const latest=$('guest-all-scores');if(latest)latest.textContent='Placar completo';
+  if(nav)nav.setAttribute('aria-label','Músicas, fila, microfone, placar, recados e perfil');
   music.setAttribute('aria-label','Músicas');const labels=music.querySelectorAll('span');if(labels.length>1)labels[1].textContent='Músicas';
-  menu.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});window.addEventListener('temgogo:view',()=>{more.open=false;});
+  const close=()=>{for(const x of [room,messages])if(x.d.open)x.d.close();};window.addEventListener('temgogo:view',close);
+  new MutationObserver(()=>{if(locked())close();}).observe(document.body,{attributes:true,attributeFilter:['class']});
+  for(const id of ['guest-preflight','your-turn-banner']){const x=$(id);if(x)new MutationObserver(()=>{if(locked())close();}).observe(x,{attributes:true,attributeFilter:['hidden']});}
+
  }
  function profile(){
   const quick=$('tg124-profile-menu'),social=$('tg-beta-dialog'),guest=$('guest-profile-dialog');if(!quick||!social||!guest||quick.dataset.tg60Ready)return;quick.dataset.tg60Ready='true';
@@ -107,8 +131,8 @@
   for(const b of document.querySelectorAll('.tg124-profile-shortcut'))b.textContent='Meu perfil';
   const panel=q('[data-tg-beta-panel="profile"]',social),save=$('tg-p-save'),anonInner=q('.modal-inner',guest);
   if(panel&&save){
-    const socialDetails=el('details','tg60-social-options');socialDetails.append(el('summary','','Identificação social e privacidade'));
-    for(const id of ['tg-p-handle','tg-p-insta','tg-p-insta-vis','tg-p-photo-vis','tg-p-score-vis','tg-p-legal','tg-p-age','tg-p-best','tg-p-rank']){const label=$(id)?.closest('label');if(label)socialDetails.append(label);}
+    const socialDetails=el('details','tg60-social-options');socialDetails.append(el('summary','','Redes sociais e privacidade'));socialDetails.open=false;
+    for(const id of ['tg-p-handle','tg-p-insta','tg-p-score-vis','tg-p-best','tg-p-rank','tg-p-age','tg-p-legal']){const label=$(id)?.closest('label');if(label)socialDetails.append(label);}
     const bora=q('.tg95-bora',panel);if(bora){const links=el('details','tg60-social-options tg63-social-links');links.append(el('summary','','Bora de Rolê · link opcional'));bora.before(links);links.append(bora);}save.before(socialDetails);
   }
   const actions=(target,isGuest)=>{if(!target)return;const box=el('div','tg60-profile-actions');
@@ -117,6 +141,7 @@
     action('Aparência',()=>{const view=$(document.body.dataset.currentView);close();(q('.open-settings',view)||q('.open-settings'))?.click();});
     action('Identidade vocal',()=>{close();const view=$(document.body.dataset.currentView);(q('[data-tg30-voice-open]',view)||q('[data-tg30-voice-open]'))?.click();});
     if(!isGuest){action('Minhas notas',()=>{close();q('[data-tg124-action="history"]',quick)?.click();});action('Alterar senha',()=>{close();$('account-password-open')?.click();});action('Sair da conta',()=>{close();q('[data-tg124-action="logout"]',quick)?.click();});}else{action('Criar conta',()=>{close();$('tg18-account-cta')?.click();});}
+    const notify=el('section','tg81-profile-notify');notify.append(el('h3','','Conta e notificações'));const nt=button('🔔 Avisar minha vez',()=>{close();$('tg18-push-cta')?.click();});const install=button('Instalar app',()=>{close();$('tg18-install')?.click();});notify.append(nt,install);const sync=()=>{const b=window.TG_BETA_BRIDGE?.();nt.hidden=b?.role!=='guest';};window.addEventListener('temgogo:view',sync);sync();box.append(notify);
     target.append(box);
   };
   actions(panel,false);actions(anonInner,true);

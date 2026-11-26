@@ -310,3 +310,35 @@ html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle:disabl
 #tg70-battle-guide #tg70-guide-heading{font-family:inherit;font-size:clamp(22px,4.1vw,36px);font-weight:900;line-height:1.12;color:var(--tg-text,var(--text,#fff));margin:12px 0 4px;letter-spacing:.01em}
 #tg70-battle-guide #tg70-guide-text{font-family:inherit;font-size:clamp(16px,2.4vw,20px);font-weight:700;line-height:1.4;color:var(--tg-text,var(--text,#fff));opacity:1;margin:4px 0 12px}
 #tg70-battle-guide .tg70-guide-counter{font-weight:800;opacity:1;color:var(--tg-text,var(--text,#fff))}
+
+/* R81 — Camarim compacto; menus em diálogos, acervo no corpo, tema vigente. */
+#guest .tg81-room-button{flex:0 0 auto;min-height:44px;min-width:64px;white-space:nowrap}
+#guest .tg81-mobile-drawer{width:min(94vw,480px);max-height:calc(100dvh - 32px);padding:0;border-radius:18px;border:1px solid var(--tg-border,var(--line));color:var(--tg-text,var(--text));background:var(--tg-surface,var(--surface));overflow:auto;box-sizing:border-box}
+#guest .tg81-mobile-drawer::backdrop{background:#080511b8}
+#guest .tg81-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:2;padding:12px 16px;background:var(--tg-surface,var(--surface));border-bottom:1px solid var(--tg-border,var(--line))}
+#guest .tg81-drawer-head h2{margin:0;font-size:20px;line-height:1.25}
+#guest .tg81-drawer-head button{min-height:44px;padding:8px 12px}
+#guest .tg81-drawer-content{display:grid;gap:12px;padding:14px;min-width:0}
+#guest .tg81-room-info{display:grid;gap:4px;padding:12px;border:1px solid var(--tg-border,var(--line));border-radius:12px;overflow-wrap:anywhere}
+#guest .tg81-room-actions{display:grid;gap:6px;min-width:0}
+#guest .tg81-room-actions h3{margin:4px 0;font-size:14px}
+#guest .tg81-room-actions button,#guest .tg81-room-actions .tg193-help-tools button{width:100%;min-height:44px;text-align:left;padding:9px 12px;box-sizing:border-box;white-space:normal}
+#guest .tg81-room-actions .tg193-help-tools{display:grid;gap:6px;min-width:0}
+#guest .tg81-leave{color:var(--danger,#ec9b9b);border-color:currentColor}
+#guest #tg81-recado-dialog .tg17-guest-message{display:block;margin:0;padding:0;border:0;background:transparent;box-shadow:none}
+#guest #tg81-recado-dialog .tg17-message-actions{display:flex;flex-wrap:wrap;gap:8px}#guest #tg81-recado-dialog .tg17-message-actions button{flex:1;min-height:44px}
+#guest #tg81-recado-dialog textarea{width:100%;box-sizing:border-box;font-size:16px}
+#guest[data-tg58-ready] .mobile-switch>button:not([hidden]){flex:1 1 0;min-width:0;min-height:48px;padding:4px 1px;font-size:clamp(10px,2.8vw,13px)}
+#guest[data-tg58-ready] .mobile-switch{flex-wrap:nowrap!important;gap:3px!important}
+#guest[data-tg58-ready] .tg81-library{display:block!important;margin:8px 0 0;padding:12px;min-width:0}
+#guest .tg81-library h2{font-size:clamp(17px,4.8vw,22px);margin:0 0 8px}
+#guest .tg81-library .catalog-primary{min-height:44px;width:100%;margin-bottom:10px}
+#guest .tg81-library #guest-library{display:grid;gap:6px;min-width:0}
+#guest .tg81-library .tg123-track{min-width:0}
+#guest .guest-bottom{margin-top:12px;padding-top:0}
+#tg-beta-dialog .tg81-profile-notify,#guest-profile-dialog .tg81-profile-notify{grid-column:1/-1;display:grid;gap:6px;margin:4px 0}
+#tg-beta-dialog .tg81-profile-notify h3,#guest-profile-dialog .tg81-profile-notify h3{font-size:15px;margin:4px 0}
+#tg-beta-dialog #tg-p-insta + small{display:block;font-size:12px;line-height:1.4;margin:5px 0}
+#tg-beta-dialog #tg-beta-photo{display:grid;place-items:center;overflow:hidden;border-radius:50%;width:64px;height:64px;flex:0 0 64px;background:var(--tg-surface-raised,var(--surface-2))}
+#tg-beta-dialog #tg-beta-photo img{width:100%;height:100%;object-fit:contain}
+#tg-beta-dialog .tg60-social-options:not([open])>:not(summary){display:none!important}
