@@ -1649,13 +1649,13 @@
   function tgR18ReadyRoom(){const saved=state.readyRoom;return saved&&saved.uid===state.user?.id&&saved.epoch===tg07SessionEpoch&&saved.room.owner_id===saved.uid&&$('room-ready-dialog').open?saved:null;}
   async function makeRoom(event) {
     event.preventDefault();if(!checkBackend()||!state.user||isAnonymous(state.user)||state.room)return;
-    const button=event.target.querySelector('[type=submit]');if(button.disabled)return;const ticket=tgR18BeginRoomRequest();if(!ticket)return;setLoading(button,true,'Montando seu palco…');
+    const button=event.target.querySelector('[type=submit]');if(button.disabled)return;const ticket=tgR18BeginRoomRequest();if(!ticket)return;setLoading(button,true,'Montando seu palco…');ticket.narration=$('tg64-create-narration')?.checked===true;
     try {
       const data=await callRPC('karaoke_create_room_mode',{p_title:$('room-title').value.trim(),p_mode:'classic'});
       if(!tgR18RoomRequestCurrent(ticket))return;
       if(!data?.[0]?.room_id||!validRoom(data[0].room_code))throw new Error('Não foi possível confirmar a criação da festa. Confira Minhas festas antes de tentar novamente.');
       const room={id:data[0].room_id,code:data[0].room_code,title:data[0].room_title,owner_id:ticket.uid,room_mode:'classic'};
-      state.readyRoom={room,uid:ticket.uid,epoch:ticket.epoch};
+      state.readyRoom={room,uid:ticket.uid,epoch:ticket.epoch,narration:ticket.narration===true};
       $('ready-code').textContent=room.code;
       $('room-ready-dialog').showModal();
       await openLobby(); // Login autenticado deve abrir o lobby, nao somente consultar salas.
@@ -1737,7 +1737,7 @@
     }catch(err){if(tg07Current(scope))toast('Não foi possível verificar o palco. Continue usando o controle.',true);return false;}
     finally{if(tgR15StageTicket===scope){tgR15StageTicket=null;button.disabled=false;}}
   }
-  async function enterRoomAsHost(room){
+  async function enterRoomAsHost(room,{narration=false}={}){
     if(state.emergencyClosing||state.finishing||state.startingSong)return false;
     if(!state.user||isAnonymous(state.user)||room?.owner_id!==state.user.id)return false;
     const uid=state.user.id,epoch=tg07SessionEpoch+1;await stopSession();if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room)return false;
@@ -1751,6 +1751,7 @@
       if(!current())return;
       await unlockWakeLock();
       if(!current())return;
+      if(narration===true&&state.room?.tg30_battle_reserved===false)window.TG74_DIVA_STUDIO?.setAuto(true);
       updateVoxLine('opening');
       clearInterval(state.voxTimer);
       state.voxTimer=setInterval(()=>{if(!state.emergencyBlocked&&state.role==='host'&&!state.isPlaying&&!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden)updateVoxLine('opening');},14000);
@@ -4069,7 +4070,7 @@ function renderFullCatalog(){
     $('ready-open-stage').addEventListener('click',async()=>{
       const saved=tgR18ReadyRoom();
       tgR18ClearReadyRoom();
-      if(saved)await enterRoomAsHost(saved.room);
+      if(saved)await enterRoomAsHost(saved.room,{narration:saved.narration===true});
     });
     $('room-ready-dialog').addEventListener('cancel',e=>{e.preventDefault();toast('Toque em Abrir palco para mostrar o QR da festa.');});
     $('video-error-close').addEventListener('click',()=>$('video-error-dialog').close());
@@ -4341,7 +4342,7 @@ function renderFullCatalog(){
       toast('Entre com sua conta de anfitrião para cantar sozinho neste aparelho.',true);return;
     }
     const button=$('tg103-solo-entry');if(button.disabled||state.room)return;
-    const ticket=tgR18BeginRoomRequest();if(!ticket)return;button.disabled=true;
+    const ticket=tgR18BeginRoomRequest();if(!ticket)return;button.disabled=true;ticket.narration=$('tg64-solo-narration')?.checked===true;
     const current=()=>tgR18RoomRequestCurrent(ticket)&&!state.room;
     const valid=r=>r?.id&&r.owner_id===ticket.uid&&r.room_mode==='solo'&&r.status==='open'&&r.tg30_battle_reserved===false&&Date.parse(r.expires_at)>Date.now()&&validRoom(r.code);
     const fields='id,code,title,owner_id,status,expires_at,current_song_id,room_mode,tg30_battle_reserved';
@@ -4367,7 +4368,7 @@ function renderFullCatalog(){
       }
       if(!current())return;
       const epoch=ticket.epoch+1;
-      await enterRoomAsHost(room);
+      await enterRoomAsHost(room,{narration:ticket.narration===true});
       if(state.user?.id!==ticket.uid||tg07SessionEpoch!==epoch||state.role!=='host'||state.room?.id!==room.id||state.room.room_mode!=='solo'||state.emergencyBlocked)return;
       tg100SyncRoomMode();
       $('tg18-solo-status').textContent='🎤 Modo solo: toque em Ativar microfone solo. A letra continua no vídeo e sua nota usa a captação local.';
