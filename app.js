@@ -43,6 +43,7 @@
       if(state.role!=='host'||state.room?.owner_id!==state.user?.id||state.room?.tg30_battle_reserved!==true||state.emergencyBlocked)return [];
       return state.songs.filter(s=>s.status==='queued'&&!s.started_at&&!s.finished_at).map(s=>({id:s.id,room_id:s.room_id,video_id:s.video_id,title:s.title,singers:songSingers(s)}));
     },
+    getBattleShowAudio:()=>cfg.BATTLE_API_RELEASE_ALLOWED===true&&state.room?.tg30_battle_reserved===true&&state.role==='host'&&state.room.owner_id===state.user?.id&&state.room.status==='open'&&!state.room.current_song_id&&!state.currentSong&&!state.preflight&&!state.startingSong&&!state.finishing&&!state.emergencyBlocked&&!state.emergencyClosing&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size&&!$('stage')?.hidden&&!document.hidden?{room:state.room.id,uid:state.user.id,epoch:tg07SessionEpoch}:null,
     getBattlePerformance:()=>{
       const song=state.currentSong;
       if(state.room?.tg30_battle_reserved!==true||state.role!=='host'||state.room?.owner_id!==state.user?.id||!song||state.room.current_song_id!==song.id||song.status!=='playing'||state.finishing)return null;
@@ -2821,7 +2822,7 @@
     if(!song||state.role!=='host'||state.finishing)return;
     const scope=tg07Scope(),generation=state.emergencyGeneration??null;
     if(state.startingSong)return;
-    const startTicket={};state.startingSong=startTicket;window.TG74_DIVA_STUDIO?.stop();
+    const startTicket={};state.startingSong=startTicket;window.TG75_BATTLE_PANEL?.stopShowAudio?.();window.TG74_DIVA_STUDIO?.stop();
     try {
       // Valide ANTES de remover a música anterior da tela ou marcar a nova como em reprodução.
       let playable=null;
@@ -3137,6 +3138,52 @@
   }
   // R90: informational heads-up only. No preflight, permission, playback or scoring writes.
   let tg90Upcoming=null,tg90PhoneNotice=null,tg90LastVibration=null;
+  // R96: advisory lease in the database; the player clock is NOT a competitive result.
+  let tg96Host=null,tg96Phone=null,tg96Poll=null,tg96Vibrated=null,tg96ReadAt=0;
+  function tg96Live(){return cfg.BATTLE_API_RELEASE_ALLOWED===true&&state.room?.tg30_battle_reserved===true&&!state.emergencyBlocked&&!state.emergencyClosing&&navigator.onLine!==false&&!document.hidden;}
+  function tg96Valid(n,song){return !!n&&n.current_song_id===song&&typeof n.match_id==='string'&&Number.isInteger(n.attempt)&&n.attempt>=1&&['qualifier','duel'].includes(n.kind)&&typeof n.name_a==='string'&&n.name_a.trim()&&n.name_a.length<=70&&(n.name_b===null||typeof n.name_b==='string'&&n.name_b.length<=70);}
+  async function tg96RPC(action,scope,song=null,remaining=null){
+    if(!tg07Current(scope)||!state.client)return null;
+    let timer;try{const r=await Promise.race([state.client.rpc('tg48_battle_notice',{p_action:action,p_room:scope.room,p_song:song,p_remaining:remaining}),new Promise(resolve=>{timer=setTimeout(()=>resolve({error:true}),2300);})]);return !r?.error&&tg07Current(scope)?r?.data??null:null;}catch{return null;}finally{clearTimeout(timer);}
+  }
+  function tg96ClearHost(){
+    const old=tg96Host;tg96Host=null;if(!old)return;
+    if(tg07Current(old.scope)&&!state.emergencyBlocked&&!state.emergencyClosing)void tg96RPC('clear',old.scope);
+  }
+  function tg96HostNotice(song,remaining){
+    if(!tg96Live()){tg96ClearHost();return false;}
+    const now=performance.now();
+    if(tg96Host?.song!==song.id){tg96ClearHost();tg96Host={song:song.id,scope:tg07Scope(),at:-Infinity,pending:false,data:null,verified:0};}
+    const h=tg96Host;
+    if(!h.pending&&now-h.at>=4000){
+      h.at=now;h.pending=true;
+      void tg96RPC('publish',h.scope,h.song,Math.max(1,Math.min(30,Math.ceil(remaining)))).then(n=>{
+        if(tg96Host!==h){if(!tg96Host&&tg07Current(h.scope)&&!state.emergencyBlocked)void tg96RPC('clear',h.scope);return;}
+        if(!tg96Live()||!state.isPlaying||state.currentSong?.id!==h.song){tg96ClearHost();return;}
+        h.data=tg96Valid(n,h.song)?n:null;h.verified=performance.now();
+      }).finally(()=>{h.pending=false;});
+    }
+    if(h.data&&now-h.verified<=6000){const n=h.data;tg90Card('tg90-stage-next','A seguir · '+[n.name_a,n.name_b].filter(Boolean).join(' × '),'Preparem-se para a chamada oficial.');return true;}
+    return false;
+  }
+  function tg96PaintPhone(){
+    const song=state.room?.current_song_id,now=performance.now();
+    const valid=tg96Live()&&isPhoneSingerRole()&&!callActive()&&!!song&&state.songs.some(s=>s.id===song&&s.status==='playing');
+    if(!valid){tg96Phone=null;tg90Card('tg90-phone-next');tg90Card('tg90-remote-next');return;}
+    if(!tg96Poll&&now-tg96ReadAt>=3500){
+      const scope=tg07Scope(),ticket={scope,song};tg96Poll=ticket;tg96ReadAt=now;
+      void tg96RPC('read',scope).then(n=>{
+        if(tg96Poll!==ticket||!tg07Current(scope)||!tg96Live()||state.room?.current_song_id!==song||callActive())return;
+        tg96Phone=tg96Valid(n,song)&&n.for_me===true?{scope,song,data:n,at:performance.now()}:null;
+        if(tg96Phone){const key=song+':'+n.match_id+':'+n.attempt;if(tg96Vibrated!==key){tg96Vibrated=key;try{navigator.vibrate?.(100);}catch{}}}
+      }).finally(()=>{if(tg96Poll===ticket)tg96Poll=null;});
+    }
+    const n=tg96Phone&&tg07Current(tg96Phone.scope)&&tg96Phone.song===song&&now-tg96Phone.at<=5500?tg96Phone.data:null;
+    if(!n)tg96Phone=null;
+    tg90Card('tg90-phone-next',n&&state.role==='guest'?'Sua apresentação está chegando!':'',n?'Aguarde a chamada oficial.':'');
+    tg90Card('tg90-remote-next',n&&state.role==='remote'?'Sua apresentação está chegando!':'',n?'Aguarde a chamada oficial.':'');
+  }
+  function tg96ResetNotice(){tg96ClearHost();tg96Phone=null;tg96Poll=null;tg96Vibrated=null;tg96ReadAt=0;}
   function tg90NextRecreational(){
     return tg13Recreational()?state.songs.find(s=>s.status==='queued'&&s.id!==state.currentSong?.id):null;
   }
@@ -3146,7 +3193,7 @@
     box.hidden=!heading;
   }
   function tg90ResetUpcoming(){
-    tg90Upcoming=null;tg90PhoneNotice=null;tg90LastVibration=null;
+    tg96ResetNotice();tg90Upcoming=null;tg90PhoneNotice=null;tg90LastVibration=null;
     tg90Card('tg90-stage-next');tg90Card('tg90-phone-next');tg90Card('tg90-remote-next');
   }
   function tg90HostNotice(next,playing,visible){
@@ -3159,7 +3206,7 @@
     }
   }
   function tg90ClearHost(notify=true){
-    const old=tg90Upcoming;tg90Upcoming=null;tg90Card('tg90-stage-next');
+    tg96ClearHost();const old=tg90Upcoming;tg90Upcoming=null;tg90Card('tg90-stage-next');
     if(notify&&old?.next&&tg07Current(old.scope)&&!state.emergencyBlocked)tg90HostNotice(old.next,old.playing,false);
   }
   function tg90UpdateHost(current,duration){
@@ -3174,10 +3221,11 @@
       tg90ClearHost();tg90Upcoming={key,next,playing,scope:tg07Scope()};
       if(next)tg90HostNotice(next,playing,true);
     }
-    if(competitive)tg90Card('tg90-stage-next','Apresentação na reta final','Aguarde a próxima etapa oficial no painel da Batalha.');
+    if(competitive){if(!tg96HostNotice(playing,remaining))tg90Card('tg90-stage-next','Apresentação na reta final','Aguarde a próxima etapa oficial no painel da Batalha.');}
     else tg90Card('tg90-stage-next',state.room?.room_mode==='solo'?'Seu próximo hit':'A seguir · '+songSingerLabel(next),next.title+' · prepare-se');
   }
   function tg90PaintPhone(){
+    if(state.room?.tg30_battle_reserved===true){tg96PaintPhone();return;}
     const n=tg90PhoneNotice,valid=n&&tg07Current(n.scope)&&!state.emergencyBlocked&&isPhoneSingerRole()&&!callActive()&&Date.now()-n.sentAt<=40000&&state.songs.some(s=>s.id===n.currentSongId&&s.status==='playing')&&state.songs.find(s=>s.status==='queued')?.id===n.nextSongId;
     const next=valid?state.songs.find(s=>s.id===n.nextSongId&&isSinger(s,state.user?.id)):null;
     if(!next)tg90PhoneNotice=null;
@@ -3781,7 +3829,7 @@ function renderFullCatalog(){
     state.ticker=setInterval(()=>{
       if(!state.room||state.emergencyBlocked)return;
       if(tg18Recognition&&(isMyTurn()||callActive()))tg18AbortDictation();
-      window.TG74_DIVA_STUDIO?.guard();
+      window.TG74_DIVA_STUDIO?.guard();window.TG75_BATTLE_PANEL?.guardShowAudio?.();
       sampleAudio();cycles++;
       if(cycles%72===0&&isPhoneSingerRole()&&state.guestPreflightSong)void notifyPreflightGuest();
       if(cycles%36===0&&state.role==='host'&&state.preflight)renderPreflightHost();
@@ -3790,7 +3838,7 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
-    ++tg07SessionEpoch;tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
+    window.TG75_BATTLE_PANEL?.stopShowAudio?.();++tg07SessionEpoch;tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
     for(const id of ['host-results','search-results','tg07-external-results'])$(id)?.replaceChildren();
@@ -4554,7 +4602,7 @@ function renderFullCatalog(){
   }
   function tg23Suspend(message,reason='security'){
     if(!state.room||state.emergencyClosing)return;
-    state.emergencyBlocked=true;tg89CloseSound();tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
+    state.emergencyBlocked=true;window.TG75_BATTLE_PANEL?.stopShowAudio?.();tg89CloseSound();tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
     if(!state.emergencyLatch){
       state.emergencyLatch=true;++tg07SessionEpoch;tgR25ClearSoloReport();tgR19CancelSoloRequest();tgR20CancelMicRequest();
       // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
