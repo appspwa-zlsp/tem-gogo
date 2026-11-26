@@ -2111,6 +2111,7 @@
     }
   }
   function setGuestNowPlaying(song){
+    tg100ReportCapture(song);tg100ReportPaint();
     $('guest-now-playing').textContent=song?.title || 'O palco tá pronto pra você!';
     $('guest-now-singer').textContent=song?'Com '+songSingerLabel(song):'Escolha um hit no menu Músicas.';
     $('guest-hub-current').textContent=song?song.title:'Aguardando próximo hit';
@@ -2760,7 +2761,7 @@
   }
   function showVideoError(message,song=null){
     state.isPlaying=false;
-    state.failedVideoSong=song||state.currentSong||null;
+    state.failedVideoSong=song||state.currentSong||null;tg100ReportCapture(state.failedVideoSong);tg100ReportPaint();
     $('video-error-text').textContent=message;
     if(!$('video-error-dialog').open)$('video-error-dialog').showModal();
     toast('Vídeo bloqueado. Escolha outra versão ou pule sem pontuar.',true);
@@ -2814,6 +2815,7 @@
   }
   function resetSongMetrics(){tgR25ClearSoloReport();state.micStats=new Map();state.cloudMicStats=new Map();state.scoreReady=new Map();state.songFrames=0;state.isPlaying=false;state.playMetrics=null;}
   function setNowPlaying(song){
+    tg100ReportCapture(song);tg100ReportPaint();
     $('now-title').textContent=song?.title||'O palco tá esperando você! 🎶';
     $('now-by').textContent=song?'Com '+songSingerLabel(song):'Adicione a primeira música pelo celular ou pelo painel.';
     $('song-pill').textContent=song?'✦ Faça barulho!':'✦ Prontos para o show?';
@@ -3015,7 +3017,7 @@
       }
       if(!tg07Current(finishScope)||state.currentSong?.id!==completedSong)return;
       if(skipped){try{state.player?.stopVideo();}catch{}}
-      state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;tgR25ClearSoloReport();
+      state.currentSong=null;state.playMetrics=null;state.room.current_song_id=null;tgR25ClearSoloReport();tg100ReportPaint();
       if(tg13Recreational())void fetchSongs().catch(err=>console.debug('Fila após apresentação:',err));
       // D001: pontuação registrada ANTES de liberar o microfone solo.
       if(state.soloMic)stopSoloMic();
@@ -3841,6 +3843,7 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
+    tg100ReportReset();
     window.TG75_BATTLE_PANEL?.stopShowAudio?.();++tg07SessionEpoch;tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
@@ -4227,7 +4230,57 @@ function renderFullCatalog(){
       void sendTitleSuggestion(btn.dataset.tg124Suggest,btn.dataset.originalTitle);
     });
   }
+
+  // R100 / SQL66: relato contextual; não altera fila, nota, vídeo nem classificação.
+  const tg100ReportReasons=Object.freeze({no_playback:'Não reproduziu',incomplete:'Karaokê incompleto',wrong_song:'Música errada',not_karaoke:'Não é karaokê',wrong_lyrics:'Letra incorreta',temporary_error:'Falha temporária'});
+  const tg100ReportUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let tg100ReportLast=null,tg100ReportPending=null,tg100ReportSent=new Set();
+  function tg100ReportAllowed(scope){
+    return tg07Current(scope)&&!state.emergencyBlocked&&!state.emergencyClosing&&tg13Recreational()&&state.room?.status==='open'&&navigator.onLine!==false&&['host','guest'].includes(state.role);
+  }
+  function tg100ReportCapture(song){
+    const scope=tg07Scope();
+    if(!tg100ReportAllowed(scope))return;
+    const active=state.role==='host'?state.currentSong:song;
+    if(!song||!active||active.id!==song.id||active.status!=='playing'||state.room.current_song_id!==active.id||active.room_id!==scope.room||!tg100ReportUuid.test(active.id)||!/^[A-Za-z0-9_-]{11}$/.test(active.video_id))return;
+    tg100ReportLast={scope,id:active.id,video:active.video_id,title:String(active.title||'Música'),seen:Date.now()};
+  }
+  function tg100ReportTarget(){
+    const t=tg100ReportLast;
+    return t&&tg100ReportAllowed(t.scope)&&Date.now()-t.seen<86400000?t:null;
+  }
+  function tg100ReportPaint(){
+    const t=tg100ReportTarget(),key=t?t.scope.uid+':'+t.id:null;
+    for(const id of ['tg100-report-host','tg100-report-guest','tg100-report-result','tg100-report-error']){
+      const b=$(id);if(!b)continue;
+      const host=state.role==='host',current=state.room?.current_song_id===t?.id;
+      const allowed=!!t&&(id==='tg100-report-guest'?!host:host)&&(id!=='tg100-report-error'||(current&&state.failedVideoSong?.id===t.id))&&(id!=='tg100-report-result'||!state.room?.current_song_id);
+      b.hidden=!allowed;
+      b.disabled=!allowed||tg100ReportSent.has(key)||!!tg100ReportPending;
+      b.textContent=tg100ReportSent.has(key)?'✓ Relato enviado':current?'⚑ Relatar problema':'⚑ Relatar última música';
+    }
+  }
+  function tg100ReportReset(){tg100ReportLast=null;tg100ReportPending=null;tg100ReportSent.clear();tg100ReportPaint();}
+  async function tg100ReportSend(button){
+    const t=tg100ReportTarget();
+    if(!t||button.hidden||button.disabled||tg100ReportPending)return;
+    const key=t.scope.uid+':'+t.id;
+    if(tg100ReportSent.has(key))return;
+    const ticket={};tg100ReportPending=ticket;tg100ReportPaint();
+    try{
+      const category=await window.TG_UI.choose({title:'Relatar problema',message:t.title+' · O relato será analisado pela Central. Não altera a sua nota nem bloqueia automaticamente o vídeo.',choices:Object.entries(tg100ReportReasons).map(([value,label])=>({value,label}))});
+      if(!Object.hasOwn(tg100ReportReasons,category)||tg100ReportPending!==ticket||!tg100ReportAllowed(t.scope))return;
+      const result=await callRPC('tg65_music_report_submit',{p_room:t.scope.room,p_song:t.id,p_category:category});
+      if(tg100ReportPending!==ticket||!tg07Current(t.scope))return;
+      if(result?.submitted!==true||typeof result.already_submitted!=='boolean'||!tg100ReportUuid.test(result.report_id)||result.video_id!==t.video)throw Error('Relato não confirmado');
+      tg100ReportSent.add(key);toast('Relato enviado para análise. Obrigado!');
+    }catch(err){if(tg100ReportPending===ticket&&tg07Current(t.scope)){const code=String(err?.message||'');toast(code.includes('TG65_REPORT_RATE')?'Limite de cinco relatos por hora.':code.includes('TG65_ALREADY_REPORTED')?'Você já relatou esta apresentação.':code.includes('TG65_PERFORMANCE_NOT_ELIGIBLE')?'Esta apresentação não está elegível para relato.':'Não foi possível confirmar o relato. Confira a conexão e tente novamente.',true);}}
+    finally{if(tg100ReportPending===ticket){tg100ReportPending=null;tg100ReportPaint();}}
+  }
+
   function attachEvents(){
+    for(const id of ['tg100-report-host','tg100-report-guest','tg100-report-result','tg100-report-error'])$(id)?.addEventListener('click',event=>void tg100ReportSend(event.currentTarget));
+    window.addEventListener('online',tg100ReportPaint);window.addEventListener('offline',tg100ReportPaint);
     setupProfileQuickMenu();setupCatalogSuggestions();
     window.TG30VoiceUI?.install({user:()=>state.user,notify:(text)=>toast(text,true),compare:()=>callRPC('tg30_voice_shadow_history',{}),erase:async()=>{tg30RevokeShadow();return callRPC('tg30_voice_shadow_erase',{});},revoke:tg30RevokeShadow,save:async(profile,uid)=>{
       if(!state.user||state.user.id!==uid)throw Error('Sessão alterada');
