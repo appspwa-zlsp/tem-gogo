@@ -1,5 +1,5 @@
 /* R57 — primeiro bloco da integração visual, sobre a R39 real. */
-#settings-dialog .tg57-legacy-editor,#stage .tg26-effects,#stage #tg74-voice-preview{display:none!important}
+#settings-dialog .tg57-legacy-editor,#stage #tg74-voice-preview{display:none!important}
 #stage .stage-actions #theme-cycle{display:inline-flex!important;align-items:center;gap:5px;min-height:44px;padding:6px 10px;border-radius:12px;white-space:nowrap;box-shadow:none!important}
 #stage .stage-actions #theme-cycle span{font-size:13px!important}
 #stage[data-tg26-ready] .tg26-room-actions button{min-height:44px;border-radius:12px}
@@ -233,3 +233,20 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
 #stage[data-tg50-ready] .screen-row>.video-frame{min-width:0;box-sizing:border-box}
 @media(max-width:480px){#stage[data-tg50-ready] .stage-main>#tg123-host-bar>button:not([hidden]):not(.tg26-legacy){min-width:0;flex:1 1 28%!important}#stage[data-tg50-ready] .tg50-panel input[type=range]{max-width:100%}}
 @media(min-width:781px) and (max-height:650px){#stage[data-tg50-ready] .stage-main>#tg123-host-bar>button:not([hidden]):not(.tg26-legacy){flex:0 1 auto!important;min-width:64px}#stage[data-tg50-ready] .stage-main>.screen-row{max-width:100%}}
+
+/* R66 — unified song selection and interval effects. */
+#catalog-dialog [hidden]{display:none!important}
+#catalog-dialog .tg66-genre-options{margin:6px 0;min-width:0}
+#catalog-dialog .tg66-genre-options>summary,#catalog-dialog .tg-beta-external>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;gap:6px}
+#catalog-dialog .tg66-genre-options>summary::before,#catalog-dialog .tg-beta-external>summary::before{content:'›';font-size:1.2em}
+#catalog-dialog .tg66-genre-options[open]>summary::before,#catalog-dialog .tg-beta-external[open]>summary::before{transform:rotate(90deg)}
+#catalog-dialog .tg66-external-note{font-size:12px;margin:4px 0;color:var(--tg-muted,var(--muted))}
+#catalog-dialog .catalog-data-line{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
+#catalog-dialog #tg26-favorite-status:empty{display:none}
+#catalog-dialog .tg26-favorite-line{margin-block:4px;min-height:0;gap:6px}
+#catalog-dialog .history-song-card .tg27-genre-cover{aspect-ratio:1;overflow:hidden}
+#catalog-dialog .tg27-genre-cover img{width:100%;height:100%;object-fit:cover}
+#catalog-dialog .tg-r16-curation>summary{min-width:44px;min-height:44px;display:grid;place-items:center}
+#stage[data-tg50-ready] #tg17-console .tg05-voice-controls .tg26-effects:not([hidden]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--tg-border,var(--line))}
+#stage[data-tg50-ready] #tg17-console .tg26-effects :is(h3,p){grid-column:1/-1;margin:0}
+#stage[data-tg50-ready] #tg17-console .tg26-effects button,#tg18-remote .tg28-effects button{min-height:44px;white-space:normal}
