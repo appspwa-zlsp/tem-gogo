@@ -535,3 +535,21 @@ body.high-contrast .tg90-next-card:not([hidden]){background:#000!important;color
 
 /* R95 — compact, informational stage direction in the authenticated festival panel. */
 .tg95-battle-show[hidden]{display:none!important}.tg95-battle-show{display:flex;gap:10px;align-items:center;padding:10px 12px;margin:6px 0;border:1px solid var(--line,rgba(156,116,211,.35));border-radius:14px;min-width:0;background:var(--panel,transparent)}.tg95-battle-show img{width:48px;height:48px;object-fit:contain;flex:none}.tg95-battle-show div{display:grid;gap:3px;min-width:0}.tg95-battle-show strong{font-size:14px;overflow-wrap:anywhere}.tg95-battle-show small{color:var(--muted,inherit);font-size:12px;overflow-wrap:anywhere}
+
+
+/* R101 — homologacao visual do titular. Somente lobby, palco desktop, QR e mesa de audio. */
+#lobby .lobby-main>div:first-child{min-width:0;container-type:inline-size}
+#lobby .lobby-main>div:first-child h1{letter-spacing:.005em!important;word-spacing:.09em;line-height:1.12!important;max-width:100%;overflow-wrap:normal;font-size:clamp(25px,7vw,34px)!important}
+#lobby .lobby-main>div:first-child h1 em{display:block;max-width:100%;font-size:min(1em,15cqw);letter-spacing:0;transform:skew(-6deg);transform-origin:left center}
+@media(min-width:781px){
+ #lobby .lobby-main{width:min(calc(100% - 48px),1040px)!important;max-width:1040px!important;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(20px,3vw,44px)}
+ #lobby .lobby-main>div:first-child h1{font-size:min(clamp(30px,5.2vw,64px),15cqw)!important}
+ #stage[data-tg50-ready]{--tg50-rail:clamp(116px,11vw,164px)}
+ #stage[data-tg50-ready] .screen-row>#video-frame:not(:fullscreen):has(#final-overlay:not([hidden]),#stage-preflight:not([hidden]),#tg17-message-screen:not([hidden])){width:100%!important;aspect-ratio:16/9!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;border-radius:13px!important;box-sizing:border-box}
+ #stage[data-tg50-ready] #video-frame:not(:fullscreen)>:is(#final-overlay,#stage-preflight,#tg17-message-screen):not([hidden]){position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;box-sizing:border-box;overflow:auto!important;align-content:safe center}
+ #stage[data-tg50-ready] .screen-row .qr-rail .qr-bubble .qr-box,#stage[data-tg50-ready] .screen-row .qr-rail .qr-bubble.qr-expanded .qr-box{width:100%!important;max-width:100%!important;height:auto!important;aspect-ratio:1!important;padding:5px!important;background:#fff!important}
+ #stage[data-tg50-ready] .screen-row .qr-rail .qr-bubble .qr-box :is(img,canvas,svg){width:100%!important;max-width:100%!important;height:auto!important;max-height:100%!important;object-fit:contain;image-rendering:pixelated}
+ #stage[data-tg50-ready] .screen-row .qr-code-text{white-space:normal;overflow-wrap:anywhere}
+}
+html[data-tg-theme] body:not(.high-contrast) #stage[data-tg50-ready] #tg17-console :is(.playback-volume,.master-volume,.tg05-mixer-channel)>:is(label:not(.sr-only),span:first-child){color:var(--tg-text,var(--text))!important;opacity:1!important;text-shadow:none!important}
+html[data-tg-theme="crystal"] body:not(.high-contrast) #stage[data-tg50-ready] #tg17-console :is(.playback-volume,.master-volume,.tg05-mixer-channel)>:is(label:not(.sr-only),span:first-child){color:var(--tg-focus,#6531A9)!important}
