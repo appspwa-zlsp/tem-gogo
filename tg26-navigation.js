@@ -24,7 +24,7 @@
   const musicTarget=q('.stage-hit-library [data-catalog-open]',stage);
   const music=button('Músicas',()=>{if(musicTarget){if(drawer.open)drawer.close();musicTarget.click();}});
   music.id='tg58-stage-music';
-  const queueButton=quick('Fila','fila'),rankButton=quick('Placar','placar'),mixerButton=quick('Áudio','audio'),roomButton=quick('Sala','sala');
+  const queueButton=quick('Fila','fila'),rankButton=quick('Placar','placar'),mixerButton=quick('Áudio','audio'),roomButton=quick('Sala','sala');queueButton.id='tg63-stage-queue';rankButton.id='tg63-stage-rank';roomButton.id='tg63-stage-room';
   move(bar,play,skip,call,audio,queueButton,music,mixerButton,rankButton,roomButton);screen.after(bar);bar.after(status);
   if(theme){theme.classList.remove('full');theme.textContent='Tema';theme.setAttribute('aria-label','Trocar tema do palco');q('.stage-actions',header)?.prepend(theme);}
   if(settings)settings.textContent='Ajustes e acessibilidade';
@@ -43,7 +43,18 @@
   if(typeof ResizeObserver==='function'){const observer=new ResizeObserver(measure);for(const n of measured)if(n)observer.observe(n);}
   window.addEventListener('resize',measure);window.addEventListener('temgogo:view',()=>{if(drawer.open)drawer.close();measure();});document.addEventListener('fullscreenchange',measure);
   const cat=$('catalog-dialog');cat?.addEventListener('close',()=>{if(!stage.hidden&&!document.querySelector('dialog[open]')&&music.isConnected)music.focus({preventScroll:true});});
-  measure();
+  const syncSolo=()=>{
+    const solo=stage.dataset.tg100Mode==='solo'||document.body.classList.contains('tg104-single-device');
+    stage.dataset.tg63Experience=solo?'solo':'classic';
+    queueButton.textContent=solo?'Minha lista':'Fila';music.textContent=solo?'Escolher música':'Músicas';roomButton.textContent=solo?'Opções':'Sala';
+    sections.get('fila').label=solo?'Minha lista de músicas':'Fila e participantes';
+    sections.get('sala').label=solo?'Opções da Carreira Solo':'Configurações da sala';
+    if(switcher)switcher.textContent=solo?'Voltar aos modos':'Minhas salas';
+    if(end)end.textContent=solo?'Encerrar sessão':'Encerrar festa';
+    if(drawer.open){const entry=[...sections.values()].find(x=>!x.panel.hidden);if(entry)title.textContent=entry.label;}
+  };
+  new MutationObserver(syncSolo).observe(stage,{attributes:true,attributeFilter:['data-tg100-mode']});
+  window.addEventListener('temgogo:view',syncSolo);syncSolo();measure();
  }
  function remoteNav(){
   const r=$('tg18-remote'),header=q('.tg18-remote-header',r),control=$('tg19-remote-control'),info=$('tg19-remote-singing');if(!header||!control||!info||r.dataset.tg28Ready)return;r.dataset.tg28Ready='true';
@@ -98,7 +109,7 @@
   if(panel&&save){
     const socialDetails=el('details','tg60-social-options');socialDetails.append(el('summary','','Identificação social e privacidade'));
     for(const id of ['tg-p-handle','tg-p-insta','tg-p-insta-vis','tg-p-photo-vis','tg-p-score-vis','tg-p-legal','tg-p-age','tg-p-best','tg-p-rank']){const label=$(id)?.closest('label');if(label)socialDetails.append(label);}
-    save.before(socialDetails);
+    const bora=q('.tg95-bora',panel);if(bora){const links=el('details','tg60-social-options tg63-social-links');links.append(el('summary','','Bora de Rolê · link opcional'));bora.before(links);links.append(bora);}save.before(socialDetails);
   }
   const actions=(target,isGuest)=>{if(!target)return;const box=el('div','tg60-profile-actions');
     const action=(label,fn)=>{box.append(button(label,fn));};
