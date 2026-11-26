@@ -121,39 +121,59 @@ async function saveProfile(){
  }catch(e){if(current())status(committed?'Perfil salvo; sincronização pendente. Reabra e tente novamente.':e.code==='23505'?'Este @ já está em uso.':'Não foi possível salvar: '+err(e));}
  finally{for(const input of avatarInputs)input.disabled=false;if(current()){$('tg-p-nick').disabled=false;$('tg-p-save').disabled=false;}}
 }
-async function openPerson(id,origin){
- const ctx=bridge();const epoch=++profileEpoch;const allowed=origin==='party'?inCurrentParty(id):(origin==='ranking'&&rankedProfileIds.has(id));
- if(!allowed){status('Miniperfil disponível somente na mesma festa ou em ranking público autorizado.');return;}
- const dlg=$('tg-beta-dialog'),box=$('tg-beta-person-view');if(!dlg||!box)return;
- cardReturnTab=origin==='ranking'?'rank':'profile';
- document.querySelectorAll('[data-tg-beta-panel]').forEach(el=>el.hidden=true);
- box.hidden=false;if(!dlg.open)dlg.showModal();
- const name=$('tg-beta-person-name'),avatar=$('tg-beta-person-avatar');
- const insta=$('tg-beta-person-instagram'),bora=$('tg95-person-bora');
- insta.hidden=true;insta.removeAttribute('href');bora.hidden=true;bora.removeAttribute('href');
- const known=(ctx?.members||[]).find(m=>m.user_id===id);
- name.textContent=known?.display_name||'Artista';avatar.src=AV.urbano;$('tg-beta-person-handle').hidden=true;$('tg-beta-person-handle').textContent='';
- $('tg-beta-person-score').textContent='Conquistas oficiais da Batalha: consulta pendente de ativação.';
- const b=account();
- if(!b){status('Você pode participar sem cadastro. Links e dados pessoais não serão exibidos.');return;}
- status('Consultando dados autorizados do miniperfil…');
- try{
-  const {data,error}=await b.client.rpc('tg30_miniprofile',{p_target:id,p_room:origin==='party'?ctx.room.id:null,p_origin:origin});if(error)throw error;
-  if(profileEpoch!==epoch||account()?.user.id!==b.user.id||(origin==='party'&&(!inCurrentParty(id)||bridge()?.room?.id!==ctx?.room?.id)))return;const p=data;if(!p){status('Perfil não disponível ou não autorizado.');return;}
-  name.textContent=p.nickname||name.textContent;const tag=$('tg-beta-person-handle');tag.textContent=p.handle?'@'+p.handle:'';tag.hidden=!p.handle;const notes=Array.isArray(p.best_scores)?p.best_scores.filter(n=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=100).slice(0,3):[];$('tg-beta-person-score').textContent=p.best_scores_opt_in===true&&notes.length?'Melhores notas recreativas: '+notes.join(' · '):'Conquistas oficiais da Batalha: consulta pendente de ativação.';
-  avatar.src=AV[p.avatar_key]||AV.urbano;
-  const handle=String(p.instagram||'').replace(/^@/,'');
-  if((p.instagram_visibility==='public'||p.instagram_public===true)&&/^[A-Za-z0-9._]{1,30}$/.test(handle)){
-   insta.textContent='Instagram: @'+handle;
-   insta.href='https://www.instagram.com/'+encodeURIComponent(handle)+'/';
-   insta.hidden=false;
-  }
-  // Only after the existing miniprofile authorization succeeds; never use a banner as a profile.
-  status('');
-  try{const {data:link,error:linkError}=await b.client.from('tg_bora_profile_links').select(boraFields).eq('user_id',id).eq('is_visible',true).maybeSingle();if(!linkError&&link?.user_id===id&&profileEpoch===epoch&&account()?.user.id===b.user.id&&$('tg-beta-dialog').open&&!box.hidden&&(origin==='ranking'?!bridge()?.room:inCurrentParty(id)&&bridge()?.room?.id===ctx?.room?.id))boraChip(bora,link);}catch{/* Optional link: fail closed. */}
- }catch(e){if(profileEpoch===epoch&&account()?.user.id===b.user.id)status('Miniperfil não disponível: '+err(e));}
-}
-async function loadRanking(){const b=account();if(!b||b.room)return;const epoch=profileEpoch;const root=$('tg-beta-rank-list');root.replaceChildren();status('Consultando ranking público…');try{const {data,error}=await b.client.rpc('tg_rankings_public');if(error)throw error;if(epoch!==profileEpoch||account()?.user.id!==b.user.id||bridge()?.room)return;rankedProfileIds.clear();(data||[]).forEach((p,i)=>{if(p.user_id)rankedProfileIds.add(p.user_id);appendPerson(root,p,`#${i+1} · ${(Number(p.average_score)/20).toFixed(1)} ★ · ${p.performances} apresentações recentes`,id=>openPerson(id,'ranking'));});if(!data?.length)text(root,'Ainda não existem participantes elegíveis com pelo menos três apresentações.');status('');}catch(e){status('⚠ '+err(e));}}
+// R103: same card, same server permissions; self-preview hides private handle.
+ function tg103PreviewData(p,own){
+  if(!p)return null;
+  return {...p,handle:own&&own.discoverable!==true?null:p.handle,instagram:p.instagram_visibility==='public'||p.instagram_public===true?p.instagram:null};
+ }
+ function tg103OwnIdentity(p){
+  if(!p)return null;
+  return {nickname:p.nickname,avatar_key:p.avatar_key,handle:p.discoverable===true?p.handle:null,instagram:p.instagram_visibility==='public'?p.instagram:null,instagram_visibility:p.instagram_visibility==='public'?'public':'private',best_scores:[],best_scores_opt_in:false};
+ }
+ function tg103BoraDirty(){
+  if(!boraOwner)return false;
+  return boraHandle($('tg63-bora-handle').value)!==String(boraRecord?.bora_handle||'')||$('tg63-bora-url').value.trim()!==String(boraRecord?.profile_url||'')||$('tg63-bora-visible').checked!==(boraRecord?.is_visible===true);
+ }
+ async function openPerson(id,origin){
+  const ctx=bridge(),b=account(),own=!!b&&id===b.user.id,room=ctx?.room?.id||null;
+  if(document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg103-remote-mic-focus'))return;
+  if(own&&$('tg-beta-dialog')?.open&&(boraBusy||tg103BoraDirty()||($('tg-p-save').disabled&&profileOwner===id))){status('Salve as alterações em andamento antes de abrir a prévia.');return;}
+  const allowed=own&&origin==='self'?(room?inCurrentParty(id):true):origin==='party'?inCurrentParty(id):origin==='ranking'&&rankedProfileIds.has(id);
+  if(!allowed){status('Miniperfil disponível somente na mesma festa ou em ranking público autorizado.');return;}
+  const epoch=++profileEpoch,dlg=$('tg-beta-dialog'),box=$('tg-beta-person-view');if(!dlg||!box)return;
+  cardReturnTab=origin==='ranking'?'rank':'profile';
+  document.querySelectorAll('[data-tg-beta-panel]').forEach(el=>el.hidden=true);
+  box.hidden=false;if(!dlg.open)dlg.showModal();
+  $('tg103-person-title').textContent=own?'Meu miniperfil':'Miniperfil do artista';
+  const hint=$('tg103-preview-context');hint.hidden=!own;hint.textContent=own?'Prévia dos dados salvos e autorizados. Alterações não salvas não aparecem.':'';
+  const name=$('tg-beta-person-name'),avatar=$('tg-beta-person-avatar'),insta=$('tg-beta-person-instagram'),bora=$('tg95-person-bora');
+  insta.hidden=true;insta.removeAttribute('href');boraChip(bora,null);
+  const known=(ctx?.members||[]).find(m=>m.user_id===id);
+  name.textContent=known?.display_name||'Artista';avatar.src=AV.urbano;$('tg-beta-person-handle').hidden=true;$('tg-beta-person-handle').textContent='';
+  $('tg-beta-person-score').textContent='';
+  if(!b){status('Você pode participar sem cadastro. Links e dados pessoais não serão exibidos.');return;}
+  const mode=origin==='self'?(room?'party':'ranking'):origin;
+  const current=()=>profileEpoch===epoch&&account()?.user.id===b.user.id&&bridge()?.sessionEpoch===ctx?.sessionEpoch&&dlg.open&&!box.hidden&&(mode==='party'?inCurrentParty(id)&&bridge()?.room?.id===room:!bridge()?.room);
+  status('Consultando dados autorizados do miniperfil…');
+  try{
+   let self=null;
+   if(own){const r=await b.client.from('tg_profiles').select('nickname,avatar_key,handle,discoverable,instagram,instagram_visibility').eq('user_id',id).maybeSingle();if(!current())return;if(r.error||!r.data)throw Error('Salve seu perfil primeiro.');self=r.data;}
+   const {data,error}=await b.client.rpc('tg30_miniprofile',{p_target:id,p_room:mode==='party'?room:null,p_origin:mode});if(!current())return;if(error)throw error;
+   const identityOnly=own&&mode==='ranking'&&!data;
+   const p=tg103PreviewData(identityOnly?tg103OwnIdentity(self):data,self);if(!p){status('Perfil não disponível ou não autorizado.');return;}
+   if(identityOnly)hint.textContent='Prévia de identidade salva. Notas e visibilidade completa são conferidas dentro da festa ou no ranking autorizado.';
+   name.textContent=p.nickname||name.textContent;const tag=$('tg-beta-person-handle');tag.textContent=p.handle?'@'+p.handle:'';tag.hidden=!p.handle;
+   const notes=Array.isArray(p.best_scores)?p.best_scores.filter(n=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=100).slice(0,3):[];
+   $('tg-beta-person-score').textContent=p.best_scores_opt_in===true&&notes.length?'Melhores notas recreativas: '+notes.join(' · '):'Conquistas oficiais da Batalha: consulta pendente de ativação.';
+   avatar.src=AV[p.avatar_key]||AV.urbano;
+   const handle=String(p.instagram||'').replace(/^@/,'');
+   if((p.instagram_visibility==='public'||p.instagram_public===true)&&/^[A-Za-z0-9._]{1,30}$/.test(handle)){insta.textContent='Instagram: @'+handle;insta.href='https://www.instagram.com/'+encodeURIComponent(handle)+'/';insta.hidden=false;}
+   status('');
+   try{const {data:link,error:linkError}=await b.client.from('tg_bora_profile_links').select(boraFields).eq('user_id',id).eq('is_visible',true).maybeSingle();if(!linkError&&link?.user_id===id&&current())boraChip(bora,link);}catch{/* Optional link: fail closed. */}
+  }catch(e){if(current())status('Miniperfil não disponível: '+err(e));}
+ }
+ function tg103OpenOwn(){const b=account();if(!b){showAccountGate();return;}void openPerson(b.user.id,'self');}
+ async function loadRanking(){const b=account();if(!b||b.room)return;const epoch=profileEpoch;const root=$('tg-beta-rank-list');root.replaceChildren();status('Consultando ranking público…');try{const {data,error}=await b.client.rpc('tg_rankings_public');if(error)throw error;if(epoch!==profileEpoch||account()?.user.id!==b.user.id||bridge()?.room)return;rankedProfileIds.clear();(data||[]).forEach((p,i)=>{if(p.user_id)rankedProfileIds.add(p.user_id);appendPerson(root,p,`#${i+1} · ${(Number(p.average_score)/20).toFixed(1)} ★ · ${p.performances} apresentações recentes`,id=>openPerson(id,'ranking'));});if(!data?.length)text(root,'Ainda não existem participantes elegíveis com pelo menos três apresentações.');status('');}catch(e){status('⚠ '+err(e));}}
 async function loadNotices(){const b=account();if(!b)return;const {data,error}=await b.client.from('tg_maintenance').select('mode,message,updated_at').eq('id',true).maybeSingle();if(error){status('⚠ '+err(error));return;}$('tg-beta-maint-info').textContent=data?.mode==='normal'?'Sistema em operação normal.':`Estado: ${data?.mode||'não verificado'} · ${data?.message||'Sem observação'}`;status('');}
 async function loadPartyMessages(){const b=account(),root=$('tg-beta-recent-messages');if(!b?.room){root.textContent='Entre em uma festa para consultar os recados.';return;}root.textContent='Consultando recados…';const {data,error}=await b.client.from('tg_party_messages').select('id,nickname,body,status,created_at').eq('room_id',b.room.id).order('created_at',{ascending:false}).limit(30);if(error){root.textContent='Histórico não disponível: '+err(error);return;}root.replaceChildren();for(const m of data||[]){const row=document.createElement('div');row.className='tg-beta-request';const info=document.createElement('div');info.append(text(document.createElement('strong'),m.nickname),text(document.createElement('p'),m.body));row.append(info);const btn=document.createElement('button');btn.type='button';btn.textContent='Denunciar';btn.addEventListener('click',()=>{$('tg-beta-report-message').value=m.id;$('tg-beta-report-reason').focus();});row.append(btn);root.append(row);}if(!data?.length)root.textContent='Ainda não há recados registrados nesta festa.';}
 let maintenanceWasBlocked=false,maintenanceSerial=0;
@@ -203,7 +223,7 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  <aside id="tg-beta-global-maintenance" class="tg-beta-maint-banner" role="status" hidden></aside><dialog id="tg-beta-emergency" class="tg103-emergency" aria-labelledby="tg-beta-emergency-title" aria-modal="true"><div class="tg103-emergency-inner"><img src="./diva-busto.png" alt="Diva Gogó nos bastidores"><span class="tg103-emergency-tag">TEM GOGÓ · AVISO DA PRODUÇÃO</span><h2 id="tg-beta-emergency-title">A Diva pediu uma pausa no show</h2><p id="tg-beta-emergency-message">Estamos cuidando do palco. Volte em breve.</p><small>Seu acesso ficará liberado novamente quando a administração encerrar a manutenção.</small></div></dialog><button id="tg-beta-support-alert" class="tg-beta-support-alert" type="button" hidden>Nova resposta do suporte</button>
  <dialog id="tg-beta-gate-dialog" class="modal tg-beta-gate-dialog" aria-labelledby="tg-beta-gate-title"><div class="tg-beta-gate-shell"><button type="button" id="tg-beta-gate-close" class="tg-beta-gate-close" aria-label="Fechar">✕</button><small>TEM GOGÓ · MINIPERFIL</small><h2 id="tg-beta-gate-title">Seu perfil merece um camarim próprio</h2><p id="tg-beta-gate-copy">Seu cadastro é opcional para cantar; ele permite conservar sua identidade.</p><div class="tg-beta-gate-actions"><button id="tg-beta-gate-account" class="button button-primary" type="button">Criar conta / entrar com e-mail</button><button id="tg-beta-gate-later" class="button button-outline" type="button">Continuar sem cadastro</button></div><p class="tg-beta-gate-footnote">Você pode continuar cantando sem cadastro. O perfil é opcional.</p></div></dialog>
  <dialog id="tg-beta-dialog" class="modal tg-beta-dialog" aria-labelledby="tg-beta-title"><div class="tg-beta-shell"><header><div><small>TEM GOGÓ · MEU PALCO</small><h2 id="tg-beta-title">Meu perfil</h2></div><button type="button" id="tg-beta-close" aria-label="Fechar">✕</button></header><nav class="tg-beta-tabs"><button data-tg-beta-tab="profile" class="active" type="button">Perfil</button><button data-tg-beta-tab="rank" type="button">Ranking público</button><button data-tg-beta-tab="notices" type="button">Ajuda</button><button data-tg-beta-tab="moderate" type="button">Moderação</button></nav>
- <section data-tg-beta-panel="profile"><div class="tg-beta-heading"><div id="tg-beta-photo" aria-label="Seu avatar de palco"></div><div><h3>Minha identidade</h3><p>Seu avatar e seus dados de palco.</p><span id="tg-beta-my-stars"></span></div></div>
+ <section data-tg-beta-panel="profile"><div class="tg-beta-heading"><div id="tg-beta-photo" aria-label="Seu avatar de palco"></div><div><h3>Minha identidade</h3><p>Seu avatar e seus dados de palco.</p><span id="tg-beta-my-stars"></span></div></div><button id="tg103-own-preview" type="button" class="button button-outline">👁 Ver meu miniperfil</button>
  <label>Apelido no palco <input id="tg-p-nick" maxlength="24" minlength="2" autocomplete="nickname" required></label><label>@Tem Gogó exclusivo <input id="tg-p-handle" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="seu.nome"><small>3 a 24 letras, números, pontos ou _. Depois de definir, o @ fica fixo.</small></label><p class="tg83-avatar-copy">Escolha seu avatar de palco.</p><div id="tg-beta-avatar-picker" class="tg-beta-avatars"></div>
  <label>Instagram (opcional)<input id="tg-p-insta" maxlength="30" placeholder="seu.instagram" autocomplete="off" autocapitalize="none" spellcheck="false"><small>Preencha apenas se quiser exibir nos miniperfis permitidos. Deixe em branco para não exibir.</small></label>
  <label>Quem pode ver meu histórico?<select id="tg-p-score-vis"><option value="private">Somente eu</option><option value="public">Público</option></select></label>
@@ -212,13 +232,13 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  <label class="tg-beta-check"><input id="tg-p-best" type="checkbox"> Mostrar até três melhores notas recreativas no meu miniperfil autorizado (opcional e independente do ranking).</label><label class="tg-beta-check"><input id="tg-p-rank" type="checkbox"> Participar do ranking público geral (mínimo 3 apresentações).</label><button type="button" id="tg-p-save" class="tg-beta-primary">Salvar perfil</button>
  <details id="tg95-room-members" hidden><summary>🎤 Pessoas desta festa</summary><p>Ver apenas participantes da mesma sala. Os links respeitam o consentimento do proprietário.</p><div id="tg95-room-list"></div></details>
  <section class="tg95-achievements"><h3>🏆 Minhas conquistas</h3><p>Somente troféus oficiais de festivais da Batalha. A integração será liberada após os testes do banco; Clássico e Solo não geram medalhas permanentes.</p></section>
- <section class="tg95-bora"><p class="tg63-bora-note">Opcional · Bora de Rolê é para maiores de 18 anos. As contas não são conectadas.</p><a href="https://airamdazl.github.io/boraprorole/" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Conhecer Bora de Rolê (18+)</a><form id="tg63-bora-form" class="tg63-bora-form"><label>@Bora de Rolê<input id="tg63-bora-handle" maxlength="41" autocomplete="off" placeholder="@seu.usuario" disabled></label><label>Link pessoal compartilhado<input id="tg63-bora-url" type="url" maxlength="450" placeholder="Cole o link do seu perfil" disabled></label><label><input type="checkbox" id="tg63-bora-visible" disabled> Autorizo exibir meu @ e link pessoal nos miniperfis permitidos.</label><a id="tg63-bora-own" class="tg63-bora-chip" hidden></a><div class="tg63-bora-actions"><button type="submit" id="tg63-bora-save" class="button button-primary" disabled>Salvar vínculo</button><button type="button" id="tg63-bora-remove" class="button button-outline" disabled>Remover vínculo</button></div><p id="tg63-bora-feedback" role="status" aria-live="polite"></p></form></section>
+ <section class="tg95-bora"><form id="tg63-bora-form" class="tg63-bora-form"><label>@Bora de Rolê (opcional)<input id="tg63-bora-handle" maxlength="41" autocomplete="off" placeholder="@seu.usuario" disabled></label><label>Link pessoal compartilhado<input id="tg63-bora-url" type="url" maxlength="450" placeholder="Cole o link do seu perfil" disabled></label><label><input type="checkbox" id="tg63-bora-visible" disabled> Autorizo exibir meu @ e link pessoal nos miniperfis permitidos.</label><a id="tg63-bora-own" class="tg63-bora-chip" hidden></a><div class="tg63-bora-actions"><button type="submit" id="tg63-bora-save" class="button button-primary" disabled>Salvar vínculo</button><button type="button" id="tg63-bora-remove" class="button button-outline" disabled>Remover vínculo</button></div><p id="tg63-bora-feedback" role="status" aria-live="polite"></p></form><p class="tg63-bora-note">Opcional · 18+ · Contas independentes. <a href="https://airamdazl.github.io/boraprorole/" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Conhecer Bora de Rolê</a></p></section>
  </section>
  <section data-tg-beta-panel="rank" hidden><h3>Ranking geral opcional</h3><p>Média das últimas 10 apresentações (mínimo de 3), baseada em tempo e volume — não em afinação.</p><div id="tg-beta-rank-list"></div></section>
  <section data-tg-beta-panel="notices" hidden><h3>Orientações</h3><p id="tg-beta-maint-info">Verificando manutenção…</p><p>O cadastro é opcional para cantar. Miniperfis e rankings respeitam permissões e consentimento.</p><p>Para denunciar um recado, utilize a seção Segurança. O suporte fica disponível em Ajuda.</p><div class="tg-beta-legal"><a href="./termos.html" target="_blank" rel="noopener">Termos de Uso</a> · <a href="./privacidade.html" target="_blank" rel="noopener">Privacidade</a></div></section>
  <section data-tg-beta-panel="moderate" hidden><h3>Segurança e recados</h3><p>Denúncias vão para a Central. Apenas o anfitrião pode bloquear alguém na festa.</p><label>Tipo de denúncia<select id="tg-beta-report-type"><option value="spam">Spam</option><option value="ofensa">Ofensas</option><option value="assedio">Assédio</option><option value="ameaca">Ameaças</option><option value="menores">Suspeita envolvendo menores</option><option value="outros">Outro</option></select></label><label>ID do recado (quando existir)<input id="tg-beta-report-message" placeholder="UUID do recado denunciado"></label><label>Descreva o que aconteceu<textarea id="tg-beta-report-reason" rows="3" maxlength="1000"></textarea></label><button id="tg-beta-report" type="button">Enviar denúncia à Central</button>
  <h3>Recados recentes da festa</h3><div id="tg-beta-recent-messages"></div><div class="tg-beta-host-tools"><h3>Bloquear nesta festa (anfitrião)</h3><label>Participante<select id="tg-beta-ban-user"></select></label><label>Motivo<textarea id="tg-beta-ban-reason" rows="2" maxlength="500"></textarea></label><label class="tg-beta-check"><input id="tg-beta-ban-report" type="checkbox"> Encaminhar também para análise da Central</label><button id="tg-beta-ban" type="button" class="tg-beta-danger">Confirmar bloqueio na festa</button></div></section>
- <section id="tg-beta-person-view" hidden><h3>Miniperfil do artista</h3><div class="tg-beta-heading"><img id="tg-beta-person-avatar" src="./cantor-urbano.png" alt="Avatar"><div><strong id="tg-beta-person-name"></strong><small id="tg-beta-person-handle" hidden></small><p id="tg-beta-person-score"></p></div></div><div class="tg95-links"><a id="tg-beta-person-instagram" hidden target="_blank" rel="noopener noreferrer"></a><a id="tg95-person-bora" hidden target="_blank" rel="noopener noreferrer"></a></div><button id="tg-beta-person-back" type="button" class="button button-outline">← Voltar</button></section>
+ <section id="tg-beta-person-view" hidden><h3 id="tg103-person-title">Miniperfil do artista</h3><p id="tg103-preview-context" hidden></p><div class="tg-beta-heading"><img id="tg-beta-person-avatar" src="./cantor-urbano.png" alt="Avatar"><div><strong id="tg-beta-person-name"></strong><small id="tg-beta-person-handle" hidden></small><p id="tg-beta-person-score"></p></div></div><div class="tg95-links"><a id="tg-beta-person-instagram" hidden target="_blank" rel="noopener noreferrer"></a><a id="tg95-person-bora" hidden target="_blank" rel="noopener noreferrer"></a></div><button id="tg-beta-person-back" type="button" class="button button-outline">← Voltar</button></section>
  <p id="tg-beta-feedback" role="status" aria-live="polite"></p></div></dialog>
  <dialog id="tg96-party-people" class="modal tg96-party-people" aria-labelledby="tg96-party-title">
  <div class="tg96-party-inner"><header><h2 id="tg96-party-title">🎤 Pessoas nesta festa</h2><button type="button" id="tg96-party-close" class="button button-outline">Fechar</button></header>
@@ -227,7 +247,8 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  document.querySelectorAll('[data-tg-beta-open]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaOpen)));document.querySelectorAll('[data-tg-beta-tab]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaTab)));
  $('tg-beta-emergency').addEventListener('cancel',e=>e.preventDefault());
  $('tg-beta-dialog').addEventListener('close',()=>{profileEpoch++;profile=null;profileOwner=null;picture=null;rankedProfileIds.clear();clearBora();});$('tg63-bora-form').addEventListener('submit',e=>{e.preventDefault();void writeBora();});$('tg63-bora-remove').addEventListener('click',()=>void writeBora(true));$('tg-beta-close').onclick=()=>$('tg-beta-dialog').close();$('tg-beta-gate-close').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-later').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-account').onclick=()=>{$('tg-beta-gate-dialog').close();$('tg18-account-cta')?.click();};$('tg-p-save').onclick=saveProfile;$('tg-beta-report').onclick=reportMessage;$('tg-beta-ban').onclick=banParty;$('tg-beta-host-moderate').onclick=showHostModeration;
- $('tg-beta-person-back').onclick=()=>{ profileEpoch++; $('tg-beta-person-view').hidden=true;document.querySelectorAll('[data-tg-beta-panel]').forEach(el=>el.hidden=el.dataset.tgBetaPanel!==cardReturnTab);if(cardReturnTab==='profile')void loadBoraLink();status('');};
+ $('tg103-own-preview').onclick=tg103OpenOwn;
+ $('tg-beta-person-back').onclick=()=>{profileEpoch++;$('tg-beta-person-view').hidden=true;document.querySelectorAll('[data-tg-beta-panel]').forEach(el=>el.hidden=el.dataset.tgBetaPanel!==cardReturnTab);if(cardReturnTab==='profile'){if(!profile||profileOwner!==account()?.user.id)void loadProfile();void loadBoraLink();loadRoomParticipants();}status('');};
  const partyButton=document.createElement('button');partyButton.id='tg96-party-open';partyButton.type='button';
  partyButton.className='button button-outline tg96-party-open';partyButton.textContent='👥 Pessoas desta festa';
  $('guest')?.querySelector('.guest-room-info')?.append(partyButton);
@@ -242,8 +263,8 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
      if(!item.user_id||seen.has(item.user_id))continue;seen.add(item.user_id);
      const row=document.createElement('div');row.className='tg96-party-member';
      const name=document.createElement('span');name.textContent=String(item.display_name||'Artista');
-     const open=document.createElement('button');open.type='button';open.textContent='Ver miniperfil';open.className='button button-outline';
-     open.addEventListener('click',()=>{partyDlg.close();void openPerson(item.user_id,'party');});
+     const open=document.createElement('button');open.type='button';open.textContent=item.user_id===ctx.user?.id?'Ver meu miniperfil':'Ver miniperfil';open.className='button button-outline';
+     open.addEventListener('click',()=>{partyDlg.close();if(item.user_id===ctx.user?.id)tg103OpenOwn();else void openPerson(item.user_id,'party');});
      row.append(name,open);partyList.append(row);
    }
    if(!partyList.childElementCount)partyList.textContent='Ainda não há participantes para mostrar.';

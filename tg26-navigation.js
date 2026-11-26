@@ -178,8 +178,7 @@
   const panel=q('[data-tg-beta-panel="profile"]',social),save=$('tg-p-save'),anonInner=q('.modal-inner',guest);
   if(panel&&save){
     const socialDetails=el('details','tg60-social-options');socialDetails.append(el('summary','','Redes sociais e privacidade'));socialDetails.open=false;
-    for(const id of ['tg-p-handle','tg-p-insta','tg-p-score-vis','tg-p-best','tg-p-rank','tg-p-age','tg-p-legal']){const label=$(id)?.closest('label');if(label)socialDetails.append(label);}
-    const bora=q('.tg95-bora',panel);if(bora){const links=el('details','tg60-social-options tg63-social-links');links.append(el('summary','','Bora de Rolê · link opcional'));bora.before(links);links.append(bora);}save.before(socialDetails);
+    for(const id of ['tg-p-handle','tg-p-insta','tg-p-score-vis','tg-p-best','tg-p-rank','tg-p-age','tg-p-legal']){const label=$(id)?.closest('label');if(label)socialDetails.append(label);if(id==='tg-p-insta'){const bora=q('.tg95-bora',panel);if(bora)socialDetails.append(bora);}}save.before(socialDetails);
   }
   const actions=(target,isGuest)=>{if(!target)return;const box=el('div','tg60-profile-actions');
     const action=(label,fn)=>{const icons={'Aparência':'◈','Identidade vocal':'♪','Minhas notas':'★','Alterar senha':'◇','Sair da conta':'⏻','Criar conta':'+'};box.append(row(button(label,fn),icons[label]||'›',label,label==='Sair da conta'));};
