@@ -174,10 +174,15 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
  #tg18-remote .tg18-remote-shell{padding-inline:10px!important}
  #tg18-remote .tg19-remote-queue-item{flex-wrap:wrap}
  #tg18-remote .tg19-remote-queue-actions{display:flex;flex-wrap:wrap}
- #tg18-remote .tg19-remote-mic-inner{min-width:0;max-width:100%;box-sizing:border-box}
+ #tg18-remote .tg18-remote-mic-inner{min-width:0;max-width:100%;box-sizing:border-box}
  #tg18-remote .tg19-remote-vocal-gain{min-width:0;max-width:100%;box-sizing:border-box}
- #tg18-remote .tg19-remote-vocal-gain input,#guest input[type=range]{max-width:100%}
+ #tg18-remote #tg19-remote-vocal-gain,#guest input[type=range]{max-width:100%}
  #tg75-battle-panel .tg75-stars label{font-size:12px;gap:2px;padding:3px}
  #tg75-battle-panel .tg75-tabs button{min-height:44px;white-space:normal}
  #tg75-battle-panel .tg75-shell{min-width:0;max-width:100%;box-sizing:border-box}
 }
+
+/* R62.1: keep focused microphones reachable on short screens and landscape. */
+@media(max-height:520px){body.tg103-mic-focus #guest #guest-mic-panel:not([hidden]),body.tg103-remote-mic-focus #tg19-remote-singing:not([hidden]){justify-content:flex-start!important;overflow-y:auto!important;overscroll-behavior:contain}body.tg103-remote-mic-focus #tg18-remote-mic:not([hidden]),body.tg103-mic-focus #mic-card{flex-shrink:0!important;margin-block:0!important}}
+#tg18-remote #tg18-remote-feedback{margin:6px 0;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+#tg18-remote #tg04-remote-end{border-color:var(--tg-error,#f49cba)!important;margin-block:3px}
