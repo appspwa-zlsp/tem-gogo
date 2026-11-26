@@ -186,3 +186,29 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
 @media(max-height:520px){body.tg103-mic-focus #guest #guest-mic-panel:not([hidden]),body.tg103-remote-mic-focus #tg19-remote-singing:not([hidden]){justify-content:flex-start!important;overflow-y:auto!important;overscroll-behavior:contain}body.tg103-remote-mic-focus #tg18-remote-mic:not([hidden]),body.tg103-mic-focus #mic-card{flex-shrink:0!important;margin-block:0!important}}
 #tg18-remote #tg18-remote-feedback{margin:6px 0;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
 #tg18-remote #tg04-remote-end{border-color:var(--tg-error,#f49cba)!important;margin-block:3px}
+
+/* R63 — personal Solo stage, never a public or collective party. */
+#stage[data-tg63-experience=solo][data-tg50-ready] .stage-layout{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))!important}
+#stage[data-tg63-experience=solo] :is(#tg63-stage-rank,.tg100-invites,.tg19-host-remote-card,#tg30-control-qr-details,.tg04-stage-recado,.stage-command-participants,#command-mics,.singer-strip,#tg08-stage-battle,.tg124-invite-shortcut){display:none!important}
+#stage[data-tg63-experience=solo] #tg123-host-bar [data-tg123-host-command=call]{display:none!important}
+#stage[data-tg63-experience=solo] #tg192-solo-dock:not([hidden]){position:static!important;inset:auto!important;transform:none!important;margin:0!important;width:100%!important;max-width:none!important;z-index:auto!important;flex-wrap:wrap;min-width:0;gap:6px}
+#stage[data-tg63-experience=solo] #tg192-solo-off{min-height:44px;min-width:68px}
+#stage[data-tg63-experience=solo] #tg17-console .master-volume{display:none!important}
+#stage[data-tg63-experience=solo] #tg63-stage-queue{white-space:normal}
+#stage[data-tg63-experience=solo] .tg50-panel[data-tg50-section=fila] .stage-command{display:none!important}
+#stage[data-tg63-experience=solo] #tg123-post-score:not([hidden]) #tg123-after-call{display:none!important}
+#stage[data-tg63-experience=solo] .tg50-panel[data-tg50-section=sala] #tg18-remote-open{display:none!important}
+#stage[data-tg63-experience=solo] .tg50-panel[data-tg50-section=audio] #tg18-solo-button:not([hidden]){display:none!important}
+#tg-beta-dialog .tg63-bora-form{display:grid;gap:8px;min-width:0;margin-top:8px}
+#tg-beta-dialog .tg63-bora-form label{min-width:0;overflow-wrap:anywhere}
+#tg-beta-dialog .tg63-bora-form .tg63-bora-actions{display:flex;flex-wrap:wrap;gap:8px}
+#tg-beta-dialog .tg63-bora-actions button{min-height:44px;flex:1 1 120px;white-space:normal}
+#tg-beta-dialog .tg63-bora-chip,#tg95-person-bora{display:inline-flex;align-items:center;gap:6px;min-height:44px;max-width:100%;overflow-wrap:anywhere}
+#tg-beta-dialog .tg63-bora-chip img,#tg95-person-bora img{width:23px;height:23px;object-fit:contain;flex:none}
+#tg-beta-dialog .tg63-bora-chip[hidden],#tg95-person-bora[hidden]{display:none!important}
+#tg-beta-dialog .tg63-bora-note{font-size:12px;line-height:1.4}
+@media(max-width:780px){
+ #stage[data-tg63-experience=solo][data-tg50-ready] .stage-main>#tg123-host-bar>button:not([hidden]):not(.tg26-legacy){flex:1 1 28%!important;max-width:none}
+ #stage[data-tg63-experience=solo][data-tg50-ready] .stage-header .stage-identity{flex:1 1 auto!important;min-width:0}
+ #stage[data-tg63-experience=solo][data-tg50-ready] .stage-header .stage-actions{flex:0 1 auto!important;width:auto!important;justify-content:flex-end}
+}
