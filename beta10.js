@@ -21,11 +21,33 @@ function openTab(tab='profile'){
  document.querySelectorAll('[data-tg-beta-tab]').forEach(x=>{if(x.dataset.tgBetaTab==='rank')x.hidden=!!bridge()?.room;x.classList.toggle('active',x.dataset.tgBetaTab===tab);x.setAttribute('aria-selected',String(x.dataset.tgBetaTab===tab));});
  document.querySelectorAll('[data-tg-beta-panel]').forEach(x=>x.hidden=x.dataset.tgBetaPanel!==tab);
  status('');
- if(tab==='profile'){void loadProfile();loadRoomParticipants();}
+ if(tab==='profile'){void loadProfile();void loadBoraLink();loadRoomParticipants();}
  if(tab==='rank')void loadRanking();
  if(tab==='notices')void loadNotices();
  if(tab==='moderate'){const b=bridge();document.querySelector('.tg-beta-host-tools').hidden=b?.role!=='remote';void loadPartyMessages();}
 }
+// R63: SQL33 R45, existing table and authenticated owner's consent.
+const boraFields='user_id,bora_handle,profile_url,is_visible';
+const boraHandle=v=>String(v||'').trim().replace(/^@/,'');
+const validBoraHandle=v=>/^[A-Za-z0-9_.-]{2,40}$/.test(v);
+const validBoraURL=v=>/^https:\/\/airamdazl\.github\.io\/boraprorole\/index\.html\?perfil=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+let boraOwner=null,boraEpoch=0,boraRecord=null,boraBusy=false;
+function boraMessage(msg){const n=$('tg63-bora-feedback');if(n)n.textContent=msg;}
+function boraChip(node,p){if(!node)return;node.hidden=true;node.removeAttribute('href');node.replaceChildren();if(!p?.is_visible||!validBoraHandle(p.bora_handle)||!validBoraURL(p.profile_url))return;const icon=document.createElement('img');icon.src='./bora-pro-role-logo.png';icon.alt='Bora de Rolê';node.append(icon,document.createTextNode('@'+p.bora_handle));node.href=p.profile_url;node.target='_blank';node.rel='noopener noreferrer';node.referrerPolicy='no-referrer';node.hidden=false;}
+function clearBora(){boraEpoch++;boraOwner=null;boraRecord=null;boraBusy=false;const form=$('tg63-bora-form');if(!form)return;form.reset();for(const id of ['tg63-bora-save','tg63-bora-remove','tg63-bora-handle','tg63-bora-url','tg63-bora-visible'])$(id).disabled=true;boraChip($('tg63-bora-own'),null);boraMessage('');}
+const boraCurrent=(b,epoch,pe)=>boraEpoch===epoch&&profileEpoch===pe&&account()?.user.id===b.user.id&&bridge()?.sessionEpoch===b.sessionEpoch&&$('tg-beta-dialog')?.open&&!$('tg63-bora-form')?.closest('[hidden]');
+function boraEnable(){for(const id of ['tg63-bora-save','tg63-bora-handle','tg63-bora-url','tg63-bora-visible'])$(id).disabled=false;$('tg63-bora-remove').disabled=!boraRecord;}
+async function loadBoraLink(){clearBora();const b=account(),epoch=boraEpoch,pe=profileEpoch;if(!b||!$('tg63-bora-form'))return;boraMessage('Carregando vínculo…');try{const {data,error}=await b.client.from('tg_bora_profile_links').select(boraFields).eq('user_id',b.user.id).maybeSingle();if(!boraCurrent(b,epoch,pe))return;if(error||data&&data.user_id!==b.user.id)throw Error('Link indisponível');boraOwner=b.user.id;boraRecord=data||null;$('tg63-bora-handle').value=data?.bora_handle||'';$('tg63-bora-url').value=data?.profile_url||'';$('tg63-bora-visible').checked=data?.is_visible===true;boraChip($('tg63-bora-own'),data);boraEnable();boraMessage(data?'Vínculo carregado.':'Vínculo opcional.');}catch{if(boraCurrent(b,epoch,pe))boraMessage('Vínculo indisponível. Nenhuma alteração foi salva.');}}
+async function writeBora(remove=false){const b=account(),epoch=boraEpoch,pe=profileEpoch;if(!b||boraOwner!==b.user.id||boraBusy||!boraCurrent(b,epoch,pe))return;const handle=boraHandle($('tg63-bora-handle').value),url=$('tg63-bora-url').value.trim(),visible=$('tg63-bora-visible').checked;
+ if(!remove&&(!validBoraHandle(handle)||!validBoraURL(url))){boraMessage('Confira o @ e cole o link pessoal compartilhado pelo Bora de Rolê.');return;}
+ if(!remove&&!visible&&!boraRecord){boraMessage('Autorize a exibição para cadastrar o vínculo.');return;}
+ if(remove&&!boraRecord)return;
+ boraBusy=true;for(const id of ['tg63-bora-save','tg63-bora-remove','tg63-bora-handle','tg63-bora-url','tg63-bora-visible'])$(id).disabled=true;boraMessage(remove?'Removendo…':'Salvando vínculo…');
+ try{const table=b.client.from('tg_bora_profile_links');const payload={user_id:b.user.id,bora_handle:handle,profile_url:url,is_visible:visible};
+ const query=remove?table.delete().eq('user_id',b.user.id).select('user_id').maybeSingle():boraRecord?table.update(payload).eq('user_id',b.user.id).select(boraFields).single():table.insert(payload).select(boraFields).single();
+ const {data,error}=await query;if(!boraCurrent(b,epoch,pe))return;if(error||data?.user_id!==b.user.id)throw Error('Não confirmado');
+ boraRecord=remove?null:data;if(remove)$('tg63-bora-form').reset();boraChip($('tg63-bora-own'),boraRecord);boraMessage(remove?'Vínculo removido.':visible?'Vínculo salvo e visível conforme permissões.':'Vínculo salvo sem exibição.');
+ }catch{if(boraCurrent(b,epoch,pe))boraMessage('Não foi possível confirmar a alteração. Reabra o perfil para conferir.');}finally{if(boraCurrent(b,epoch,pe)){boraBusy=false;boraEnable();}}}
 const rankedProfileIds=new Set();
 let cardReturnTab='profile';
 function inCurrentParty(id){
@@ -34,7 +56,7 @@ function inCurrentParty(id){
 }
 function loadRoomParticipants(){
  const root=$('tg95-room-list'),panel=$('tg95-room-members');if(!root||!panel)return;
- const b=bridge(),valid=!!(b?.room?.id&&['host','remote','guest'].includes(b.role));
+ const b=bridge(),valid=!!(b?.room?.id&&b.room.room_mode!=='solo'&&['host','remote','guest'].includes(b.role));
  root.replaceChildren();panel.hidden=!valid;if(!valid)return;
  const members=[...(b.members||[])];
  if(b.room.owner_id&&!members.some(m=>m.user_id===b.room.owner_id))members.unshift({user_id:b.room.owner_id,display_name:'Anfitrião'});
@@ -134,9 +156,9 @@ async function openPerson(id,origin){
    insta.href='https://www.instagram.com/'+encodeURIComponent(handle)+'/';
    insta.hidden=false;
   }
-  // Bora de Rolê: exibir apenas com URL pessoal real e consentimento do backend.
-  // Nenhuma rota é adivinhada, nem se reutiliza o endereço do banner.
+  // Only after the existing miniprofile authorization succeeds; never use a banner as a profile.
   status('');
+  try{const {data:link,error:linkError}=await b.client.from('tg_bora_profile_links').select(boraFields).eq('user_id',id).eq('is_visible',true).maybeSingle();if(!linkError&&link?.user_id===id&&profileEpoch===epoch&&account()?.user.id===b.user.id&&$('tg-beta-dialog').open&&!box.hidden&&(origin==='ranking'?!bridge()?.room:inCurrentParty(id)&&bridge()?.room?.id===ctx?.room?.id))boraChip(bora,link);}catch{/* Optional link: fail closed. */}
  }catch(e){if(profileEpoch===epoch&&account()?.user.id===b.user.id)status('Miniperfil não disponível: '+err(e));}
 }
 async function loadRanking(){const b=account();if(!b||b.room)return;const epoch=profileEpoch;const root=$('tg-beta-rank-list');root.replaceChildren();status('Consultando ranking público…');try{const {data,error}=await b.client.rpc('tg_rankings_public');if(error)throw error;if(epoch!==profileEpoch||account()?.user.id!==b.user.id||bridge()?.room)return;rankedProfileIds.clear();(data||[]).forEach((p,i)=>{if(p.user_id)rankedProfileIds.add(p.user_id);appendPerson(root,p,`#${i+1} · ${(Number(p.average_score)/20).toFixed(1)} ★ · ${p.performances} apresentações recentes`,id=>openPerson(id,'ranking'));});if(!data?.length)text(root,'Ainda não existem participantes elegíveis com pelo menos três apresentações.');status('');}catch(e){status('⚠ '+err(e));}}
@@ -201,7 +223,7 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  <label class="tg-beta-check"><input id="tg-p-best" type="checkbox"> Mostrar até três melhores notas recreativas no meu miniperfil autorizado (opcional e independente do ranking).</label><label class="tg-beta-check"><input id="tg-p-rank" type="checkbox"> Participar do ranking público geral (mínimo 3 apresentações).</label><button type="button" id="tg-p-save" class="tg-beta-primary">Salvar perfil</button>
  <details id="tg95-room-members" hidden><summary>🎤 Pessoas desta festa</summary><p>Ver apenas participantes da mesma sala. Os links respeitam o consentimento do proprietário.</p><div id="tg95-room-list"></div></details>
  <section class="tg95-achievements"><h3>🏆 Minhas conquistas</h3><p>Somente troféus oficiais de festivais da Batalha. A integração será liberada após os testes do banco; Clássico e Solo não geram medalhas permanentes.</p></section>
- <section class="tg95-bora"><h3>🔗 Meus vínculos</h3><p>Instagram opcional acima. Bora de Rolê: vínculo voluntário ainda não configurado; nenhuma conta será vinculada automaticamente.</p></section>
+ <section class="tg95-bora"><p class="tg63-bora-note">Opcional · Bora de Rolê é para maiores de 18 anos. As contas não são conectadas.</p><a href="https://airamdazl.github.io/boraprorole/" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Conhecer Bora de Rolê (18+)</a><form id="tg63-bora-form" class="tg63-bora-form"><label>@Bora de Rolê<input id="tg63-bora-handle" maxlength="41" autocomplete="off" placeholder="@seu.usuario" disabled></label><label>Link pessoal compartilhado<input id="tg63-bora-url" type="url" maxlength="450" placeholder="Cole o link do seu perfil" disabled></label><label><input type="checkbox" id="tg63-bora-visible" disabled> Autorizo exibir meu @ e link pessoal nos miniperfis permitidos.</label><a id="tg63-bora-own" class="tg63-bora-chip" hidden></a><div class="tg63-bora-actions"><button type="submit" id="tg63-bora-save" class="button button-primary" disabled>Salvar vínculo</button><button type="button" id="tg63-bora-remove" class="button button-outline" disabled>Remover vínculo</button></div><p id="tg63-bora-feedback" role="status" aria-live="polite"></p></form></section>
  </section>
  <section data-tg-beta-panel="rank" hidden><h3>Ranking geral opcional</h3><p>Média das últimas 10 apresentações (mínimo de 3), baseada em tempo e volume — não em afinação.</p><div id="tg-beta-rank-list"></div></section>
  <section data-tg-beta-panel="notices" hidden><h3>Orientações</h3><p id="tg-beta-maint-info">Verificando manutenção…</p><p>O cadastro é opcional para cantar. Miniperfis e rankings respeitam permissões e consentimento.</p><p>Para denunciar um recado, utilize a seção Segurança. O suporte fica disponível em Ajuda.</p><div class="tg-beta-legal"><a href="./termos.html" target="_blank" rel="noopener">Termos de Uso</a> · <a href="./privacidade.html" target="_blank" rel="noopener">Privacidade</a></div></section>
@@ -215,7 +237,7 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  <div id="tg96-party-list"></div></div></dialog>`;document.body.append(root);
  document.querySelectorAll('[data-tg-beta-open]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaOpen)));document.querySelectorAll('[data-tg-beta-tab]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaTab)));
  $('tg-beta-emergency').addEventListener('cancel',e=>e.preventDefault());
- $('tg-beta-dialog').addEventListener('close',()=>{profileEpoch++;profile=null;profileOwner=null;picture=null;rankedProfileIds.clear();});$('tg-beta-close').onclick=()=>$('tg-beta-dialog').close();$('tg-beta-gate-close').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-later').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-account').onclick=()=>{$('tg-beta-gate-dialog').close();$('tg18-account-cta')?.click();};$('tg-p-save').onclick=saveProfile;$('tg-beta-report').onclick=reportMessage;$('tg-beta-ban').onclick=banParty;$('tg-beta-host-moderate').onclick=showHostModeration;
+ $('tg-beta-dialog').addEventListener('close',()=>{profileEpoch++;profile=null;profileOwner=null;picture=null;rankedProfileIds.clear();clearBora();});$('tg63-bora-form').addEventListener('submit',e=>{e.preventDefault();void writeBora();});$('tg63-bora-remove').addEventListener('click',()=>void writeBora(true));$('tg-beta-close').onclick=()=>$('tg-beta-dialog').close();$('tg-beta-gate-close').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-later').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-account').onclick=()=>{$('tg-beta-gate-dialog').close();$('tg18-account-cta')?.click();};$('tg-p-save').onclick=saveProfile;$('tg-beta-report').onclick=reportMessage;$('tg-beta-ban').onclick=banParty;$('tg-beta-host-moderate').onclick=showHostModeration;
  $('tg-beta-photo').onclick=()=>$('tg-beta-photo-input').click();$('tg-beta-photo-input').onchange=e=>preparePicture(e.target.files?.[0]);$('tg-p-zoom').oninput=e=>{crop.zoom=Number(e.target.value);drawPreview();};$('tg-p-upload').onclick=cropUpload;
  const c=$('tg-beta-crop-canvas');c.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};c.setPointerCapture(e.pointerId);});c.addEventListener('pointermove',e=>{if(!drag)return;crop.x=Math.max(-48,Math.min(48,crop.x+(drag.x-e.clientX)/2));crop.y=Math.max(-48,Math.min(48,crop.y+(drag.y-e.clientY)/2));drag={x:e.clientX,y:e.clientY};drawPreview();});c.addEventListener('pointerup',()=>drag=null);
  $('tg-beta-person-back').onclick=()=>{ profileEpoch++; $('tg-beta-person-view').hidden=true;document.querySelectorAll('[data-tg-beta-panel]').forEach(el=>el.hidden=el.dataset.tgBetaPanel!==cardReturnTab);status('');};
