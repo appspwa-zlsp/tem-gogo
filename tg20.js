@@ -108,22 +108,8 @@ function accountChoice(){
     dlg.close();$('tg18-account-cta')?.click();
   });
 }
-function groupCommunityProfile(){
-  const panel=document.querySelector('#tg-beta-dialog [data-tg-beta-panel="profile"]');
-  if(!panel||panel.querySelector('.tg20-profile-privacy'))return;
-  const wrap=(title,cls,ids,open=false)=>{
-    const details=document.createElement('details');details.className='tg20-profile-group '+cls;details.open=open;
-    const summary=document.createElement('summary');summary.textContent=title;details.append(summary);
-    for(const id of ids){const input=$(id);const label=input?.closest('label');if(label)details.append(label);}
-    const save=$('tg-p-save');if(save)panel.insertBefore(details,save);
-  };
-  wrap('🔐 Privacidade e visibilidade','tg20-profile-privacy',['tg-p-insta-vis','tg-p-photo-vis','tg-p-score-vis','tg-p-discovery','tg-p-rank']);
-  wrap('📄 Termos e declaração de idade','tg20-profile-legal',['tg-p-legal','tg-p-age'],true);
-  const legal=$('tg-p-legal')?.closest('label');if(legal){
-    // No false claims about unpublished versions: links point to actual current documents.
-    for(const node of Array.from(legal.childNodes))if(node.nodeType===Node.TEXT_NODE)node.textContent=node.textContent.replace(/da Beta 1\.0\./,'do Tem Gogó.');
-  }
-}
+// R81: agrupamento exclusivo em tg26-navigation.js.
+function groupCommunityProfile(){}
 function adaptHostStage(){
   const controls=$('tg123-host-bar');if(controls)controls.setAttribute('aria-label','Ações complementares do palco');
   // R100: app.js é o único responsável pela composição. Não mover controles em resize.

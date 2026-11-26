@@ -21,27 +21,67 @@ function navigateHub(which){
  if(modes)modes.hidden=which!=='create';
  if(history)history.hidden=which!=='history';
  if(form)form.hidden=true;
+ const choices=$('tg92-hub-choices');if(choices)choices.hidden=which!=='main';
  hubCreate?.setAttribute('aria-expanded',String(which==='create'));
  $('tg92-hub-history')?.setAttribute('aria-expanded',String(which==='history'));
  if(which==='create'){modes?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});$('tg70-go-classic')?.focus({preventScroll:true});}
  if(which==='history'){history?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});$('tg93-history-title')?.setAttribute('tabindex','-1');$('tg93-history-title')?.focus({preventScroll:true});}
 }
 hubCreate?.addEventListener('click',()=>navigateHub('create'));
-$('tg92-hub-join')?.addEventListener('click',()=>$('hub-join-room')?.click());
+$('tg92-hub-join')?.addEventListener('click',()=>{$('tg83-join-menu')?.showModal();});
+$('tg83-join-back')?.addEventListener('click',()=>$('tg83-join-menu')?.close());
+$('tg83-join-code')?.addEventListener('click',()=>{$('tg83-join-menu')?.close();$('hub-join-room')?.click();});
+$('tg83-join-scan')?.addEventListener('click',()=>{$('tg83-join-menu')?.close();document.querySelector('#room-hub [data-scan-qr]')?.click();});
+$('tg83-modes-back')?.addEventListener('click',()=>navigateHub('main'));
 $('tg92-hub-history')?.addEventListener('click',()=>navigateHub('history'));
 $('tg93-history-back')?.addEventListener('click',()=>navigateHub('main'));
+// R82 — trailer educativo. A arte é independente dos avatares de perfil.
 const guides=[
- ['Bem-vindos à Batalha!', 'A Drag Diva apresenta o festival: inscrições, apresentações, confrontos e um pódio oficial. Talento ajuda, mas coragem também conta!'],
- ['Vamos montar o elenco!', 'O anfitrião abre as inscrições e aprova de dois a doze competidores. Depois do fechamento do elenco, ninguém entra como novo competidor; espectadores podem solicitar participação conforme as regras.'],
- ['Hora da classificatória!', 'Cada competidor sobe ao palco e recebe sua avaliação. A classificação segue as regras oficiais do festival e a nota recreativa não mede afinação.'],
- ['Começam os confrontos!', 'O chaveamento depende da quantidade de competidores. Avanços e vitórias só aparecem quando o resultado é confirmado pelo servidor.'],
- ['Todo voto importa!', 'Votantes habilitados avaliam de uma a cinco estrelas. São 150 segundos com uma única prorrogação possível de 30 segundos. O eleitorado é congelado ao abrir a votação e o voto confirmado não pode ser trocado.'],
- ['O grande pódio!', 'A Drag Diva comemora conquistas oficiais de ouro, prata e bronze, persistentes somente na Batalha. Se não houver um resultado justo e válido, ninguém recebe um título inventado.']
- ];let i=0;const dialog=$('tg70-battle-guide');function showGuide(){const g=guides[i];$('tg70-guide-counter').textContent=`Cena ${i+1} de ${guides.length}`;const progress=$('tg33-guide-progress');if(progress){progress.max=guides.length;progress.value=i+1;}$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';}
-$('tg70-battle-story-open')?.addEventListener('click',()=>{i=0;showGuide();dialog?.showModal();});$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());
-$('tg70-guide-skip')?.addEventListener('click',()=>dialog?.close());$('tg70-guide-prev')?.addEventListener('click',()=>{i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{if(i===guides.length-1){dialog.close();return;}i++;showGuide();});dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
-const faq=$('faq-dialog')?.querySelector('.tg193-faq-actions');if(faq){const btn=document.createElement('button');btn.type='button';btn.className='button button-outline';btn.textContent='🏆 Rever apresentação da Batalha';btn.addEventListener('click',()=>{if($('faq-dialog')?.open)$('faq-dialog').close();i=0;showGuide();dialog?.showModal();});faq.append(btn);}
-if(battle){battle.disabled=true;battle.setAttribute('aria-disabled','true');}
+ ['Batalha de Estrelas','Entre para cantar ou só assistir e votar. Seu celular vira o microfone.','opening',6500,'Estrelas'],
+ ['O anfitrião prepara o show','Abre as inscrições de 2 a 12 competidores e monta a playlist dos confrontos.','cast',7500,'Playlist'],
+ ['Escolha seu papel','Cantor(a) disputa com uma conta. A plateia pode acompanhar e votar quando habilitada, inclusive como convidado temporário.','join',8500,'Cantar • Votar'],
+ ['Sua música, sua estreia','Cada competidor escolhe uma música para cantar sozinho na classificatória.','qualify',7500,'Minha música'],
+ ['A plateia dá estrelas','Após cada apresentação, os eleitores habilitados votam de 1 a 5 estrelas. A janela tem 150 segundos e pode receber uma extensão de 30 segundos.','vote',9000,'★★★★★'],
+ ['A Diva apresenta os confrontos','A classificação organiza a chave. Todos os competidores entram nela; ninguém é eliminado só por sua nota inicial.','bracket',8500,'Chave • VS'],
+ ['Sorteio, celular na mão, VS!','O sistema sorteia uma faixa da playlist do host, sem repetir nos duelos iniciais. Os dois cantam a mesma música ao mesmo tempo.','duel',9000,'VS'],
+ ['Votação e grande final','A plateia vota após os duelos. A apuração segue as regras; se houver empate absoluto, há revanche com outra faixa. A Diva anuncia o pódio confirmado.','podium',10000,'Grande final']
+];
+let i=0,guideTimer=null,playing=false,fromPanel=false,artReady=false;
+const dialog=$('tg70-battle-guide'),theme=$('tg67-guide-theme'),atlas='./batalha-r82-cenas.webp';
+const reduce=()=>matchMedia('(prefers-reduced-motion:reduce)').matches||document.body.classList.contains('tg93-reduce-motion');
+const total=guides.length;
+const image=new Image();
+image.onload=()=>{artReady=true;if(dialog?.open)showGuide();};
+image.onerror=()=>{artReady=false;if(dialog?.open)showGuide();};
+image.src=atlas;
+function showGuide(){
+ const g=guides[i],scene=$('tg67-guide-scene');if(!dialog?.open||!scene)return;
+ $('tg70-guide-counter').textContent=(i+1)+' / '+total;$('tg33-guide-progress').max=total;$('tg33-guide-progress').value=i+1;
+ $('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===total-1?'Concluir':'Próximo';
+ scene.dataset.scene=g[2];scene.classList.toggle('tg82-art-ready',artReady);scene.replaceChildren();
+ const visual=document.createElement('div');visual.className='tg82-visual';visual.setAttribute('aria-hidden','true');
+ if(artReady){visual.style.backgroundImage='url("'+atlas+'")';visual.style.backgroundPosition=(i%2*100)+'% '+(Math.floor(i/2)*100/3)+'%';}
+ else{const logo=document.createElement('span');logo.className='tg82-fallback-mark';logo.textContent=g[4];visual.append(logo);}
+ scene.append(visual);$('tg67-guide-toggle').textContent=playing?'Pausar':'Reproduzir';
+ $('tg75-open-workspace').hidden=fromPanel;
+}
+function stopGuide(){clearTimeout(guideTimer);guideTimer=null;playing=false;theme?.pause();$('tg67-guide-toggle').textContent='Reproduzir';}
+function schedule(){clearTimeout(guideTimer);if(!playing)return;guideTimer=setTimeout(()=>{if(!dialog.open||document.hidden){stopGuide();return;}if(i===total-1){stopGuide();return;}i++;showGuide();schedule();},guides[i][3]);}
+function startGuide(){if(!dialog.open)return;playing=true;showGuide();if(theme&&!theme.muted){theme.volume=.18;theme.play().catch(()=>{});}schedule();}
+function openGuide(options={}){if(!dialog||document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg103-remote-mic-focus')||document.body.classList.contains('tg18-singing'))return false;
+ if(dialog.open)return false;fromPanel=options.fromPanel===true;i=0;stopGuide();
+ if(theme){try{theme.currentTime=0;}catch{}theme.muted=true;$('tg67-guide-sound').textContent='Ativar trilha';$('tg67-guide-sound').setAttribute('aria-pressed','false');}
+ dialog.showModal();showGuide();if(!reduce())startGuide();return true;
+}
+window.TG82_BATTLE_GUIDE=Object.freeze({open:openGuide});
+$('tg70-battle-story-open')?.addEventListener('click',()=>openGuide());$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());$('tg70-guide-skip')?.addEventListener('click',()=>dialog.close());
+$('tg70-guide-prev')?.addEventListener('click',()=>{stopGuide();i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{stopGuide();if(i===total-1){dialog.close();return;}i++;showGuide();});
+$('tg67-guide-toggle')?.addEventListener('click',()=>{if(playing)stopGuide();else{if(i===total-1){i=0;if(theme)try{theme.currentTime=0;}catch{}}startGuide();}});
+$('tg67-guide-sound')?.addEventListener('click',()=>{if(!theme)return;theme.muted=!theme.muted;$('tg67-guide-sound').textContent=theme.muted?'Ativar trilha':'Silenciar trilha';$('tg67-guide-sound').setAttribute('aria-pressed',String(!theme.muted));if(theme.muted)theme.pause();else if(playing){theme.volume=.18;theme.play().catch(()=>{});}});
+dialog?.addEventListener('close',()=>{stopGuide();fromPanel=false;});dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});$('tg75-open-workspace')?.addEventListener('click',stopGuide);$('tg75-battle-panel')?.addEventListener('close',()=>{if(fromPanel&&dialog.open)dialog.close();});document.addEventListener('visibilitychange',()=>{if(document.hidden)stopGuide();});window.addEventListener('pagehide',stopGuide);
+window.addEventListener('temgogo:view',()=>{if(dialog.open)dialog.close();});
+const faq=$('faq-dialog')?.querySelector('.tg193-faq-actions');if(faq){const btn=document.createElement('button');btn.type='button';btn.className='button button-outline';btn.textContent='🏆 Rever apresentação da Batalha';btn.addEventListener('click',()=>{if($('faq-dialog')?.open)$('faq-dialog').close();openGuide();});faq.append(btn);}
+if(battle){const release=window.TEM_GOGO_CONFIG?.BATTLE_API_RELEASE_ALLOWED===true;battle.disabled=!release;battle.setAttribute('aria-disabled',String(!release));if(release){battle.title='O servidor confirma a disponibilidade';const small=battle.querySelector('small');if(small)small.textContent='Criar ou entrar · disponibilidade confirmada pelo servidor';}battle.addEventListener('click',()=>{if(window.TEM_GOGO_CONFIG?.BATTLE_API_RELEASE_ALLOWED===true)void window.TG75_BATTLE_PANEL?.open();});}
 // Preferencias individuais de acessibilidade (nao ligam audio automaticamente).
 function readPreference(key,fallback){
  try{const value=localStorage.getItem('tem-gogo-a11y-'+key);return value===null?fallback:value==='true';}
