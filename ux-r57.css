@@ -272,3 +272,16 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
 @keyframes tg67-enter{from{opacity:.15;transform:translateY(14px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:no-preference){body:not(.tg93-reduce-motion) #tg67-guide-scene .tg67-guide-cast{animation:tg67-enter .6s ease-out}}
 @media(max-width:480px){#tg70-battle-guide .tg70-guide-top>img{display:none}#tg67-guide-scene{aspect-ratio:4/3}}
+
+/* R68: botão de fila pequeno visualmente; área de toque de 44px, sem modificar capas. */
+html #catalog-dialog .tg123-track>.tg26-track-actions,html #tg07-external-results .tg123-track>.tg26-track-actions{justify-content:flex-end!important;align-items:center!important;gap:4px!important;width:auto!important;min-width:0!important;max-width:100%!important}
+html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle,html #tg07-external-results .tg123-track>.tg26-track-actions>.tg123-track-toggle{position:relative;isolation:isolate;flex:0 0 auto!important;width:auto!important;min-width:68px!important;min-height:44px!important;height:44px!important;padding:0 13px!important;font-size:12px!important;line-height:1.15!important;font-weight:700!important;letter-spacing:0!important;text-transform:none!important;white-space:nowrap!important;border:0!important;border-radius:999px!important;background:transparent!important;color:var(--tg-text,var(--text))!important;box-shadow:none!important}
+html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle::before,html #tg07-external-results .tg123-track>.tg26-track-actions>.tg123-track-toggle::before{content:"";position:absolute;inset:7px 2px;border:1px solid var(--tg-border,#a772c1);background:color-mix(in srgb,var(--tg-cta,#9c54c7) 15%,transparent);border-radius:999px;z-index:-1;pointer-events:none}
+html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle:is(:hover,:focus-visible)::before{border-color:var(--tg-focus,#dfb6fa);background:color-mix(in srgb,var(--tg-cta,#9c54c7) 25%,transparent)}
+html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle:focus-visible{outline:2px solid var(--tg-focus,#dfb6fa);outline-offset:1px}
+html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle:disabled{opacity:.65}
+#tg75-battle-panel .tg68-song-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:5px;margin:8px 0}
+#tg75-battle-panel .tg68-song{display:flex;align-items:center;gap:8px;min-height:44px;border:1px solid var(--tg-border,var(--line));border-radius:12px;padding:5px 8px;cursor:pointer;box-sizing:border-box;margin:0}
+#tg75-battle-panel .tg68-song input{width:18px;height:18px;flex:0 0 18px;accent-color:var(--tg-cta,#ae6acc)}
+#tg75-battle-panel .tg68-song:has(input:checked){border-color:var(--tg-focus,#cf95ed);background:color-mix(in srgb,var(--tg-cta,#ae6acc) 13%,transparent)}
+@media(forced-colors:active){html #catalog-dialog .tg123-track>.tg26-track-actions>.tg123-track-toggle::before{border:1px solid ButtonText;background:ButtonFace}}
