@@ -140,3 +140,44 @@ html[data-tg-theme] body:not(.high-contrast) :is(#tg50-drawer,#tg18-remote,#gues
 #stage .tg50-drawer-head .tg61-back{min-width:84px;min-height:44px}
 #catalog-dialog #catalog-close:focus-visible{outline:3px solid var(--tg-focus,#f5ddff);outline-offset:3px}
 #tg-beta-dialog .tg-beta-avatar-option:has(input:checked),#guest-profile-dialog .avatar-option:has(input:checked){border-color:var(--tg-focus,var(--tg-primary))!important;box-shadow:0 0 0 1px var(--tg-focus,var(--tg-primary))!important}
+
+
+/* R62: one action hierarchy; preserve native controls, hidden states and theme tokens. */
+#tg18-remote[data-tg28-ready] .tg18-remote-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+#tg18-remote[data-tg28-ready] .tg18-remote-grid>button{min-width:0;min-height:48px;white-space:normal;overflow-wrap:anywhere;box-sizing:border-box}
+#tg18-remote[data-tg28-ready] .tg18-remote-grid>.tg28-remote-catalog{grid-column:1/-1;margin:0}
+#tg18-remote .tg05-remote-audio .tg28-effects{border-top:1px solid var(--tg-border,var(--line));padding:10px 0 0;margin-top:10px}
+#tg18-remote .tg28-effects h3{font-size:15px;margin:0 0 8px}
+#tg18-remote .tg28-effects .tg26-effects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#tg18-remote .tg28-effects .tg26-effects p{grid-column:1/-1}
+#tg18-remote .tg28-effects button,#tg18-remote .tg26-remote-menu button{min-height:44px;white-space:normal;overflow-wrap:anywhere}
+#tg18-remote .tg18-remote-shell,#guest .guest-main{min-width:0;max-width:100%;box-sizing:border-box}
+#tg18-remote .tg18-remote-status>span,#tg18-remote .tg19-remote-queue-name,#guest .guest-show-hub{min-width:0;overflow-wrap:anywhere}
+#tg18-remote .tg19-remote-queue-item{min-width:0;max-width:100%;box-sizing:border-box;gap:6px}
+#tg18-remote .tg19-remote-queue-actions button{min-height:44px;min-width:44px}
+#guest[data-tg58-ready] .mobile-switch{min-width:0;max-width:100%;flex-wrap:wrap;gap:4px}
+#guest[data-tg58-ready] .mobile-switch>button:not([hidden]){min-width:48px;min-height:48px;flex:1 1 52px;white-space:normal}
+#guest[data-tg58-ready] .tg58-guest-menu>button{min-height:44px}
+#guest[data-tg58-ready] .tg61-guest-extra>summary{font-size:14px}
+#stage[data-tg50-ready] .tg50-room-actions #stage-exit{margin-top:6px;border-color:var(--tg-error,#f49cba)!important}
+#tg75-battle-panel [hidden],#tg18-remote [hidden],#guest [hidden]{display:none!important}
+#tg75-battle-panel[data-tg62-audience]:not([data-tg62-audience=""]){width:min(calc(100% - 16px),580px)!important;max-width:100%!important;max-height:calc(100dvh - 16px)!important;box-sizing:border-box}
+#tg75-battle-panel[data-tg62-audience]:not([data-tg62-audience=""]) .tg75-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#tg75-battle-panel .tg75-stars{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+#tg75-battle-panel .tg75-stars label{min-width:0;min-height:48px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:3px;padding:4px}
+#tg75-battle-panel .tg75-stars label:has(input:checked){outline:2px solid var(--tg-focus,#e6aaff);outline-offset:-2px;border-radius:8px}
+#tg75-battle-panel form[data-vote]>.tg75-button{width:100%;min-height:48px}
+#tg75-battle-panel form[data-vote] fieldset{min-width:0;margin:8px 0}
+#tg75-battle-panel .tg75-card{min-width:0;overflow-wrap:anywhere}
+@media(max-width:600px){
+ #tg18-remote .tg18-remote-grid{gap:6px}
+ #tg18-remote .tg18-remote-shell{padding-inline:10px!important}
+ #tg18-remote .tg19-remote-queue-item{flex-wrap:wrap}
+ #tg18-remote .tg19-remote-queue-actions{display:flex;flex-wrap:wrap}
+ #tg18-remote .tg19-remote-mic-inner{min-width:0;max-width:100%;box-sizing:border-box}
+ #tg18-remote .tg19-remote-vocal-gain{min-width:0;max-width:100%;box-sizing:border-box}
+ #tg18-remote .tg19-remote-vocal-gain input,#guest input[type=range]{max-width:100%}
+ #tg75-battle-panel .tg75-stars label{font-size:12px;gap:2px;padding:3px}
+ #tg75-battle-panel .tg75-tabs button{min-height:44px;white-space:normal}
+ #tg75-battle-panel .tg75-shell{min-width:0;max-width:100%;box-sizing:border-box}
+}
