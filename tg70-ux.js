@@ -33,9 +33,9 @@ $('tg93-history-back')?.addEventListener('click',()=>navigateHub('main'));
 // R67: apresentação cinematográfica em seis cenas, sem acionamento de competição.
 const guides=[
  ['Batalha de Estrelas','O palco é seu!','opening'],
- ['O elenco','2 a 12 cantores aprovados pelo anfitrião.','cast'],
- ['Classificatória','Cada cantor se apresenta. A classificação define os confrontos.','qualify'],
- ['Confrontos','Os classificados disputam uma vaga na próxima fase.','duel'],
+ ['Elenco e playlist','Inscrições abertas: o host monta a playlist dos confrontos.','cast'],
+ ['Classificatória','Cada cantor escolhe sua música e se apresenta individualmente.','qualify'],
+ ['Confrontos','O sistema escolhe uma música da playlist do host.','duel'],
  ['Votação','Eleitores habilitados: 1 a 5 estrelas. 150 s + uma extensão de 30 s.','vote'],
  ['O grande pódio','Ouro, prata e bronze após resultado confirmado.','podium']
 ];let i=0,guideTimer=null,playing=false;const dialog=$('tg70-battle-guide'),theme=$('tg67-guide-theme');
@@ -43,9 +43,9 @@ const art=['cantor-urbano.png','cantora-ruiva.png','cantor-esporte.png','cantora
 function avatar(n){const img=document.createElement('img');img.src='./'+art[n];img.alt='Avatar ilustrativo do Tem Gogó';return img;}
 function showGuide(){const g=guides[i],scene=$('tg67-guide-scene');$('tg70-guide-counter').textContent='Cena '+(i+1)+' de '+guides.length;$('tg33-guide-progress').value=i+1;$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';scene.replaceChildren();scene.dataset.scene=g[2];const diva=document.createElement('img');diva.src='./diva-busto.png';diva.alt='Drag Diva';diva.className='tg67-guide-diva';scene.append(diva);const cast=document.createElement('div');cast.className='tg67-guide-cast';const label=t=>{const el=document.createElement('span');el.textContent=t;return el;};
 if(g[2]==='opening'){cast.append(avatar(0),avatar(1),avatar(2),avatar(3));}
-if(g[2]==='cast'){for(let n=0;n<4;n++)cast.append(avatar(n));cast.append(label('2–12'));}
-if(g[2]==='qualify'){cast.append(avatar(1),label('🎙 → classificação'));}
-if(g[2]==='duel'){cast.append(avatar(0),label('×'),avatar(2));}
+if(g[2]==='cast'){for(let n=0;n<4;n++)cast.append(avatar(n));cast.append(label('2–12'),label('♫ Playlist do host'));}
+if(g[2]==='qualify'){cast.append(avatar(1),label('♫ Minha escolha'),label('🎙'));}
+if(g[2]==='duel'){cast.append(avatar(0),label('×'),avatar(2),label('♫ Escolha do sistema'));}
 if(g[2]==='vote'){cast.append(avatar(0),avatar(2),label('★ ★ ★ ★ ★'),label('2:30'));}
 if(g[2]==='podium'){for(const [n,medal] of [[1,'🥈'],[0,'🥇'],[2,'🥉']]){const p=document.createElement('div');p.className='tg67-podium-step';p.append(avatar(n),label(medal));cast.append(p);}}
 scene.append(cast);$('tg67-guide-toggle').textContent=playing?'Pausar':'Reproduzir';}
