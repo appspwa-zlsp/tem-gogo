@@ -39,6 +39,10 @@
       renderAll();return result;
     },
     refreshCompetitiveRoom:async roomId=>{if(state.room?.id===roomId&&state.room.tg30_battle_reserved===true)await fetchRoom();},
+    getBattleQueue:()=>{
+      if(state.role!=='host'||state.room?.owner_id!==state.user?.id||state.room?.tg30_battle_reserved!==true||state.emergencyBlocked)return [];
+      return state.songs.filter(s=>s.status==='queued'&&!s.started_at&&!s.finished_at).map(s=>({id:s.id,room_id:s.room_id,video_id:s.video_id,title:s.title,singers:songSingers(s)}));
+    },
     getBattlePerformance:()=>{
       const song=state.currentSong;
       if(state.room?.tg30_battle_reserved!==true||state.role!=='host'||state.room?.owner_id!==state.user?.id||!song||state.room.current_song_id!==song.id||song.status!=='playing'||state.finishing)return null;
