@@ -30,34 +30,51 @@ hubCreate?.addEventListener('click',()=>navigateHub('create'));
 $('tg92-hub-join')?.addEventListener('click',()=>$('hub-join-room')?.click());
 $('tg92-hub-history')?.addEventListener('click',()=>navigateHub('history'));
 $('tg93-history-back')?.addEventListener('click',()=>navigateHub('main'));
-// R67: apresentação cinematográfica em seis cenas, sem acionamento de competição.
+// R82 — trailer educativo. A arte é independente dos avatares de perfil.
 const guides=[
- ['Batalha de Estrelas','O palco é seu!','opening'],
- ['Elenco e playlist','Inscrições abertas: o host monta a playlist dos confrontos.','cast'],
- ['Classificatória','Cada cantor escolhe sua música e se apresenta individualmente.','qualify'],
- ['Confrontos','O sistema escolhe uma música da playlist do host.','duel'],
- ['Votação','Eleitores habilitados: 1 a 5 estrelas. 150 s + uma extensão de 30 s.','vote'],
- ['O grande pódio','Ouro, prata e bronze após resultado confirmado.','podium']
-];let i=0,guideTimer=null,playing=false;const dialog=$('tg70-battle-guide'),theme=$('tg67-guide-theme');
-const art=['cantor-urbano.png','cantora-ruiva.png','cantor-esporte.png','cantora-oculos.png'];
-function avatar(n){const img=document.createElement('img');img.src='./'+art[n];img.alt='Avatar ilustrativo do Tem Gogó';return img;}
-function showGuide(){const g=guides[i],scene=$('tg67-guide-scene');$('tg70-guide-counter').textContent='Cena '+(i+1)+' de '+guides.length;$('tg33-guide-progress').value=i+1;$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';scene.replaceChildren();scene.dataset.scene=g[2];const diva=document.createElement('img');diva.src='./diva-busto.png';diva.alt='Drag Diva';diva.className='tg67-guide-diva';scene.append(diva);const cast=document.createElement('div');cast.className='tg67-guide-cast';const performers=document.createElement('div');performers.className='tg75-guide-performers';const cues=document.createElement('div');cues.className='tg75-guide-cues';const label=t=>{const el=document.createElement('span');el.textContent=t;return el;};
-if(g[2]==='opening'){performers.append(avatar(0),avatar(1),avatar(2),avatar(3));cues.append(label('Batalha de Estrelas'));}
-if(g[2]==='cast'){for(let n=0;n<4;n++)performers.append(avatar(n));cues.append(label('2–12 competidores'),label('♫ Playlist do host'));}
-if(g[2]==='qualify'){performers.append(avatar(1));cues.append(label('♫ Minha escolha'),label('🎙 Solo'));}
-if(g[2]==='duel'){performers.append(avatar(0),label('×'),avatar(2));cues.append(label('♫ Sorteio do sistema'));}
-if(g[2]==='vote'){performers.append(avatar(0),avatar(2));cues.append(label('★ ★ ★ ★ ★'),label('2:30'));}
-if(g[2]==='podium'){for(const [n,medal] of [[1,'🥈'],[0,'🥇'],[2,'🥉']]){const p=document.createElement('div');p.className='tg67-podium-step';p.append(avatar(n),label(medal));performers.append(p);}cues.append(label('Pódio oficial'));}
-cast.append(performers,cues);scene.append(cast);$('tg67-guide-toggle').textContent=playing?'Pausar':'Reproduzir';}
+ ['Batalha de Estrelas','Entre para cantar ou só assistir e votar. Seu celular vira o microfone.','opening',6500,'Estrelas'],
+ ['O anfitrião prepara o show','Abre as inscrições de 2 a 12 competidores e monta a playlist dos confrontos.','cast',7500,'Playlist'],
+ ['Escolha seu papel','Cantor(a) disputa com uma conta. A plateia pode acompanhar e votar quando habilitada, inclusive como convidado temporário.','join',8500,'Cantar • Votar'],
+ ['Sua música, sua estreia','Cada competidor escolhe uma música para cantar sozinho na classificatória.','qualify',7500,'Minha música'],
+ ['A plateia dá estrelas','Após cada apresentação, os eleitores habilitados votam de 1 a 5 estrelas. A janela tem 150 segundos e pode receber uma extensão de 30 segundos.','vote',9000,'★★★★★'],
+ ['A Diva apresenta os confrontos','A classificação organiza a chave. Todos os competidores entram nela; ninguém é eliminado só por sua nota inicial.','bracket',8500,'Chave • VS'],
+ ['Sorteio, celular na mão, VS!','O sistema sorteia uma faixa da playlist do host, sem repetir nos duelos iniciais. Os dois cantam a mesma música ao mesmo tempo.','duel',9000,'VS'],
+ ['Votação e grande final','A plateia vota após os duelos. A apuração segue as regras; se houver empate absoluto, há revanche com outra faixa. A Diva anuncia o pódio confirmado.','podium',10000,'Grande final']
+];
+let i=0,guideTimer=null,playing=false,fromPanel=false,artReady=false;
+const dialog=$('tg70-battle-guide'),theme=$('tg67-guide-theme'),atlas='./batalha-r82-cenas.webp';
+const reduce=()=>matchMedia('(prefers-reduced-motion:reduce)').matches||document.body.classList.contains('tg93-reduce-motion');
+const total=guides.length;
+const image=new Image();
+image.onload=()=>{artReady=true;if(dialog?.open)showGuide();};
+image.onerror=()=>{artReady=false;if(dialog?.open)showGuide();};
+image.src=atlas;
+function showGuide(){
+ const g=guides[i],scene=$('tg67-guide-scene');if(!dialog?.open||!scene)return;
+ $('tg70-guide-counter').textContent=(i+1)+' / '+total;$('tg33-guide-progress').max=total;$('tg33-guide-progress').value=i+1;
+ $('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===total-1?'Concluir':'Próximo';
+ scene.dataset.scene=g[2];scene.classList.toggle('tg82-art-ready',artReady);scene.replaceChildren();
+ const visual=document.createElement('div');visual.className='tg82-visual';visual.setAttribute('aria-hidden','true');
+ if(artReady){visual.style.backgroundImage='url("'+atlas+'")';visual.style.backgroundPosition=(i%2*100)+'% '+(Math.floor(i/2)*100/3)+'%';}
+ else{const logo=document.createElement('span');logo.className='tg82-fallback-mark';logo.textContent=g[4];visual.append(logo);}
+ scene.append(visual);$('tg67-guide-toggle').textContent=playing?'Pausar':'Reproduzir';
+ $('tg75-open-workspace').hidden=fromPanel;
+}
 function stopGuide(){clearTimeout(guideTimer);guideTimer=null;playing=false;theme?.pause();$('tg67-guide-toggle').textContent='Reproduzir';}
-function schedule(){clearTimeout(guideTimer);if(!playing)return;guideTimer=setTimeout(()=>{if(!dialog.open||document.hidden){stopGuide();return;}if(i===guides.length-1){stopGuide();return;}i++;showGuide();schedule();},7000);}
-function startGuide(){playing=true;showGuide();if(theme&&!theme.muted){theme.volume=.18;theme.play().catch(()=>{});}schedule();}
-function openGuide(){i=0;stopGuide();if(theme){theme.currentTime=0;}if(!dialog.open)dialog.showModal();if(matchMedia('(prefers-reduced-motion:reduce)').matches||document.body.classList.contains('tg93-reduce-motion'))showGuide();else startGuide();}
-$('tg70-battle-story-open')?.addEventListener('click',openGuide);$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());$('tg70-guide-skip')?.addEventListener('click',()=>dialog.close());
-$('tg70-guide-prev')?.addEventListener('click',()=>{stopGuide();i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{stopGuide();if(i===guides.length-1){dialog.close();return;}i++;showGuide();});
-$('tg67-guide-toggle')?.addEventListener('click',()=>{if(playing)stopGuide();else{if(i===guides.length-1){i=0;if(theme)theme.currentTime=0;}startGuide();}});
-$('tg67-guide-sound')?.addEventListener('click',()=>{if(!theme)return;theme.muted=!theme.muted;$('tg67-guide-sound').textContent=theme.muted?'Ativar trilha':'Silenciar trilha';$('tg67-guide-sound').setAttribute('aria-pressed',String(!theme.muted));if(theme.muted)theme.pause();else if(playing)theme.play().catch(()=>{});});
-dialog?.addEventListener('close',stopGuide);dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});$('tg75-open-workspace')?.addEventListener('click',stopGuide);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopGuide();});window.addEventListener('pagehide',stopGuide);
+function schedule(){clearTimeout(guideTimer);if(!playing)return;guideTimer=setTimeout(()=>{if(!dialog.open||document.hidden){stopGuide();return;}if(i===total-1){stopGuide();return;}i++;showGuide();schedule();},guides[i][3]);}
+function startGuide(){if(!dialog.open)return;playing=true;showGuide();if(theme&&!theme.muted){theme.volume=.18;theme.play().catch(()=>{});}schedule();}
+function openGuide(options={}){if(!dialog||document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg103-remote-mic-focus')||document.body.classList.contains('tg18-singing'))return false;
+ if(dialog.open)return false;fromPanel=options.fromPanel===true;i=0;stopGuide();
+ if(theme){try{theme.currentTime=0;}catch{}theme.muted=true;$('tg67-guide-sound').textContent='Ativar trilha';$('tg67-guide-sound').setAttribute('aria-pressed','false');}
+ dialog.showModal();showGuide();if(!reduce())startGuide();return true;
+}
+window.TG82_BATTLE_GUIDE=Object.freeze({open:openGuide});
+$('tg70-battle-story-open')?.addEventListener('click',()=>openGuide());$('tg70-guide-close')?.addEventListener('click',()=>dialog.close());$('tg70-guide-skip')?.addEventListener('click',()=>dialog.close());
+$('tg70-guide-prev')?.addEventListener('click',()=>{stopGuide();i=Math.max(0,i-1);showGuide();});$('tg70-guide-next')?.addEventListener('click',()=>{stopGuide();if(i===total-1){dialog.close();return;}i++;showGuide();});
+$('tg67-guide-toggle')?.addEventListener('click',()=>{if(playing)stopGuide();else{if(i===total-1){i=0;if(theme)try{theme.currentTime=0;}catch{}}startGuide();}});
+$('tg67-guide-sound')?.addEventListener('click',()=>{if(!theme)return;theme.muted=!theme.muted;$('tg67-guide-sound').textContent=theme.muted?'Ativar trilha':'Silenciar trilha';$('tg67-guide-sound').setAttribute('aria-pressed',String(!theme.muted));if(theme.muted)theme.pause();else if(playing){theme.volume=.18;theme.play().catch(()=>{});}});
+dialog?.addEventListener('close',()=>{stopGuide();fromPanel=false;});dialog?.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});$('tg75-open-workspace')?.addEventListener('click',stopGuide);$('tg75-battle-panel')?.addEventListener('close',()=>{if(fromPanel&&dialog.open)dialog.close();});document.addEventListener('visibilitychange',()=>{if(document.hidden)stopGuide();});window.addEventListener('pagehide',stopGuide);
+window.addEventListener('temgogo:view',()=>{if(dialog.open)dialog.close();});
 const faq=$('faq-dialog')?.querySelector('.tg193-faq-actions');if(faq){const btn=document.createElement('button');btn.type='button';btn.className='button button-outline';btn.textContent='🏆 Rever apresentação da Batalha';btn.addEventListener('click',()=>{if($('faq-dialog')?.open)$('faq-dialog').close();openGuide();});faq.append(btn);}
 if(battle){battle.disabled=true;battle.setAttribute('aria-disabled','true');}
 // Preferencias individuais de acessibilidade (nao ligam audio automaticamente).
