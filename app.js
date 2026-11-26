@@ -3347,7 +3347,7 @@ function renderCatalog(){
     const holder=$(id);if(!holder)continue;
     holder.replaceChildren();
     if(!state.catalog.length){holder.textContent=state.catalogError?'Catálogo indisponível. Abra o catálogo para tentar novamente.':'Catálogo ainda vazio. O primeiro hit pode ser seu! 🎤';continue;}
-    state.catalog.slice(0,host?4:6).forEach(item=>{const card=catalogCard(item,host);if(card)holder.append(card);});
+    state.catalog.slice(0,4).forEach(item=>{const card=catalogCard(item,host);if(card)holder.append(card);});
   }
   document.querySelectorAll('[data-catalog-open]').forEach(btn=>{
     btn.setAttribute('aria-label',`Abrir catálogo completo de ${state.catalog.length} músicas`);

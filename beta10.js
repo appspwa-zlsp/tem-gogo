@@ -112,6 +112,7 @@ async function saveProfile(){
        committed=true;if(!current())return;profile={...profile,nickname:nick,avatar_key:avatar};
      }else committed=true;
    }
+   loadAvatar(profile);
    const result=await b.tg60SyncIdentity(nick,avatar,{uid,epoch:b.sessionEpoch});
    if(!current())return;
    status(result.ok?'Perfil salvo e identidade sincronizada.':'Perfil salvo; sincronização pendente: '+result.failures.join(', ')+'. Salve novamente para tentar.');
