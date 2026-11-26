@@ -49,7 +49,7 @@
   legacy(musicTarget);legacy(q('.side-helper',queue));
   drawer.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.matches('.open-settings,[data-tg124-profile],[data-tg30-voice-open],#ranking-full-link,#open-add-song,#stage-switch,#stage-exit,#open-stage-faq,[data-tg193-tour],[data-tg193-support]')&&drawer.open)drawer.close();},true);
   const dock=$('tg192-solo-dock'),post=$('tg123-post-score');if(dock)status.after(dock);if(post)status.after(post);
-  const measured=[header,q('.stage-meta',main),bar,status,dock,post,$('tg05-audio-caption'),$('tg124-diva-announcement')];
+  const measured=[header,q('.stage-meta',main),bar,status,dock,post];
   const measure=()=>{if(stage.hidden)return;const occupied=measured.filter(n=>n&&!n.hidden&&n.getClientRects().length).reduce((sum,n)=>sum+n.getBoundingClientRect().height,0);const h=Math.max(180,Math.floor(window.innerHeight-occupied-28));const val=h+'px';if(stage.style.getPropertyValue('--tg50-player-height')!==val)stage.style.setProperty('--tg50-player-height',val);};
   if(typeof ResizeObserver==='function'){const observer=new ResizeObserver(measure);for(const n of measured)if(n)observer.observe(n);}
   window.addEventListener('resize',measure);window.addEventListener('temgogo:view',()=>{if(drawer.open)drawer.close();measure();});document.addEventListener('fullscreenchange',measure);

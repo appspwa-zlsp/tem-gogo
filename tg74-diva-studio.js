@@ -22,7 +22,7 @@
  function manualAllowed(){const b=root.TG_BETA_BRIDGE?.();return allowed()&&b?.canManualAudio?.()===true&&!lookup&&!captionTimer&&!current;}
  const validCut=(v,n)=>!!v&&Number.isFinite(n)&&n>=1&&n<v.duration_seconds;
  function status(s){for(const id of ['tg74-voice-status','tg05-voice-live'])if($(id))$(id).textContent=s;}
- function caption(s){const el=$('tg05-audio-caption');if(el){el.textContent=s;el.hidden=!s;}const result=$('tg05-result-narration');if(result&&$('final-overlay')?.dataset.phase==='announcing')result.textContent=s||'Segura o glitter! A nota já vem.';}
+ function caption(s){root.TG_BETA_BRIDGE?.()?.setDivaCaption?.(s);}
  function stop(){clearTimeout(captionTimer);captionTimer=null;captionScope=null;epoch++;const c=current;current=null;if(c){clearTimeout(c.timer);try{c.clip.pause();c.clip.removeAttribute('src');c.clip.load();}catch{}c.resolve(false);}caption('');if($('tg74-voice-play'))$('tg74-voice-play').textContent='Ouvir prévia';}
  function finish(c,ok){if(current!==c)return;current=null;clearTimeout(c.timer);try{c.clip.pause();c.clip.removeAttribute('src');c.clip.load();}catch{}caption('');if($('tg74-voice-play'))$('tg74-voice-play').textContent='Ouvir prévia';c.resolve(ok);}
  function fallbackCaption(words){if(!words||!allowed())return false;clearTimeout(captionTimer);const b=root.TG_BETA_BRIDGE?.();captionScope={room:b?.room?.id,uid:b?.user?.id,session:b?.sessionEpoch};caption(words);captionTimer=setTimeout(()=>{captionTimer=null;captionScope=null;caption('');},6500);return true;}
@@ -55,7 +55,7 @@
   const latest=root.TG_BETA_BRIDGE?.();if(generation!==epoch||latest?.room?.id!==room||latest?.user?.id!==uid||latest?.sessionEpoch!==session||!auto||!allowed()||current||captionTimer)return false;
   const v=events[event].includes(cue?.id)?byId.get(cue.id):null;const words=cue?.caption;
   if(!v||typeof words!=='string'||words.trim().length<3||words.length>600){status('Nenhuma gravação publicada para este evento; comentário escrito mantido.');return false;}if(!claim('voice:'+key))return false;
-  lastByEvent.set(event,v.id);const text=words+' · elevenlabs.io';
+  lastByEvent.set(event,v.id);const text=words.trim(); // Published caption, not a competing banner. Credits remain in footer and studio.
   if(!unlocked||voiceMuted()||getVolume()===0){status(!unlocked?'Toque em Ativar som na TV.':voiceMuted()?'Voz silenciada nas preferências.':'Volume da Diva em zero.');return fallbackCaption(text);}
   status('Reproduzindo fala publicada · '+v.id);return playClip(v.file,'voice',text,Math.min(18000,Math.ceil((v.duration_seconds+3)*1000)),true);
  }

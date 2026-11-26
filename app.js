@@ -1002,30 +1002,36 @@
     reality:{opening:['A produção anuncia: está aberta a temporada do Gogó!'],preflight:['Participantes, dirijam-se ao palco. O programa vai começar!'],reminder:['A produção convoca novamente o participante para confirmar prontidão!'],ready:['Participantes confirmados! Anfitrião, a decisão é sua: libere a apresentação!'],ending:['A votação recreativa terminou. O placar será revelado!'],queue:['Nova prova musical no palco. Participantes, preparem-se!'],singing:['Valendo a apresentação!']},
     bafao:{opening:['Cheguei no camarim e já fiquei sabendo que hoje vai ter babado!'],preflight:['Ajeita esse carão, estrela: o camarim inteiro tá de olho!'],reminder:['Ih, lá vem nova chamada! Será que essa estrela tá passando gloss?'],ready:['Todo mundo prontinho! Vamos dar esse close na plateia!'],ending:['Acho que a produção precisa me contar uma coisa... vamos ver a nota!'],queue:['Novo babado musical na fila, minha gente!'],singing:['Faz esse palco virar notícia boa!']}
   };
-  function showDivaBubble(line,emoji='🎤'){
+  // R87 — one visible Diva speech surface per stage scene; audio takes priority.
+  let tg87DivaFallback='O palco é seu! Escolha um hit para começar.',tg87DivaAudio='';
+  function tg87RenderDiva(){
     if(state.role!=='host')return;
-    const panel=$('tg124-diva-announcement');if(!panel)return;
-    const text=$('tg124-diva-text');if(text)text.textContent='“'+line+'”';
-    const icon=$('tg124-diva-emoji');if(icon)icon.textContent=emoji;
-    panel.hidden=false;
-    clearTimeout(showDivaBubble.timer);
-    // Não encobrir o vídeo durante o canto. O balão usa o contorno do palco.
-    showDivaBubble.timer=setTimeout(()=>{panel.hidden=true;},6500);
+    const words=tg87DivaAudio||tg87DivaFallback;
+    const idle=$('vox-idle-line');if(idle)idle.textContent='“'+words+'”';
+    const pre=$('diva-preflight-speech');if(pre)pre.textContent='“'+words+'”';
+    const recap=$('tg87-recado-caption');if(recap){recap.textContent=tg87DivaAudio;recap.hidden=!tg87DivaAudio;}
+    const result=$('tg05-result-narration');
+    if(result&&$('final-overlay')?.dataset.phase==='announcing')result.textContent=tg87DivaAudio||'Segura o glitter! A nota já vem.';
+  }
+  function tg87SetDivaCaption(words){tg87DivaAudio=typeof words==='string'?words.trim():'';tg87RenderDiva();}
+  function showDivaBubble(line,emoji='🎤'){
+    if(state.role!=='host'||!line)return;
+    tg87DivaFallback=String(line);tg87RenderDiva();
   }
   function updateVoxLine(moment='opening'){
     const pool=tg124HumorLines[state.humorMode]?.[moment]||voxMoments[moment]||voxMoments.opening;
     const text=chooseDifferent(pool);
     if($('vox-line'))$('vox-line').textContent=`“${text}”`;
-    if($('vox-idle-line'))$('vox-idle-line').textContent=`“${text}”`;
+    if(state.role==='host')showDivaBubble(text);
     if($('vox-guest-line'))$('vox-guest-line').textContent=`“${text}” — Diva Gogó`;
-    if($('diva-preflight-speech'))$('diva-preflight-speech').textContent=`“${text}”`;
+    // Preflight and idle share the same audio-priority renderer.
     if(state.role==='host'){
       document.body.classList.remove('diva-talking');void document.body.offsetWidth;
       document.body.classList.add('diva-talking');clearTimeout(state.divaSpeakingTimer);
       state.divaSpeakingTimer=setTimeout(()=>document.body.classList.remove('diva-talking'),4500);
       const emojis={opening:'👑',preflight:'⏳',ready:'🎉',reminder:'👀',singing:'🎤',queue:'✨',ending:'🏆'};
       for(const id of ['diva-idle-expression','diva-preflight-expression','diva-result-expression'])if($(id))$(id).textContent=emojis[moment]||'💅';
-      if(moment!=='singing')showDivaBubble(text,emojis[moment]||'💅');
+      tg87RenderDiva();
     }
   }
   function applyTheme(theme,announce=false,scope=null){
@@ -1788,7 +1794,7 @@
       if(narration===true&&state.room?.tg30_battle_reserved===false)window.TG74_DIVA_STUDIO?.setAuto(true);
       updateVoxLine('opening');
       clearInterval(state.voxTimer);
-      state.voxTimer=setInterval(()=>{if(!state.emergencyBlocked&&state.role==='host'&&!state.isPlaying&&!state.currentSong&&!state.preflight&&$('final-overlay')?.hidden)updateVoxLine('opening');},14000);
+      state.voxTimer=setInterval(()=>{if(!state.emergencyBlocked&&state.role==='host'&&!state.isPlaying&&!state.currentSong&&!state.preflight&&!recadoShowing&&!tg87DivaAudio&&$('final-overlay')?.hidden)updateVoxLine('opening');},14000);
       toast(state.room?.room_mode==='solo'?'Seu palco solo está pronto! 🎤':'Diva Gogó NO AR! Mostre o QR: ele já dá acesso direto à festa. 🎉');
     }catch(err){if(tg07Current(scope)&&!state.emergencyClosing)toast(humanError(err),true);}
   }
@@ -3928,7 +3934,7 @@ function renderFullCatalog(){
   function syncPrivateControls(){
     $('tg-r22-tv-theme').hidden=!(state.role==='remote'&&canDirectDiva());
     const stage=state.role==='host'&&state.room;
-    $('tg-r22-personal-heading').textContent=stage?'🎨 Aparência do palco':'🎨 Aparência deste aparelho';
+    $('tg-r22-personal-heading').textContent=stage?'Tema do palco':'Tema deste aparelho';
     $('tg30-theme-scope').textContent=stage?'Tema compartilhado do palco. Os celulares dos convidados não mudam.':'Tema pessoal deste aparelho. Não altera a TV.';
     document.querySelectorAll('[data-host-only]').forEach(el=>el.hidden=!canDirectDiva());document.querySelectorAll('[data-diva-mode]').forEach(btn=>btn.classList.toggle('chosen',btn.dataset.divaMode===state.humorMode));}
   function updateGroupChoice(host){
@@ -4168,9 +4174,9 @@ function renderFullCatalog(){
     $('play-pause').addEventListener('click',togglePlayback);
     $('skip-track').addEventListener('click',advanceSong);
     $('theme-cycle').addEventListener('click',themeCycle);
-    document.querySelectorAll('.open-settings').forEach(button=>button.addEventListener('click',()=>{syncPrivateControls();$('settings-dialog').showModal();}));
+    document.querySelectorAll('.open-settings').forEach(button=>button.addEventListener('click',()=>{syncPrivateControls();const d=$('settings-dialog');if(!d.open){d.showModal();d.querySelector('.modal-inner')?.scrollTo({top:0,behavior:'instant'});$('settings-close')?.focus({preventScroll:true});}}));
     $('settings-close').addEventListener('click',()=>$('settings-dialog').close());
-    $('settings-done').addEventListener('click',()=>{$('settings-dialog').close();toast('Tá TUDO, Brasil! Seu Tem Gogó tá pronto. 💅');});
+    $('settings-done').addEventListener('click',()=>$('settings-dialog').close());
     document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>void chooseTheme(button.dataset.themeChoice)));
     $('tg05-theme-reset')?.addEventListener('click',()=>void chooseTheme('glam'));
     $('humor-mode').addEventListener('change',e=>{if(!canDirectDiva())return;state.humorMode=e.target.value;syncPrivateControls();updateVoxLine('opening');void persistRoomHumor(state.humorMode);});
@@ -4531,7 +4537,7 @@ function renderFullCatalog(){
   window.addEventListener('temgogo:remote-audio',e=>{const {command,value}=e.detail||{};if(command==='diva-auto'&&[0,1].includes(value))void remoteCommand(command,value);});
   // Beta 1.0: apenas a interface social usa este contexto; não expõe chaves administrativas.
   window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
-    members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,tg60SyncIdentity,
+    members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,tg60SyncIdentity,setDivaCaption:tg87SetDivaCaption,
     campaignSafe:!state.emergencyBlocked&&!state.room?.current_song_id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.guestMicLock,
     canAnnounceOpening:()=>!state.emergencyBlocked&&tg13Recreational()&&state.room?.room_mode==='classic'&&state.role==='host'&&!state.currentSong&&!state.preflight&&!state.songs.some(s=>s.status==='done'||s.status==='playing'||s.status==='skipped'),
     canManualAudio:()=>!state.startingSong&&!state.finishing&&!recadoShowing&&!!$('final-overlay')?.hidden,
