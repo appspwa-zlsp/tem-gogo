@@ -16,6 +16,7 @@ const text=(el,content)=>{el.textContent=String(content??'');return el;};
 function openTab(tab='profile'){
  if(document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg103-remote-mic-focus'))return;
  if(tab==='galera'||(tab==='rank'&&bridge()?.room))tab='profile';
+ if(busy107&&$('tg-beta-dialog')?.open){status('Aguarde a operação do perfil.');return;}
  profileEpoch++; rankedProfileIds.clear(); active=tab;showDialog(tab);const dlg=$('tg-beta-dialog');if(!dlg?.open)return;
  $('tg-beta-person-view').hidden=true;
  document.querySelectorAll('[data-tg-beta-tab]').forEach(x=>{if(x.dataset.tgBetaTab==='rank')x.hidden=!!bridge()?.room;x.classList.toggle('active',x.dataset.tgBetaTab===tab);x.setAttribute('aria-selected',String(x.dataset.tgBetaTab===tab));});
@@ -79,51 +80,83 @@ function loadRoomParticipants(){
 function authUser(){return account()?.user.id;}
 function makeAvatar(key){const img=document.createElement('img');img.src=AV[key]||AV.urbano;img.alt='Personagem original do Tem Gogó';img.loading='lazy';return img;}
 function appendPerson(node,p,desc,handler){const row=document.createElement('div');row.className='tg-beta-person';row.append(makeAvatar(p.avatar_key));const info=document.createElement('div');info.append(text(document.createElement('strong'),p.nickname||'Cantor(a)'),text(document.createElement('small'),(p.handle?tg104DisplayHandle(p.handle)+' · ':'')+(desc||'')));row.append(info);const b=document.createElement('button');b.type='button';b.className='button button-outline';b.textContent='Ver perfil';b.addEventListener('click',()=>handler(p.user_id));row.append(b);node.append(row);}
-async function ensureProfile(){const b=account();if(!b)return;const id=b.user.id,epoch=profileEpoch;let {data,error}=await b.client.from('tg_profiles').select('*').eq('user_id',id).maybeSingle();if(error)throw error;if(account()?.user.id!==id||epoch!==profileEpoch)throw Error('Sessão alterada.');if(!data){const nick=String(b.user.user_metadata?.display_name||'Cantor(a)').trim()||'Cantor(a)';({data,error}=await b.client.from('tg_profiles').insert({user_id:id,nickname:nick.slice(0,30),avatar_key:b.avatar}).select().single());if(error)throw error;}if(account()?.user.id!==id||epoch!==profileEpoch)throw Error('Sessão alterada.');profile=data;profileOwner=id;return data;}
+async function ensureProfile(){const b=account();if(!b)return;const id=b.user.id,epoch=profileEpoch;let {data,error}=await b.client.from('tg_profiles').select('*').eq('user_id',id).maybeSingle();if(error)throw error;if(!context107(b)||epoch!==profileEpoch)throw Error('Sessão alterada.');if(!data){const nick=String(b.user.user_metadata?.display_name||'Cantor(a)').trim()||'Cantor(a)';({data,error}=await b.client.from('tg_profiles').insert({user_id:id,nickname:nick.slice(0,30),avatar_key:b.avatar}).select().single());if(error)throw error;}if(!context107(b)||epoch!==profileEpoch)throw Error('Sessão alterada.');profile=data;profileOwner=id;return data;}
 function val(id){return $(id).value.trim();}
-async function loadProfile(){const b=account();if(!b)return;const epoch=profileEpoch;profile=null;profileOwner=null;picture=null;$('tg-p-save').disabled=true;status('Carregando perfil…');try{const p=await ensureProfile();if(account()?.user.id!==b.user.id||epoch!==profileEpoch)return;$('tg-p-handle').value=tg104Handle(p.handle);$('tg-p-handle').readOnly=!!p.handle;$('tg-p-save').disabled=false;$('tg-p-nick').disabled=false;$('tg-p-nick').value=p.nickname;$('tg-p-insta').value=p.instagram_visibility==='public'?tg104Handle(p.instagram):'';$('tg-p-score-vis').value=p.score_visibility==='public'?'public':'private';$('tg-p-rank').checked=p.ranking_opt_in;$('tg-p-age').checked=p.age_18_plus_declared;$('tg-p-best').checked=p.best_scores_opt_in===true;$('tg-p-legal').checked=false;
- $('tg-beta-avatar-picker').replaceChildren();for(const [key,path] of Object.entries(AV)){const option=document.createElement('label');option.className='tg-beta-avatar-option';const input=document.createElement('input');input.type='radio';input.name='tg-avatar';input.value=key;input.checked=p.avatar_key===key;const img=document.createElement('img');img.src=path;img.alt='Avatar '+key;input.addEventListener('change',()=>{if(input.checked&&account()?.user.id===b.user.id&&epoch===profileEpoch){loadAvatar({avatar_key:key});status('Avatar selecionado. Toque em Salvar perfil.');}});option.append(input,img);$('tg-beta-avatar-picker').append(option);}
- loadAvatar(p);if(account()?.user.id!==b.user.id||epoch!==profileEpoch)return;const {data:scores}=await b.client.from('karaoke_scores').select('score,created_at').eq('user_id',b.user.id).order('created_at',{ascending:false}).limit(100);if(account()?.user.id!==b.user.id||epoch!==profileEpoch)return;const last=(scores||[]).filter(s=>Number.isFinite(Number(s.score))).slice(0,10);const avg=last.length?last.reduce((a,s)=>a+Number(s.score),0)/last.length:null;$('tg-beta-my-stars').textContent=avg===null?'Ainda sem notas':`${(avg/20).toFixed(1)} ★ · ${last.length} notas recentes (máx. 10)`;if(!$('tg-beta-avatar-picker').querySelector('input:checked')||$('tg-beta-avatar-picker').querySelector('input:checked').value===p.avatar_key)status('Perfil carregado. Alterações só são aplicadas ao salvar.');}catch(e){if(account()?.user.id===b.user.id&&epoch===profileEpoch)status('⚠ '+err(e));}}
+// R107: legal receipt is server-authoritative, scoped to account and session.
+const TG107_VERSION='beta2.0-2026-11-20';
+let receipt107='unknown',busy107=false,ready107=false,session107=null;
+const fields107=['tg-p-nick','tg-p-handle','tg-p-insta','tg-p-insta-visible','tg-p-score-vis','tg-p-age','tg-p-best','tg-p-rank'];
+function context107(b){const n=account();return !!b&&n?.user.id===b.user.id&&n?.client===b.client&&n?.sessionEpoch===b.sessionEpoch;}
+function current107(b,e){return context107(b)&&profileEpoch===e&&$('tg-beta-dialog')?.open;}
+function reset107(){receipt107='unknown';busy107=false;ready107=false;session107=null;}
+function render107(state,keep=false){
+ receipt107=state;const c=$('tg-p-legal');if(!keep||state!=='missing')c.checked=false;
+ $('tg107-legal-label').hidden=state==='accepted';$('tg107-legal-status').hidden=state==='missing';
+ $('tg107-legal-status').textContent=state==='accepted'?'✓ Termos vigentes aceitos.':'Aceite não confirmado. Consulte novamente antes de salvar opções sociais.';
+ c.disabled=busy107||!ready107||state!=='missing';$('tg107-legal-retry').hidden=state!=='unknown';$('tg107-legal-retry').disabled=busy107||!ready107;
+}
+function lock107(busy){busy107=busy;for(const id of fields107)$(id).disabled=busy||!ready107;
+ for(const i of $('tg-beta-avatar-picker').querySelectorAll('input'))i.disabled=busy||!ready107;
+ $('tg-p-save').disabled=busy||!ready107;$('tg103-own-preview').disabled=busy;
+ $('tg-p-legal').disabled=busy||!ready107||receipt107!=='missing';$('tg107-legal-retry').disabled=busy||!ready107;
+}
+async function read107(b){
+ try{const {data,error}=await b.client.from('tg_legal_acceptances').select('user_id,doc_version,accepted_at').eq('user_id',b.user.id).eq('doc_version',TG107_VERSION).maybeSingle();
+ if(error)return 'unknown';if(data===null)return 'missing';
+ return data?.user_id===b.user.id&&data.doc_version===TG107_VERSION&&Number.isFinite(Date.parse(data.accepted_at))?'accepted':'unknown';}catch{return 'unknown';}
+}
+async function retry107(){const b=account(),e=profileEpoch;if(!b||!ready107||busy107||profileOwner!==b.user.id||session107!==b.sessionEpoch)return;lock107(true);try{const r=await read107(b);if(current107(b,e)){render107(r);status(r==='unknown'?'Não foi possível consultar os termos. Seus dados continuam no formulário.':'Situação dos termos atualizada.');}}finally{if(current107(b,e))lock107(false);}}
+async function loadProfile(){
+ const b=account();if(!b)return;const e=profileEpoch;profile=null;profileOwner=null;picture=null;reset107();lock107(true);render107('unknown');
+ $('tg-beta-my-stars').textContent='';$('tg-beta-photo').replaceChildren();$('tg-beta-avatar-picker').replaceChildren();
+ for(const id of ['tg-p-nick','tg-p-handle','tg-p-insta'])$(id).value='';for(const id of ['tg-p-insta-visible','tg-p-age','tg-p-best','tg-p-rank'])$(id).checked=false;$('tg-p-score-vis').value='private';status('Carregando perfil…');
+ try{const p=await ensureProfile();if(!current107(b,e))return;
+ $('tg-p-handle').value=tg104Handle(p.handle);$('tg-p-handle').readOnly=!!p.handle;$('tg-p-nick').value=p.nickname;$('tg-p-insta').value=tg104Handle(p.instagram);$('tg-p-insta-visible').checked=p.instagram_visibility==='public'&&!!p.instagram;
+ $('tg-p-score-vis').value=p.score_visibility==='public'?'public':'private';$('tg-p-rank').checked=p.ranking_opt_in===true;$('tg-p-age').checked=p.age_18_plus_declared===true;$('tg-p-best').checked=p.best_scores_opt_in===true;
+ for(const [key,path] of Object.entries(AV)){const option=document.createElement('label');option.className='tg-beta-avatar-option';const input=document.createElement('input');input.type='radio';input.name='tg-avatar';input.value=key;input.checked=p.avatar_key===key;const img=document.createElement('img');img.src=path;img.alt='Avatar '+key;
+ input.addEventListener('change',()=>{if(input.checked&&!busy107&&ready107&&profileOwner===b.user.id&&session107===b.sessionEpoch&&context107(b)&&$('tg-beta-dialog').open&&$('tg-beta-person-view').hidden&&active==='profile'&&$('tg-beta-avatar-picker').contains(input)){loadAvatar({avatar_key:key});status('Avatar selecionado. Toque em Salvar perfil.');}});option.append(input,img);$('tg-beta-avatar-picker').append(option);}
+ loadAvatar(p);const receipt=await read107(b);if(!current107(b,e))return;session107=b.sessionEpoch;ready107=true;render107(receipt);
+ status(receipt==='unknown'?'Perfil carregado. Consulte os termos novamente para salvar opções sociais.':'Perfil carregado. Alterações só são aplicadas ao salvar.');
+ void (async()=>{try{const {data:scores,error}=await b.client.from('karaoke_scores').select('score,created_at').eq('user_id',b.user.id).order('created_at',{ascending:false}).limit(100);if(error||!current107(b,e))return;const last=(scores||[]).filter(s=>s.score!==null&&Number.isFinite(Number(s.score))).slice(0,10);const avg=last.length?last.reduce((a,s)=>a+Number(s.score),0)/last.length:null;$('tg-beta-my-stars').textContent=avg===null?'Ainda sem notas':(avg/20).toFixed(1)+' ★ · '+last.length+' notas recentes (máx. 10)';}catch{}})();
+ }catch(ex){if(current107(b,e))status('⚠ '+err(ex));}finally{if(current107(b,e))lock107(false);}
+}
 function loadAvatar(p){$('tg-beta-photo').replaceChildren(makeAvatar(p.avatar_key));}
-async function saveProfile(){
- const b=account();if(!b||!profile||profileOwner!==b.user.id||$('tg-p-save').disabled)return;
- const epoch=profileEpoch,uid=b.user.id,nick=val('tg-p-nick');
- const current=()=>account()?.user.id===uid&&profileEpoch===epoch&&bridge()?.sessionEpoch===b.sessionEpoch;
- const checked=document.querySelector('input[name="tg-avatar"]:checked');
- const avatar=checked?.value||profile.avatar_key||'urbano';
- const handle=profile.handle||tg104TemHandle(val('tg-p-handle')),insta=tg104Handle(val('tg-p-insta'));
- if(nick.length<2||nick.length>24||!AV[avatar]){status('Use um apelido de 2 a 24 caracteres e escolha um avatar.');return;}
- const social={handle:handle||null,instagram:insta||(profile.instagram_visibility!=='public'?profile.instagram||null:null),instagram_visibility:insta?'public':'private',photo_visibility:'private',score_visibility:$('tg-p-score-vis').value,ranking_opt_in:$('tg-p-rank').checked,age_18_plus_declared:$('tg-p-age').checked,best_scores_opt_in:$('tg-p-best').checked};
+function social107(p){
+ const handle=p.handle||tg104TemHandle(val('tg-p-handle')),insta=tg104Handle(val('tg-p-insta'));
+ const social={handle:handle||null,instagram:insta||null,instagram_visibility:insta&&$('tg-p-insta-visible').checked?'public':'private',photo_visibility:p.photo_visibility==='public'?'public':'private',score_visibility:$('tg-p-score-vis').value,ranking_opt_in:$('tg-p-rank').checked,age_18_plus_declared:$('tg-p-age').checked,best_scores_opt_in:$('tg-p-best').checked};
  const norm=(k,v)=>['ranking_opt_in','age_18_plus_declared','best_scores_opt_in'].includes(k)?v===true:k.endsWith('_visibility')?(v==='public'?'public':'private'):v||null;
- const socialChanged=Object.keys(social).some(k=>k!=='photo_visibility'&&norm(k,social[k])!==norm(k,profile[k]));
- if(socialChanged){
-   $('tg-p-handle')?.closest('details')?.setAttribute('open','');
-   if(!/^[a-z0-9._]{3,24}$/.test(handle)||(insta&&!/^[a-zA-Z0-9._]{1,30}$/.test(insta))){status('Confira @Tem Gogó e Instagram nas opções sociais.');return;}
-   if(social.ranking_opt_in&&!social.age_18_plus_declared){status('Para optar pelo ranking público, confirme que tem 18 anos ou mais.');return;}
-   if(!$('tg-p-legal').checked){status('Confirme os termos antes de salvar mudanças sociais.');return;}
+ return {social,changed:Object.keys(social).some(k=>k!=='photo_visibility'&&norm(k,social[k])!==norm(k,p[k]))};
+}
+async function saveProfile(){
+ const b=account();if(!b||!profile||!ready107||busy107||profileOwner!==b.user.id||session107!==b.sessionEpoch||$('tg-p-save').disabled)return;
+ const e=profileEpoch,uid=b.user.id,nick=val('tg-p-nick'),current=()=>current107(b,e);
+ const avatar=document.querySelector('input[name="tg-avatar"]:checked')?.value||profile.avatar_key||'urbano';
+ if(nick.length<2||nick.length>24||!AV[avatar]){status('Use um apelido de 2 a 24 caracteres e escolha um avatar.');return;}
+ const {social,changed}=social107(profile),explicit=receipt107==='missing'&&$('tg-p-legal').checked===true&&!$('tg-p-legal').disabled,useRPC=changed||explicit;
+ if(useRPC){
+ if((social.handle&&!/^[a-z0-9._]{3,24}$/.test(social.handle))||(social.instagram&&!/^[a-zA-Z0-9._]{1,30}$/.test(social.instagram))){status('Confira o formato dos @ nas opções sociais.');return;}
+ if(social.ranking_opt_in&&!social.age_18_plus_declared){status('Para optar pelo ranking público, confirme que tem 18 anos ou mais.');return;}
  }
- const avatarInputs=[...$('tg-beta-avatar-picker').querySelectorAll('input')];for(const input of avatarInputs)input.disabled=true;
- $('tg-p-nick').disabled=true;$('tg-p-save').disabled=true;status('Salvando…');let committed=false;
+ lock107(true);status('Salvando…');let committed=false;
  try{
-   if(socialChanged){
-     const p={nickname:nick,avatar_key:avatar,...social};
-     const {data,error}=await b.client.rpc('tg30_save_social_profile',{p_profile:p,p_accept:true});
-     if(error)throw error;if(data?.user_id!==uid)throw Error('Perfil não confirmado.');
-     committed=true;if(!current())return;profile={...profile,...p};$('tg-p-handle').readOnly=!!profile.handle;
-   }else{
-     // Narrow existing own-profile update; no social fields, no consent mutation.
-     if(nick!==profile.nickname||avatar!==profile.avatar_key){
-       const {data,error}=await b.client.from('tg_profiles').update({nickname:nick,avatar_key:avatar}).eq('user_id',uid).select('user_id,nickname,avatar_key');
-       if(error)throw error;if(data?.length!==1||data[0].user_id!==uid||data[0].nickname!==nick||data[0].avatar_key!==avatar)throw Error('Identidade básica não confirmada pelo banco.');
-       committed=true;if(!current())return;profile={...profile,nickname:nick,avatar_key:avatar};
-     }else committed=true;
-   }
-   loadAvatar(profile);
-   const result=await b.tg60SyncIdentity(nick,avatar,{uid,epoch:b.sessionEpoch});
-   if(!current())return;
-   status(result.ok?'Perfil salvo e identidade sincronizada.':'Perfil salvo; sincronização pendente: '+result.failures.join(', ')+'. Salve novamente para tentar.');
- }catch(e){if(current())status(committed?'Perfil salvo; sincronização pendente. Reabra e tente novamente.':e.code==='23505'?'Este @ já está em uso.':'Não foi possível salvar: '+err(e));}
- finally{for(const input of avatarInputs)input.disabled=false;if(current()){$('tg-p-nick').disabled=false;$('tg-p-save').disabled=false;}}
+ if(useRPC){
+ const receipt=await read107(b);if(!current())return;render107(receipt,explicit);
+ if(receipt==='unknown'){status('Não foi possível confirmar os termos. Tente novamente; nenhuma alteração social foi enviada.');return;}
+ if(receipt==='missing'&&!explicit){status('Confirme os termos vigentes para salvar as opções sociais.');return;}
+ const p={nickname:nick,avatar_key:avatar,...social};
+ const {data,error}=await b.client.rpc('tg30_save_social_profile',{p_profile:p,p_accept:receipt==='missing'&&explicit});
+ if(error)throw error;if(data?.user_id!==uid||data.handle!==p.handle||data.best_scores_opt_in!==p.best_scores_opt_in)throw Error('Perfil não confirmado.');
+ committed=true;if(!current())return;profile={...profile,...p,discoverable:false};$('tg-p-handle').value=tg104Handle(profile.handle);$('tg-p-handle').readOnly=!!profile.handle;$('tg-p-insta').value=tg104Handle(profile.instagram);$('tg-p-insta-visible').checked=profile.instagram_visibility==='public';
+ const verified=await read107(b);if(!current())return;render107(verified==='accepted'?'accepted':'unknown');
+ }else if(nick!==profile.nickname||avatar!==profile.avatar_key){
+ const {data,error}=await b.client.from('tg_profiles').update({nickname:nick,avatar_key:avatar}).eq('user_id',uid).select('user_id,nickname,avatar_key');
+ if(error)throw error;if(data?.length!==1||data[0].user_id!==uid||data[0].nickname!==nick||data[0].avatar_key!==avatar)throw Error('Identidade básica não confirmada pelo banco.');
+ committed=true;if(!current())return;profile={...profile,nickname:nick,avatar_key:avatar};
+ }else committed=true;
+ if(!current())return;loadAvatar(profile);const result=await b.tg60SyncIdentity(nick,avatar,{uid,epoch:b.sessionEpoch});if(!current())return;
+ status(result.ok?(receipt107==='unknown'&&useRPC?'Perfil salvo. Consulte novamente a situação dos termos.':'Perfil salvo e identidade sincronizada.'):'Perfil salvo; sincronização pendente: '+result.failures.join(', ')+'. Salve novamente para tentar.');
+ }catch(ex){if(current()){if(String(ex?.message||'').includes('TG76_ACCEPTANCE_REQUIRED')){render107('missing');status('O aceite vigente não foi confirmado pelo banco. Confira os termos e tente novamente.');}else status(committed?'Perfil salvo; sincronização pendente. Reabra e tente novamente.':ex.code==='23505'?'Este @ já está em uso.':'Não foi possível confirmar o salvamento: '+err(ex));}}
+ finally{if(current())lock107(false);}
 }
 // R103: same card, same server permissions; self-preview hides private handle.
  function tg103PreviewData(p,own){
@@ -141,7 +174,7 @@ async function saveProfile(){
  async function openPerson(id,origin){
   const ctx=bridge(),b=account(),own=!!b&&id===b.user.id,room=ctx?.room?.id||null;
   if(document.body.classList.contains('tg103-mic-focus')||document.body.classList.contains('tg103-remote-mic-focus'))return;
-  if(own&&$('tg-beta-dialog')?.open&&(boraBusy||tg103BoraDirty()||($('tg-p-save').disabled&&profileOwner===id))){status('Salve as alterações em andamento antes de abrir a prévia.');return;}
+  if($('tg-beta-dialog')?.open&&(boraBusy||busy107)){status('Aguarde a operação em andamento antes de abrir a prévia.');return;}
   const allowed=own&&origin==='self'?(room?inCurrentParty(id):true):origin==='party'?inCurrentParty(id):origin==='ranking'&&rankedProfileIds.has(id);
   if(!allowed){status('Miniperfil disponível somente na mesma festa ou em ranking público autorizado.');return;}
   const epoch=++profileEpoch,dlg=$('tg-beta-dialog'),box=$('tg-beta-person-view');if(!dlg||!box)return;
@@ -220,7 +253,7 @@ async function banParty(){const b=account();if(!b||b.role!=='remote'||!b.room)re
 function showHostModeration(){const b=account();if(!b||b.role!=='remote'){status('Esta ação é exclusiva do anfitrião no controle móvel.');return;}openTab('moderate');const s=$('tg-beta-ban-user');s.replaceChildren();for(const m of b.members||[]){if(m.user_id===b.user.id)continue;const opt=document.createElement('option');opt.value=m.user_id;opt.textContent=m.display_name||'Cantor(a)';s.append(opt);} }
 async function inspectSupport(){const b=account();if(!b)return;try{const {data,error}=await b.client.from('tg_support_tickets').select('id,number,updated_at').eq('user_id',b.user.id).order('updated_at',{ascending:false}).limit(15);if(error)return;const ids=(data||[]).map(t=>t.id);if(!ids.length)return;const res=await b.client.from('tg_support_replies').select('created_at,ticket_id').in('ticket_id',ids).eq('is_staff',true).order('created_at',{ascending:false}).limit(1);if(res.error||!res.data?.length)return;const latest=res.data[0].created_at;const key='tg-beta-last-reply:'+b.user.id;const seen=localStorage.getItem(key);if(!seen){localStorage.setItem(key,latest);return;}if(Date.parse(latest)>Date.parse(seen)&&latest!==lastTicketReply){lastTicketReply=latest;const btn=$('tg-beta-support-alert');btn.hidden=false;btn.textContent='💬 Nova resposta do suporte';btn.onclick=()=>{localStorage.setItem(key,latest);btn.hidden=true;$('tg193-support-tab-list')?.click();$('tg193-support-dialog')?.showModal();};}}catch(e){console.warn('Atendimento: atualização pendente',e);}}
 let tg19ContextKey=null;
-function updateContext(){const b=bridge();const key=JSON.stringify([b?.user?.id||null,b?.room?.id||null,b?.sessionEpoch||0]);if(tg19ContextKey!==null&&tg19ContextKey!==key){profileEpoch++;profile=null;profileOwner=null;picture=null;rankedProfileIds.clear();const dialog=$('tg-beta-dialog');if(dialog?.open)dialog.close();}tg19ContextKey=key;const guest=b?.role==='guest',remote=b?.role==='remote';const guestNav=$('tg-beta-guest-nav');if(guestNav)guestNav.hidden=true;document.querySelectorAll('#guest .tg-beta-unified-tab').forEach(button=>button.hidden=!guest);$('tg-beta-remote-nav').hidden=!remote;$('tg-beta-host-moderate').hidden=!remote;}
+function updateContext(){const b=bridge();const key=JSON.stringify([b?.user?.id||null,b?.room?.id||null,b?.sessionEpoch||0]);if(tg19ContextKey!==null&&tg19ContextKey!==key){profileEpoch++;profile=null;profileOwner=null;picture=null;reset107();rankedProfileIds.clear();const dialog=$('tg-beta-dialog');if(dialog?.open)dialog.close();}tg19ContextKey=key;const guest=b?.role==='guest',remote=b?.role==='remote';const guestNav=$('tg-beta-guest-nav');if(guestNav)guestNav.hidden=true;document.querySelectorAll('#guest .tg-beta-unified-tab').forEach(button=>button.hidden=!guest);$('tg-beta-remote-nav').hidden=!remote;$('tg-beta-host-moderate').hidden=!remote;}
 function makeUI(){const root=document.createElement('div');root.id='tg-beta-root';root.innerHTML=`
  <nav id="tg-beta-guest-nav" class="tg-beta-mobile-nav" aria-label="Meu perfil Tem Gogó" hidden><button data-tg-beta-open="profile" type="button">👤 Meu perfil</button></nav>
  <nav id="tg-beta-remote-nav" class="tg-beta-mobile-nav" aria-label="Perfil e segurança" hidden><button data-tg-beta-open="profile" type="button">👤 Perfil</button><button id="tg-beta-host-moderate" type="button">🛡️ Segurança</button></nav>
@@ -229,9 +262,9 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  <dialog id="tg-beta-dialog" class="modal tg-beta-dialog" aria-labelledby="tg-beta-title"><div class="tg-beta-shell"><header><div><small>TEM GOGÓ · MEU PALCO</small><h2 id="tg-beta-title">Meu perfil</h2></div><button type="button" id="tg-beta-close" aria-label="Fechar">✕</button></header><nav class="tg-beta-tabs"><button data-tg-beta-tab="profile" class="active" type="button">Perfil</button><button data-tg-beta-tab="rank" type="button">Ranking público</button><button data-tg-beta-tab="notices" type="button">Ajuda</button><button data-tg-beta-tab="moderate" type="button">Moderação</button></nav>
  <section data-tg-beta-panel="profile"><div class="tg-beta-heading"><div id="tg-beta-photo" aria-label="Seu avatar de palco"></div><div><h3>Minha identidade</h3><p>Seu avatar e seus dados de palco.</p><span id="tg-beta-my-stars"></span></div></div><button id="tg103-own-preview" type="button" class="button button-outline">👁 Ver meu miniperfil</button>
  <label>Apelido no palco <input id="tg-p-nick" maxlength="24" minlength="2" autocomplete="nickname" required></label><label>@Tem Gogó exclusivo <input id="tg-p-handle" maxlength="80" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="seu.nome"><small>3 a 24 letras, números, pontos ou _. Com ou sem @. Depois de definir, o nome fica fixo.</small></label><p class="tg83-avatar-copy">Escolha seu avatar de palco.</p><div id="tg-beta-avatar-picker" class="tg-beta-avatars"></div>
- <label>@Instagram (opcional)<input id="tg-p-insta" maxlength="80" placeholder="seu.instagram" autocomplete="off" autocapitalize="none" spellcheck="false"><small>Preencha apenas se quiser exibir nos miniperfis permitidos. Deixe em branco para não exibir.</small></label>
+ <label>@Instagram (opcional)<input id="tg-p-insta" maxlength="80" placeholder="seu.instagram" autocomplete="off" autocapitalize="none" spellcheck="false"><small>Apague o campo para remover o vínculo.</small></label><label class="tg-beta-check"><input id="tg-p-insta-visible" type="checkbox"> Exibir Instagram nos miniperfis autorizados.</label>
  <label>Quem pode ver meu histórico?<select id="tg-p-score-vis"><option value="private">Somente eu</option><option value="public">Público</option></select></label>
- <label class="tg-beta-check"><input id="tg-p-legal" type="checkbox"> Li os <a href="./termos.html" target="_blank" rel="noopener">Termos</a> e o <a href="./privacidade.html" target="_blank" rel="noopener">Aviso de Privacidade</a> do Tem Gogó.</label><label class="tg-beta-check"><input id="tg-p-age" type="checkbox"> Declaro ter 18 anos ou mais caso escolha participar do ranking público.</label>
+ <label id="tg107-legal-label" class="tg-beta-check"><input id="tg-p-legal" type="checkbox" disabled> Li os <a href="./termos.html" target="_blank" rel="noopener">Termos</a> e o <a href="./privacidade.html" target="_blank" rel="noopener">Aviso de Privacidade</a> do Tem Gogó.</label><p id="tg107-legal-status" role="status" hidden></p><button id="tg107-legal-retry" type="button" class="button button-outline" hidden>Consultar aceite</button><label class="tg-beta-check"><input id="tg-p-age" type="checkbox"> Declaro ter 18 anos ou mais caso escolha participar do ranking público.</label>
  
  <label class="tg-beta-check"><input id="tg-p-best" type="checkbox"> Mostrar até três melhores notas recreativas no meu miniperfil autorizado (opcional e independente do ranking).</label><label class="tg-beta-check"><input id="tg-p-rank" type="checkbox"> Participar do ranking público geral (mínimo 3 apresentações).</label><button type="button" id="tg-p-save" class="tg-beta-primary">Salvar perfil</button>
  <details id="tg95-room-members" hidden><summary>🎤 Pessoas desta festa</summary><p>Ver apenas participantes da mesma sala. Os links respeitam o consentimento do proprietário.</p><div id="tg95-room-list"></div></details>
@@ -250,10 +283,10 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  <div id="tg96-party-list"></div></div></dialog>`;document.body.append(root);
  document.querySelectorAll('[data-tg-beta-open]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaOpen)));document.querySelectorAll('[data-tg-beta-tab]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaTab)));
  $('tg-beta-emergency').addEventListener('cancel',e=>e.preventDefault());
- $('tg-beta-dialog').addEventListener('close',()=>{profileEpoch++;profile=null;profileOwner=null;picture=null;rankedProfileIds.clear();clearBora();});$('tg63-bora-form').addEventListener('submit',e=>{e.preventDefault();void writeBora();});$('tg63-bora-remove').addEventListener('click',()=>void writeBora(true));$('tg-beta-close').onclick=()=>$('tg-beta-dialog').close();$('tg-beta-gate-close').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-later').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-account').onclick=()=>{$('tg-beta-gate-dialog').close();$('tg18-account-cta')?.click();};$('tg-p-save').onclick=saveProfile;$('tg-beta-report').onclick=reportMessage;$('tg-beta-ban').onclick=banParty;$('tg-beta-host-moderate').onclick=showHostModeration;
- $('tg103-own-preview').onclick=tg103OpenOwn;
+ $('tg-beta-dialog').addEventListener('close',()=>{profileEpoch++;profile=null;profileOwner=null;picture=null;reset107();rankedProfileIds.clear();clearBora();});$('tg63-bora-form').addEventListener('submit',e=>{e.preventDefault();void writeBora();});$('tg63-bora-remove').addEventListener('click',()=>void writeBora(true));$('tg-beta-close').onclick=()=>$('tg-beta-dialog').close();$('tg-beta-gate-close').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-later').onclick=()=>$('tg-beta-gate-dialog').close();$('tg-beta-gate-account').onclick=()=>{$('tg-beta-gate-dialog').close();$('tg18-account-cta')?.click();};$('tg-p-save').onclick=saveProfile;$('tg-beta-report').onclick=reportMessage;$('tg-beta-ban').onclick=banParty;$('tg-beta-host-moderate').onclick=showHostModeration;
+ $('tg103-own-preview').onclick=tg103OpenOwn;$('tg107-legal-retry').onclick=()=>void retry107();
  for(const id of ['tg-p-handle','tg-p-insta','tg63-bora-handle'])$(id).addEventListener('blur',e=>{const field=e.currentTarget;if(field.readOnly||field.disabled)return;field.value=id==='tg-p-handle'?tg104TemHandle(field.value):tg104Handle(field.value);});
- $('tg-beta-person-back').onclick=()=>{profileEpoch++;$('tg-beta-person-view').hidden=true;document.querySelectorAll('[data-tg-beta-panel]').forEach(el=>el.hidden=el.dataset.tgBetaPanel!==cardReturnTab);if(cardReturnTab==='profile'){if(!profile||profileOwner!==account()?.user.id)void loadProfile();void loadBoraLink();loadRoomParticipants();}status('');};
+ $('tg-beta-person-back').onclick=()=>{profileEpoch++;active=cardReturnTab;$('tg-beta-person-view').hidden=true;document.querySelectorAll('[data-tg-beta-panel]').forEach(el=>el.hidden=el.dataset.tgBetaPanel!==cardReturnTab);document.querySelectorAll('[data-tg-beta-tab]').forEach(el=>{el.classList.toggle('active',el.dataset.tgBetaTab===cardReturnTab);el.setAttribute('aria-selected',String(el.dataset.tgBetaTab===cardReturnTab));});status('');if(cardReturnTab==='profile'){const b=account();if(!b||!ready107||profileOwner!==b.user.id||session107!==b.sessionEpoch)void loadProfile();else status('Você voltou ao perfil. Suas edições foram mantidas.');if(boraOwner!==b?.user.id)void loadBoraLink();loadRoomParticipants();}};
  const partyButton=document.createElement('button');partyButton.id='tg96-party-open';partyButton.type='button';
  partyButton.className='button button-outline tg96-party-open';partyButton.textContent='👥 Pessoas desta festa';
  $('guest')?.querySelector('.guest-room-info')?.append(partyButton);
