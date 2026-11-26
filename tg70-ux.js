@@ -41,14 +41,14 @@ const guides=[
 ];let i=0,guideTimer=null,playing=false;const dialog=$('tg70-battle-guide'),theme=$('tg67-guide-theme');
 const art=['cantor-urbano.png','cantora-ruiva.png','cantor-esporte.png','cantora-oculos.png'];
 function avatar(n){const img=document.createElement('img');img.src='./'+art[n];img.alt='Avatar ilustrativo do Tem Gogó';return img;}
-function showGuide(){const g=guides[i],scene=$('tg67-guide-scene');$('tg70-guide-counter').textContent='Cena '+(i+1)+' de '+guides.length;$('tg33-guide-progress').value=i+1;$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';scene.replaceChildren();scene.dataset.scene=g[2];const diva=document.createElement('img');diva.src='./diva-busto.png';diva.alt='Drag Diva';diva.className='tg67-guide-diva';scene.append(diva);const cast=document.createElement('div');cast.className='tg67-guide-cast';const label=t=>{const el=document.createElement('span');el.textContent=t;return el;};
-if(g[2]==='opening'){cast.append(avatar(0),avatar(1),avatar(2),avatar(3));}
-if(g[2]==='cast'){for(let n=0;n<4;n++)cast.append(avatar(n));cast.append(label('2–12'),label('♫ Playlist do host'));}
-if(g[2]==='qualify'){cast.append(avatar(1),label('♫ Minha escolha'),label('🎙'));}
-if(g[2]==='duel'){cast.append(avatar(0),label('×'),avatar(2),label('♫ Escolha do sistema'));}
-if(g[2]==='vote'){cast.append(avatar(0),avatar(2),label('★ ★ ★ ★ ★'),label('2:30'));}
-if(g[2]==='podium'){for(const [n,medal] of [[1,'🥈'],[0,'🥇'],[2,'🥉']]){const p=document.createElement('div');p.className='tg67-podium-step';p.append(avatar(n),label(medal));cast.append(p);}}
-scene.append(cast);$('tg67-guide-toggle').textContent=playing?'Pausar':'Reproduzir';}
+function showGuide(){const g=guides[i],scene=$('tg67-guide-scene');$('tg70-guide-counter').textContent='Cena '+(i+1)+' de '+guides.length;$('tg33-guide-progress').value=i+1;$('tg70-guide-heading').textContent=g[0];$('tg70-guide-text').textContent=g[1];$('tg70-guide-prev').disabled=i===0;$('tg70-guide-next').textContent=i===guides.length-1?'Concluir':'Próximo';scene.replaceChildren();scene.dataset.scene=g[2];const diva=document.createElement('img');diva.src='./diva-busto.png';diva.alt='Drag Diva';diva.className='tg67-guide-diva';scene.append(diva);const cast=document.createElement('div');cast.className='tg67-guide-cast';const performers=document.createElement('div');performers.className='tg75-guide-performers';const cues=document.createElement('div');cues.className='tg75-guide-cues';const label=t=>{const el=document.createElement('span');el.textContent=t;return el;};
+if(g[2]==='opening'){performers.append(avatar(0),avatar(1),avatar(2),avatar(3));cues.append(label('Batalha de Estrelas'));}
+if(g[2]==='cast'){for(let n=0;n<4;n++)performers.append(avatar(n));cues.append(label('2–12 competidores'),label('♫ Playlist do host'));}
+if(g[2]==='qualify'){performers.append(avatar(1));cues.append(label('♫ Minha escolha'),label('🎙 Solo'));}
+if(g[2]==='duel'){performers.append(avatar(0),label('×'),avatar(2));cues.append(label('♫ Sorteio do sistema'));}
+if(g[2]==='vote'){performers.append(avatar(0),avatar(2));cues.append(label('★ ★ ★ ★ ★'),label('2:30'));}
+if(g[2]==='podium'){for(const [n,medal] of [[1,'🥈'],[0,'🥇'],[2,'🥉']]){const p=document.createElement('div');p.className='tg67-podium-step';p.append(avatar(n),label(medal));performers.append(p);}cues.append(label('Pódio oficial'));}
+cast.append(performers,cues);scene.append(cast);$('tg67-guide-toggle').textContent=playing?'Pausar':'Reproduzir';}
 function stopGuide(){clearTimeout(guideTimer);guideTimer=null;playing=false;theme?.pause();$('tg67-guide-toggle').textContent='Reproduzir';}
 function schedule(){clearTimeout(guideTimer);if(!playing)return;guideTimer=setTimeout(()=>{if(!dialog.open||document.hidden){stopGuide();return;}if(i===guides.length-1){stopGuide();return;}i++;showGuide();schedule();},7000);}
 function startGuide(){playing=true;showGuide();if(theme&&!theme.muted){theme.volume=.18;theme.play().catch(()=>{});}schedule();}
