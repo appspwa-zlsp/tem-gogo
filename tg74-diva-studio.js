@@ -7,7 +7,8 @@
  const $=id=>document.getElementById(id);
  const VOICE='tem-gogo-diva-preview-volume', POP='tem-gogo-pop-volume', REVIEW='tg05-voice-reviewed-v1';
  const events=Object.freeze({recado:['voz-32'],avaliacao:['voz-19'],sem_sinal:['voz-34'],video_indisponivel:['voz-36'],abertura_classico:['voz-11'],elogio:['voz-13','voz-18','voz-33']});
- const effects=Object.freeze({suspense:'./pop-suspense.wav',palmas:'./pop-palmas.wav',recado:'./pop-recado.wav',fogos:'./pop-fogos.wav',vinheta:'./pop-vinheta.wav'});
+ // R67 — somente as mídias fornecidas pelo titular; não retornar a efeitos antigos.
+ const effects=Object.freeze({suspense:['./audio/transition.mp3',7800],recado:['./audio/whoosh.mp3',4500],palmas:['./audio/applause.mp3',9600],celebration:['./audio/cheering.mp3',18000],low:['./audio/funny-fail.mp3',4600],mid:['./audio/disappoint.mp3',5700],fail:['./audio/fail-drum.mp3',6600],sad:['./audio/sad-trombone.mp3',9100]});
  let current=null,mounted=false,unlocked=false,auto=false,review={},epoch=0,lookup=false,captionTimer=null,captionScope=null;
  const lastByEvent=new Map();
  const TRIMS='tg26-local-voice-trims-v1';let trims={};try{trims=JSON.parse(root.localStorage.getItem(TRIMS)||'{}')||{};}catch{}
@@ -58,8 +59,8 @@
   if(!unlocked||voiceMuted()||getVolume()===0){status(!unlocked?'Toque em Ativar som na TV.':voiceMuted()?'Voz silenciada nas preferências.':'Volume da Diva em zero.');return fallbackCaption(text);}
   status('Reproduzindo fala publicada · '+v.id);return playClip(v.file,'voice',text,Math.min(18000,Math.ceil((v.duration_seconds+3)*1000)),true);
  }
- async function pop(event,key){if(!unlocked||!allowed()||!Object.hasOwn(effects,event)||getPopVolume()===0||current||lookup||captionTimer||!key||!claim('pop:'+key))return false;return playClip(effects[event],'pop','',3500);}
- async function manualPop(event,key){if(!manualAllowed())return false;return pop(event,key);}
+ async function pop(event,key){if(!auto||!unlocked||!allowed()||!Object.hasOwn(effects,event)||getPopVolume()===0||current||lookup||captionTimer||!key||!claim('pop:'+key))return false;const [file,limit]=effects[event];return playClip(file,'pop','',limit);}
+ async function manualPop(){return false;} // comandos legados nunca disparam efeitos
  function reset(){epoch++;stop();unlocked=false;auto=false;seen.clear();lastByEvent.clear();if($('tg05-auto'))$('tg05-auto').checked=false;status('Falas automáticas desativadas nesta sessão.');}
  function stopVoice(){if(current?.kind==='voice'||captionTimer)stop();}
  async function waitForCaption(){const until=Date.now()+6800;while(captionTimer&&Date.now()<until&&allowed())await new Promise(resolve=>setTimeout(resolve,100));}
@@ -95,7 +96,7 @@
     $('tg05-test-voice')?.addEventListener('click',async()=>{if(!manualAllowed()){status('Teste somente no intervalo livre, sem outra fala ou efeito.');return;}if(voiceMuted()||getVolume()===0){status('A voz está silenciada; confira o volume e as preferências.');return;}unlock();const v=byId.get('voz-19');if(!v)return;status('Teste manual de voz · não publica a gravação.');const ok=await playClip(v.file,'voice','',Math.ceil((v.duration_seconds+3)*1000));if(ok)status('Teste de voz concluído.');});
     $('tg05-stop-voice')?.addEventListener('click',()=>{stopVoice();status('Fala interrompida pelo anfitrião.');});
   }
-  const pads=make('section','tg26-effects');pads.append(make('h3','','✦ Efeitos do show'),make('p','tg26-note','Efeitos somente no intervalo, sem sobrepor música, microfone ou fala. Use o volume POP.'));for(const [event,label] of [['palmas','👏 Aplausos'],['fogos','🎆 Fogos'],['vinheta','🎶 Vinheta'],['suspense','✨ Suspense']])pads.append(button(label,async()=>{if(!manualAllowed()){status('Aguarde o intervalo livre.');return;}unlock();const ok=await manualPop(event,'pad:'+event+':'+Date.now());status(ok?'Efeito concluído.':'Efeito bloqueado ou silenciado.');}));document.querySelector('#tg17-console .tg05-voice-controls')?.append(pads);
+
   details.append(make('p','tg74-studio-hint','Toque em Ativar som para liberar efeitos. Sem reprodução automática de falas não revisadas; sem voz ou POP sobre a música. Se o som estiver bloqueado ou silenciado, a legenda publicada continua disponível.'));
   const msg=make('p','tg74-studio-status','Prévia parada.');msg.id='tg74-voice-status';msg.setAttribute('role','status');details.append(msg);outer.append(details);target.append(outer);update();status(auto?'Falas autorizadas nesta sessão. Aguardando evento publicado.':'Falas automáticas desativadas. Autorize aqui e teste a voz; a reprodução contextual usa a publicação da Central.');
   details.addEventListener('toggle',()=>{if(!details.open&&current?.kind==='voice'&&!current.contextual)stop();});
