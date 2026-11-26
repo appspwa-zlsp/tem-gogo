@@ -515,3 +515,11 @@ body.high-contrast #stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-
 #tg89-sound-dialog button{min-height:48px;margin:0;font-size:15px;white-space:normal}
 #tg89-sound-dialog small{font-size:12px;line-height:1.4;color:var(--tg-muted,var(--text))}
 #stage #tg05-test-voice{display:none!important}
+
+/* R90: quiet heads-up outside the video and independent of the actual microphone call. */
+.tg90-next-card[hidden]{display:none!important}
+.tg90-next-card:not([hidden]){display:flex!important;align-items:center;gap:10px;min-width:0;box-sizing:border-box;padding:7px 11px;border:1px solid var(--tg-border,var(--line));border-radius:11px;background:var(--tg-surface-raised,var(--surface-2));color:var(--tg-text,var(--text));pointer-events:none;text-align:left}
+.tg90-next-card>span{font-size:19px;flex:none;color:var(--tg-primary,var(--text))}.tg90-next-card>div{min-width:0;display:grid;gap:2px}.tg90-next-card strong,.tg90-next-card small{line-height:1.25;overflow-wrap:anywhere}.tg90-next-card strong{font-size:14px;font-weight:750}.tg90-next-card small{font-size:12px;color:var(--tg-muted,var(--text))}
+#stage .stage-meta #tg90-stage-next:not([hidden]){flex:1 1 100%;width:100%;margin-top:5px}#stage .stage-meta:has(#tg90-stage-next:not([hidden])){flex-wrap:wrap!important}
+#guest #tg90-phone-next:not([hidden]),#tg18-remote #tg90-remote-next:not([hidden]){position:fixed;z-index:30;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:420px;margin:0 auto;box-shadow:0 5px 18px #0005}
+body.high-contrast .tg90-next-card:not([hidden]){background:#000!important;color:#fff!important;border-color:#fff!important}

@@ -1910,6 +1910,7 @@
       if(!tg07Current(scope)||state.emergencyBlocked)return;
       renderGuestPreflight();renderGuestCallVisibility();
     }
+    if(isPhoneSingerRole())tg90PaintPhone();
     if(state.role==='remote')renderRemote();
     if(state.role==='guest')setGuestNowPlaying(state.songs.find(s=>s.id===state.room?.current_song_id)||null);
   }
@@ -2351,13 +2352,14 @@
         tgR14AcceptAck(data);
         return;
       }
+      if(signal.kind==='stage-up-next'){await tg90ReceiveUpcoming(data,signal,scope);return;}
       if(signal.kind==='stage-prepare'){
         if(Date.now()-Number(data.sentAt||0)>95000)return;
         if(!state.songs.some(s=>s.id===data.songId&&s.status==='queued'&&isSinger(s,state.user.id)))await fetchSongs();
         if(state.emergencyBlocked||!tg07Current(scope))return;
         if(!state.songs.some(s=>s.id===data.songId&&s.status==='queued'&&isSinger(s,state.user.id)))return;
         if(state.guestPreflightSong?.token!==data.token)state.guestReady=false;
-        state.guestPreflightSong={id:data.songId,token:data.token,title:data.title};
+        state.guestPreflightSong={id:data.songId,token:data.token,title:data.title};tg90PhoneNotice=null;tg90PaintPhone();
         renderGuestPreflight();if(state.role==='guest')switchMobileTab('mic');if(!state.guestReady)openGuestCall();await notifyPreflightGuest();renderRemoteMic();return;
       }
       if(signal.kind==='stage-prepare-cancel'&&state.guestPreflightSong?.id===data.songId&&state.guestPreflightSong?.token===data.token){
@@ -2779,7 +2781,7 @@
   function onPlayerState(event) {
     if(state.role!=='host')return;
     if(state.emergencyBlocked||event.target!==state.player||!state.currentSong||state.playerSongId!==state.currentSong.id){try{event.target?.mute();}catch{}return;}
-    state.isPlaying=event.data===window.YT.PlayerState.PLAYING;
+    state.isPlaying=event.data===window.YT.PlayerState.PLAYING;if(!state.isPlaying)tg90ClearHost();
     if(!state.isPlaying && state.playMetrics){state.playMetrics.lastPosition=null;state.playMetrics.lastWall=0;}
     if(state.isPlaying && $('video-error-dialog').open)$('video-error-dialog').close();
     $('play-pause').textContent=state.isPlaying?'⏸ Pausar':'▶ Reproduzir';
@@ -2985,7 +2987,7 @@
     if(state.emergencyBlocked)return;
     if(!state.currentSong||state.finishing)return;
     const completedRoom=state.room?.id,completedSong=state.currentSong.id,finishScope=tg07Scope(),generation=state.emergencyGeneration??null;
-    state.finishing=true;tgR19CancelSoloRequest();
+    state.finishing=true;tg90ClearHost();tgR19CancelSoloRequest();
     try {
       if(!skipped&&state.soloMic?.songId===completedSong)void tg30SendShadow(state.soloMic.tg30Shadow,true);
       if(!skipped){
@@ -3132,9 +3134,69 @@
     m.duration=duration;m.lastWall=now;m.lastPosition=position;
     if(Math.floor(m.played)>=Math.ceil(Math.ceil(duration)*0.5) && !m.sending)void recordQualifyingPlayback(m);
   }
+  // R90: informational heads-up only. No preflight, permission, playback or scoring writes.
+  let tg90Upcoming=null,tg90PhoneNotice=null,tg90LastVibration=null;
+  function tg90NextRecreational(){
+    return tg13Recreational()?state.songs.find(s=>s.status==='queued'&&s.id!==state.currentSong?.id):null;
+  }
+  function tg90Card(id,heading='',detail=''){
+    const box=$(id);if(!box)return;
+    if(heading){const h=box.querySelector('strong'),p=box.querySelector('small');if(h.textContent!==heading)h.textContent=heading;if(p.textContent!==detail)p.textContent=detail;}
+    box.hidden=!heading;
+  }
+  function tg90ResetUpcoming(){
+    tg90Upcoming=null;tg90PhoneNotice=null;tg90LastVibration=null;
+    tg90Card('tg90-stage-next');tg90Card('tg90-phone-next');tg90Card('tg90-remote-next');
+  }
+  function tg90HostNotice(next,playing,visible){
+    if(!next||!playing)return;
+    const ids=songSingers(next),scope=tg07Scope();
+    for(const uid of ids){
+      if(uid===state.user?.id&&state.room?.room_mode==='solo')continue;
+      void sendSignal(uid,'stage-up-next',{currentSongId:playing.id,nextSongId:next.id,visible,sentAt:Date.now()})
+        .catch(err=>{if(tg07Current(scope))console.debug('Aviso antecipado indisponível:',err?.code||'sinalização');});
+    }
+  }
+  function tg90ClearHost(notify=true){
+    const old=tg90Upcoming;tg90Upcoming=null;tg90Card('tg90-stage-next');
+    if(notify&&old?.next&&tg07Current(old.scope)&&!state.emergencyBlocked)tg90HostNotice(old.next,old.playing,false);
+  }
+  function tg90UpdateHost(current,duration){
+    const remaining=duration-current,playing=state.currentSong;
+    if(state.emergencyBlocked||state.role!=='host'||!state.isPlaying||state.finishing||state.startingSong||state.preflight||!playing||state.playerSongId!==playing.id||!Number.isFinite(current)||!Number.isFinite(duration)||duration<=0||current<0||remaining<=0||remaining>30){
+      tg90ClearHost();return;
+    }
+    const next=tg90NextRecreational(),competitive=state.room?.tg30_battle_reserved===true;
+    if(!next&&!competitive){tg90ClearHost();return;}
+    const key=playing.id+':'+(next?.id||'competitive');
+    if(tg90Upcoming?.key!==key){
+      tg90ClearHost();tg90Upcoming={key,next,playing,scope:tg07Scope()};
+      if(next)tg90HostNotice(next,playing,true);
+    }
+    if(competitive)tg90Card('tg90-stage-next','Próxima etapa em breve','Competidores: aguardem a confirmação do próximo confronto.');
+    else tg90Card('tg90-stage-next',state.room?.room_mode==='solo'?'Seu próximo hit':'A seguir · '+songSingerLabel(next),next.title+' · prepare-se');
+  }
+  function tg90PaintPhone(){
+    const n=tg90PhoneNotice,valid=n&&tg07Current(n.scope)&&!state.emergencyBlocked&&isPhoneSingerRole()&&!callActive()&&Date.now()-n.sentAt<=40000&&state.songs.some(s=>s.id===n.currentSongId&&s.status==='playing')&&state.songs.find(s=>s.status==='queued')?.id===n.nextSongId;
+    const next=valid?state.songs.find(s=>s.id===n.nextSongId&&isSinger(s,state.user?.id)):null;
+    if(!next)tg90PhoneNotice=null;
+    tg90Card('tg90-phone-next',next&&state.role==='guest'?'Sua vez está chegando!':'',next?.title||'');
+    tg90Card('tg90-remote-next',next&&state.role==='remote'?'Sua vez está chegando!':'',next?.title||'');
+  }
+  async function tg90ReceiveUpcoming(data,signal,scope){
+    if(state.role==='remote'&&signal._ownerDevice!==true)return;
+    if(!tg13Recreational()||typeof data.visible!=='boolean'||typeof data.currentSongId!=='string'||typeof data.nextSongId!=='string'||data.currentSongId===data.nextSongId)return;
+    const age=Date.now()-Number(data.sentAt);if(!Number.isFinite(age)||age< -5000||age>40000)return;
+    if(!data.visible){if(tg90PhoneNotice?.currentSongId===data.currentSongId&&tg90PhoneNotice?.nextSongId===data.nextSongId){tg90PhoneNotice=null;tg90PaintPhone();}return;}
+    if(callActive())return;
+    if(!state.songs.some(s=>s.id===data.nextSongId&&s.status==='queued'&&isSinger(s,state.user?.id)))await fetchSongs();
+    if(!tg07Current(scope)||state.emergencyBlocked||callActive())return;
+    tg90PhoneNotice={scope,currentSongId:data.currentSongId,nextSongId:data.nextSongId,sentAt:Number(data.sentAt)};tg90PaintPhone();
+    const key=data.currentSongId+':'+data.nextSongId;if(tg90PhoneNotice&&tg90LastVibration!==key){tg90LastVibration=key;try{navigator.vibrate?.(100);}catch{}}
+  }
   function updateVideoProgress(){
-    if(state.role!=='host'||!state.playerReady||!state.currentSong){$('time-now').textContent='0:00';$('time-all').textContent='0:00';$('progress-fill').style.width='0%';return;}
-    try{const current=state.player.getCurrentTime(),duration=state.player.getDuration();$('time-now').textContent=formatTime(current);$('time-all').textContent=formatTime(duration);$('progress-fill').style.width=duration?Math.min(100,current/duration*100)+'%':'0%';measureActualPlayback(current,duration);}catch{}
+    if(state.role!=='host'||!state.playerReady||!state.currentSong){if(state.role==='host')tg90ClearHost();$('time-now').textContent='0:00';$('time-all').textContent='0:00';$('progress-fill').style.width='0%';return;}
+    try{const current=state.player.getCurrentTime(),duration=state.player.getDuration();$('time-now').textContent=formatTime(current);$('time-all').textContent=formatTime(duration);$('progress-fill').style.width=duration?Math.min(100,current/duration*100)+'%':'0%';measureActualPlayback(current,duration);tg90UpdateHost(current,duration);}catch{tg90ClearHost();}
   }
 
   // ----- Fila de músicas e busca opcional pela API oficial do YouTube. -----
@@ -3722,12 +3784,12 @@ function renderFullCatalog(){
       sampleAudio();cycles++;
       if(cycles%72===0&&isPhoneSingerRole()&&state.guestPreflightSong)void notifyPreflightGuest();
       if(cycles%36===0&&state.role==='host'&&state.preflight)renderPreflightHost();
-      if(cycles%7===0){updateVideoProgress();if(state.role==='host')renderMics();}
+      if(cycles%7===0){updateVideoProgress();if(state.role==='host')renderMics();else tg90PaintPhone();}
       if(cycles%10===0 && state.role==='host' && state.currentSong)tg39PollMic();
     },140);
   }
   async function stopSession(){
-    ++tg07SessionEpoch;tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
+    ++tg07SessionEpoch;tg90ResetUpcoming();tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
     for(const id of ['host-results','search-results','tg07-external-results'])$(id)?.replaceChildren();
@@ -4489,7 +4551,7 @@ function renderFullCatalog(){
   }
   function tg23Suspend(message,reason='security'){
     if(!state.room||state.emergencyClosing)return;
-    state.emergencyBlocked=true;
+    state.emergencyBlocked=true;tg90ResetUpcoming();
     if(!state.emergencyLatch){
       state.emergencyLatch=true;++tg07SessionEpoch;tgR25ClearSoloReport();tgR19CancelSoloRequest();tgR20CancelMicRequest();
       // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
