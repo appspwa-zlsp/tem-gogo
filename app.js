@@ -819,7 +819,7 @@
     $('now-by').textContent='Preparem-se: '+songSingerLabel(song);
     $('song-pill').textContent='⏳ Aguardando confirmação';
     $('video-placeholder').hidden=false;setDivaStageState('preflight');
-    renderPreflightHost();updateVoxLine('preflight');void dispatchPushForSong(song);
+    renderPreflightHost();updateVoxLine('preflight');void window.TG74_DIVA_STUDIO?.announce('chamada','chamada:'+state.room.id+':'+state.preflight.token,song.id);void dispatchPushForSong(song);
     const prepared=state.preflight,scope=tg07Scope();
     await sendPreflightInvites(true);
     if(state.emergencyBlocked||!tg07Current(scope)||state.preflight!==prepared)return;
@@ -1777,7 +1777,7 @@
     }catch(err){if(tg07Current(scope))toast('Não foi possível verificar o palco. Continue usando o controle.',true);return false;}
     finally{if(tgR15StageTicket===scope){tgR15StageTicket=null;button.disabled=false;}}
   }
-  async function enterRoomAsHost(room,{narration=false}={}){
+  async function enterRoomAsHost(room,{narration=true}={}){
     if(state.emergencyClosing||state.finishing||state.startingSong)return false;
     if(!state.user||isAnonymous(state.user)||room?.owner_id!==state.user.id)return false;
     const uid=state.user.id,epoch=tg07SessionEpoch+1;await stopSession();if(state.user?.id!==uid||tg07SessionEpoch!==epoch||state.room)return false;
@@ -1785,13 +1785,14 @@
     $('room-code').textContent=room.code;show('stage');setDivaStageState('idle');drawQR();
     const scope=tg07Scope(),current=()=>tg38RoomCurrent(scope,'host');
     try{await hydrateRoom();if(!current())return;await subscribeRoom();if(!current())return;startTicker();
+      tg89OfferSound(scope);
       void loadCatalog(true);
       try{if(current()){await loadYouTubeAPI();if(!current())return;if(state.room?.current_song_id)await resumeExistingSong();}}
       catch(err){if(current())toast(humanError(err),true);}
       if(!current())return;
       await unlockWakeLock();
       if(!current())return;
-      if(narration===true&&state.room?.tg30_battle_reserved===false)window.TG74_DIVA_STUDIO?.setAuto(true);
+      if(tg13Recreational())window.TG74_DIVA_STUDIO?.setAuto(narration===true);
       updateVoxLine('opening');
       clearInterval(state.voxTimer);
       state.voxTimer=setInterval(()=>{if(!state.emergencyBlocked&&state.role==='host'&&!state.isPlaying&&!state.currentSong&&!state.preflight&&!recadoShowing&&!tg87DivaAudio&&$('final-overlay')?.hidden)updateVoxLine('opening');},14000);
@@ -2267,6 +2268,23 @@
       if(state.context&&state.context.state!=='running')void Promise.resolve(state.context.resume()).catch(()=>{});
     }catch{}
     window.TG74_DIVA_STUDIO?.unlock();
+  }
+  // One temporary, local browser audio prompt per host session.
+  let tg89SoundScope=null,tg89SoundOffered=null;
+  function tg89CloseSound(){tg89SoundScope=null;const d=$('tg89-sound-dialog');if(d?.open)d.close();}
+  function tg89OfferSound(scope){
+    if(!tg38RoomCurrent(scope,'host')||tg89SoundOffered===scope.epoch||state.currentSong||state.room?.current_song_id)return;
+    const d=$('tg89-sound-dialog');if(!d||d.open)return;
+    if(document.querySelector('dialog[open]')){
+      const opened=document.querySelector('dialog[open]');opened.addEventListener('close',()=>{if(tg38RoomCurrent(scope,'host'))tg89OfferSound(scope);},{once:true});return;
+    }
+    tg89SoundOffered=scope.epoch;tg89SoundScope=scope;
+    try{d.showModal();$('tg89-sound-allow')?.focus({preventScroll:true});}catch{tg89SoundScope=null;}
+  }
+  function tg89AllowSound(){
+    const scope=tg89SoundScope;if(!scope||!tg38RoomCurrent(scope,'host')){tg89CloseSound();return;}
+    // Run synchronously inside the real click, before closing the prompt.
+    unlockSound();tg89CloseSound();
   }
   function tg88StageAudioGesture(event){
     if(!event.isTrusted||document.body.dataset.currentView!=='stage'||document.hidden)return;
@@ -3014,7 +3032,7 @@
           if(!spoken&&decision.count)await studio.pop('suspense','suspense:'+eventKey);
           if(!stillCurrent())return;
           // Elogio publicado só antes de revelar, com todas as notas altas e verificadas.
-          if(decision.praise){await studio.announce('elogio','elogio:'+eventKey,completedSong);await studio.waitForCaption?.();}
+          if(decision.count===singers.length){const values=verifiedRows.map(row=>row.score);const reaction=decision.praise?'elogio':values.every(v=>v<40)?'nota_baixa':values.every(v=>v>=40&&v<80)?'nota_media':null;if(reaction){await studio.announce(reaction,reaction+':'+eventKey,completedSong);await studio.waitForCaption?.();}}
         }
         // Mesmo quando o áudio está desligado, dê tempo à apresentação textual antes da nota.
         await new Promise(resolve=>setTimeout(resolve,1200));
@@ -3029,7 +3047,7 @@
         // R67: reação contextual somente com resultado completo confirmado; nunca por falta de sinal.
         if(decision?.count===singers.length&&studio&&stillCurrent()){
           const values=verifiedRows.map(row=>row.score),mean=values.reduce((a,b)=>a+b,0)/values.length;
-          const effect=decision.praise?'palmas':mean<40?'low':mean<60?'mid':null;
+          const effect=values.every(v=>v>=95)?'celebration':decision.praise?'palmas':mean<40?'low':mean<60?'mid':null;
           if(effect)void studio.pop(effect,'reveal:'+eventKey);
         }
         // Nota permanece visível; painel de próximas ações aparece depois, sem avançar sozinho.
@@ -3709,7 +3727,7 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
-    ++tg07SessionEpoch;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
+    ++tg07SessionEpoch;tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
     for(const id of ['host-results','search-results','tg07-external-results'])$(id)?.replaceChildren();
@@ -4180,6 +4198,7 @@ function renderFullCatalog(){
     $('tg04-remote-invite').addEventListener('click',()=>{if(state.role==='remote'&&state.room)void window.TG_UI.shareLink('Venha cantar no Tem Gogó!',currentURL(state.room.code));});
     for(const [input,button] of [['tg04-remote-message','tg04-remote-send'],['tg04-stage-message','tg04-stage-send']])$(button).addEventListener('click',()=>void sendHostRecado(input,button));
     for(const type of ['click','pointerup','keydown'])document.addEventListener(type,tg88StageAudioGesture,true);
+    $('tg89-sound-allow').addEventListener('click',tg89AllowSound);$('tg89-sound-later').addEventListener('click',tg89CloseSound);$('tg89-sound-dialog').addEventListener('cancel',()=>{tg89SoundScope=null;});
     $('play-pause').addEventListener('click',togglePlayback);
     $('skip-track').addEventListener('click',advanceSong);
     $('theme-cycle').addEventListener('click',themeCycle);
@@ -4304,7 +4323,7 @@ function renderFullCatalog(){
     $('stage-preflight-start').addEventListener('click',()=>void startPreparedSong());
     $('stage-preflight-override').addEventListener('click',()=>void startPreparedSong(true));
     $('stage-preflight-cancel').addEventListener('click',()=>clearHostPreflight());
-    $('stage-preflight-resend').addEventListener('click',()=>{updateVoxLine('reminder');void sendPreflightInvites(true);});
+    $('stage-preflight-resend').addEventListener('click',()=>{updateVoxLine('reminder');if(state.preflight)void window.TG74_DIVA_STUDIO?.announce('espera','espera:'+state.room.id+':'+state.preflight.token,state.preflight.song.id);void sendPreflightInvites(true);});
     $('guest-preflight-mic').addEventListener('click',()=>{switchMobileTab('mic');openMicPermission();});
     $('guest-preflight-ready').addEventListener('click',openMicPermission);
     $('mobile-tab-score').addEventListener('click',openScoreboard);
@@ -4548,7 +4567,8 @@ function renderFullCatalog(){
   window.TG_BETA_BRIDGE=()=>({client:state.client,user:state.user,room:state.room,role:state.role,
     members:state.members,avatar:state.avatar,isAnonymous,isMyTurn,sessionEpoch:tg07SessionEpoch,tg60SyncIdentity,setDivaCaption:tg87SetDivaCaption,
     campaignSafe:!state.emergencyBlocked&&!state.room?.current_song_id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.guestMicLock,
-    canAnnounceOpening:()=>!state.emergencyBlocked&&tg13Recreational()&&state.room?.room_mode==='classic'&&state.role==='host'&&!state.currentSong&&!state.preflight&&!state.songs.some(s=>s.status==='done'||s.status==='playing'||s.status==='skipped'),
+    canAnnounceOpening:()=>!state.emergencyBlocked&&tg13Recreational()&&['classic','solo'].includes(state.room?.room_mode)&&state.role==='host'&&!state.currentSong&&!state.preflight&&!state.songs.some(s=>s.status==='done'||s.status==='playing'||s.status==='skipped'),
+    canContextualDiva:()=>!state.startingSong&&!state.emergencyBlocked&&!state.emergencyClosing&&tg13Recreational()&&state.role==='host'&&state.room?.status==='open'&&state.room.owner_id===state.user?.id&&!state.currentSong&&!state.room.current_song_id&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size,
     canManualAudio:()=>!state.startingSong&&!state.finishing&&!recadoShowing&&!!$('final-overlay')?.hidden,
     canPreviewVoices:()=>!state.startingSong&&!state.emergencyBlocked&&tg13Recreational()&&state.role==='host'&&state.room?.status==='open'&&state.room.owner_id===state.user?.id&&!state.currentSong&&!state.preflight&&!state.isPlaying&&!state.soloMic&&!state.localStream&&!state.peers.size,
     setAvatar(key){if(!tg83SetAvatar(key))return;void sendProfileToHost().catch(()=>{});}});

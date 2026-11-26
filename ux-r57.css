@@ -506,3 +506,12 @@ body.high-contrast #settings-dialog .setting-switch input{appearance:auto!import
 #stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-stage:not([hidden]){grid-column:auto!important;order:0!important;background:transparent!important;border:1px solid var(--tg-error,#f49cba)!important;color:var(--tg-error,#f49cba)!important;font-weight:750!important;white-space:normal!important}
 #stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-stage:disabled{opacity:.55!important;cursor:not-allowed}
 body.high-contrast #stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-stage:not([hidden]){color:#fff!important;border-color:#fff!important;background:#000!important}
+
+/* R89 — one temporary sound dialog, no public test control. */
+#tg89-sound-dialog{width:min(calc(100% - 24px),420px)!important;max-width:100%;padding:0!important;border-radius:18px!important;background:var(--tg-surface,var(--surface));color:var(--tg-text,var(--text))}
+#tg89-sound-dialog .modal-inner{display:grid;gap:12px;padding:20px;text-align:center;max-height:90dvh;overflow:auto}
+#tg89-sound-dialog .tg89-sound-diva{width:100px;height:120px;object-fit:contain;justify-self:center}
+#tg89-sound-dialog h2,#tg89-sound-dialog p{margin:0;line-height:1.35}
+#tg89-sound-dialog button{min-height:48px;margin:0;font-size:15px;white-space:normal}
+#tg89-sound-dialog small{font-size:12px;line-height:1.4;color:var(--tg-muted,var(--text))}
+#stage #tg05-test-voice{display:none!important}
