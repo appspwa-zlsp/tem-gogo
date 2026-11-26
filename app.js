@@ -142,7 +142,7 @@
     list.innerHTML=pending.length?pending.map((song,index)=>`<article class="tg19-remote-queue-item">
       <div class="tg19-remote-queue-name"><small>#${index+1} · ${escapeHTML(songSingerLabel(song))}</small><strong>${escapeHTML(song.title)}</strong></div>
       <div class="tg19-remote-queue-actions"><button class="button button-primary" type="button" data-tg19-prepare="${song.id}">🎬 Preparar</button><button class="button button-soft" type="button" data-tg19-remove="${song.id}" aria-label="Remover música da fila">✕</button></div>
-    </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Abra Informações e toque em Escolher música para cantar.</p>';
+    </article>`).join(''):'<p class="tg19-remote-queue-empty">A fila está vazia. Toque em Músicas para adicionar uma apresentação.</p>';
   }
   async function remoteRemoveSong(songId){
     if(state.role!=='remote'||state.user?.id!==state.room?.owner_id)return;
