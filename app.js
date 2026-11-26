@@ -3034,7 +3034,7 @@
           if(!spoken&&decision.count)await studio.pop('suspense','suspense:'+eventKey);
           if(!stillCurrent())return;
           // Elogio publicado só antes de revelar, com todas as notas altas e verificadas.
-          if(decision.count===singers.length){const values=verifiedRows.map(row=>row.score);const reaction=decision.praise?'elogio':values.every(v=>v<40)?'nota_baixa':values.every(v=>v>=40&&v<80)?'nota_media':null;if(reaction){await studio.announce(reaction,reaction+':'+eventKey,completedSong);await studio.waitForCaption?.();}}
+          if(decision.count===singers.length){const values=verifiedRows.map(row=>row.score);const reaction=decision.praise?'elogio':state.humorMode==='familia'?null:values.every(v=>v<40)?'nota_baixa':values.every(v=>v>=40&&v<80)?'nota_media':null;if(reaction){await studio.announce(reaction,reaction+':'+eventKey,completedSong);await studio.waitForCaption?.();}}
         }
         // Mesmo quando o áudio está desligado, dê tempo à apresentação textual antes da nota.
         await new Promise(resolve=>setTimeout(resolve,1200));
@@ -3049,7 +3049,7 @@
         // R67: reação contextual somente com resultado completo confirmado; nunca por falta de sinal.
         if(decision?.count===singers.length&&studio&&stillCurrent()){
           const values=verifiedRows.map(row=>row.score),mean=values.reduce((a,b)=>a+b,0)/values.length;
-          const effect=values.every(v=>v>=95)?'celebration':decision.praise?'palmas':mean<40?'low':mean<60?'mid':null;
+          const effect=values.every(v=>v>=95)?'celebration':decision.praise?'palmas':state.humorMode==='familia'?null:mean<40?'low':mean<60?'mid':null;
           if(effect)void studio.pop(effect,'reveal:'+eventKey);
         }
         // Nota permanece visível; painel de próximas ações aparece depois, sem avançar sozinho.
@@ -4385,7 +4385,7 @@ function renderFullCatalog(){
     $('stage-preflight-start').addEventListener('click',()=>void startPreparedSong());
     $('stage-preflight-override').addEventListener('click',()=>void startPreparedSong(true));
     $('stage-preflight-cancel').addEventListener('click',()=>clearHostPreflight());
-    $('stage-preflight-resend').addEventListener('click',()=>{updateVoxLine('reminder');if(state.preflight)void window.TG74_DIVA_STUDIO?.announce('espera','espera:'+state.room.id+':'+state.preflight.token,state.preflight.song.id);void sendPreflightInvites(true);});
+    $('stage-preflight-resend').addEventListener('click',()=>{updateVoxLine('reminder');if(state.preflight&&state.humorMode!=='familia')void window.TG74_DIVA_STUDIO?.announce('espera','espera:'+state.room.id+':'+state.preflight.token,state.preflight.song.id);void sendPreflightInvites(true);});
     $('guest-preflight-mic').addEventListener('click',()=>{switchMobileTab('mic');openMicPermission();});
     $('guest-preflight-ready').addEventListener('click',openMicPermission);
     $('mobile-tab-score').addEventListener('click',openScoreboard);
