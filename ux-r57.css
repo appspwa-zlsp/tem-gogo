@@ -501,3 +501,8 @@ body.tg93-large-text #settings-dialog .setting-switch small{font-size:14px!impor
 @media(max-width:360px){#settings-dialog .theme-picker button{font-size:11px!important;padding:6px!important;gap:6px!important}#settings-dialog .theme-picker .theme-swatch{width:23px!important;height:23px!important;flex-basis:23px!important}}
 @media(forced-colors:active){#settings-dialog .setting-switch input{appearance:auto!important}#settings-dialog .setting-switch input:before{display:none!important}}
 body.high-contrast #settings-dialog .setting-switch input{appearance:auto!important}body.high-contrast #settings-dialog .setting-switch input:before{display:none!important}
+
+/* R88 — direct, confirmed room ending in the former sound-control slot. */
+#stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-stage:not([hidden]){grid-column:auto!important;order:0!important;background:transparent!important;border:1px solid var(--tg-error,#f49cba)!important;color:var(--tg-error,#f49cba)!important;font-weight:750!important;white-space:normal!important}
+#stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-stage:disabled{opacity:.55!important;cursor:not-allowed}
+body.high-contrast #stage[data-tg50-ready] #tg123-host-bar>#stage-exit.tg88-end-stage:not([hidden]){color:#fff!important;border-color:#fff!important;background:#000!important}

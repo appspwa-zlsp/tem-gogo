@@ -2257,14 +2257,23 @@
     if(!state.context)state.context=new (window.AudioContext||window.webkitAudioContext)();
     return state.context;
   }
-  async function unlockSound() {
-    if(state.emergencyBlocked)return;
-    window.TG74_DIVA_STUDIO?.unlock();
+  // R88: no separate sound switch. Unlock output on a real local interaction,
+  // without touching volume preferences, microphone permissions or playback.
+  function unlockSound() {
+    if(state.emergencyBlocked||state.emergencyClosing||state.role!=='host'||!state.room||state.room.owner_id!==state.user?.id||$('stage')?.hidden)return;
     try {
-      const ctx=await ensureOutputContext();await ctx.resume();
-      $('start-audio').textContent='🔊 Som ativo';
-      if(ctx.state==='running')toast('Saída de áudio liberada! 🎧');
-    }catch(err){toast('O navegador bloqueou a saída de som: '+humanError(err),true);}
+      const AudioCtx=window.AudioContext||window.webkitAudioContext;
+      if(AudioCtx&&(!state.context||state.context.state==='closed'))state.context=new AudioCtx();
+      if(state.context&&state.context.state!=='running')void Promise.resolve(state.context.resume()).catch(()=>{});
+    }catch{}
+    window.TG74_DIVA_STUDIO?.unlock();
+  }
+  function tg88StageAudioGesture(event){
+    if(!event.isTrusted||document.body.dataset.currentView!=='stage'||document.hidden)return;
+    if(event.type==='keydown'&&!['Enter',' '].includes(event.key))return;
+    const target=event.target;
+    if(target?.closest?.('#stage-exit,#stage-switch,#logout-button')||document.querySelector('dialog[open]:not(#tg50-drawer):not(#catalog-dialog):not(#settings-dialog)'))return;
+    unlockSound();
   }
   async function connectIncomingAudio(uid,stream) {
     if(state.emergencyBlocked)return;
@@ -2280,7 +2289,7 @@
       source.connect(analyser);analyser.connect(gain);gain.connect(ctx.destination);
       Object.assign(entry,{source,analyser,gain,stream,connection:'connected'});
       renderMics();showHostCommand();
-      if(ctx.state!=='running')toast('🎧 Microfone conectado! Clique em “Ativar som” para ouvi-lo.');
+      if(ctx.state!=='running')toast('🎧 Microfone conectado. Se necessário, toque em um controle do palco para liberar o áudio.');
     }catch(err){console.error(err);toast('Não foi possível preparar o áudio remoto.',true);}
   }
   async function handleSignal(signal) {
@@ -4170,7 +4179,7 @@ function renderFullCatalog(){
     $('tg04-remote-status').addEventListener('click',()=>void remoteCommand('stage-status'));
     $('tg04-remote-invite').addEventListener('click',()=>{if(state.role==='remote'&&state.room)void window.TG_UI.shareLink('Venha cantar no Tem Gogó!',currentURL(state.room.code));});
     for(const [input,button] of [['tg04-remote-message','tg04-remote-send'],['tg04-stage-message','tg04-stage-send']])$(button).addEventListener('click',()=>void sendHostRecado(input,button));
-    $('start-audio').addEventListener('click',unlockSound);
+    for(const type of ['click','pointerup','keydown'])document.addEventListener(type,tg88StageAudioGesture,true);
     $('play-pause').addEventListener('click',togglePlayback);
     $('skip-track').addEventListener('click',advanceSong);
     $('theme-cycle').addEventListener('click',themeCycle);
