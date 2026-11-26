@@ -27,8 +27,9 @@ function create({rpc,download,decode,dispose,paint,safe=()=>true,clock=()=>Date.
  finally{if(flight===task)flight=null;}});flight=task;return task;
  }
  function reset(){++serial;flight=null;last=null;drop(pending);pending=null;try{paint(null);}finally{drop(active);active=null;}}
+ function fallback(){if(closed)return false;++serial;flight=null;last=null;stage({asset:null});return true;}
  function stop(){closed=true;reset();}
- return Object.freeze({refresh,flush,reset,stop,snapshot:()=>Object.freeze({theme:active?.asset.theme||'default',pending:pending?.asset?.theme||null})});
+ return Object.freeze({refresh,flush,reset,stop,fallback,snapshot:()=>Object.freeze({theme:active?.asset.theme||'default',pending:pending?.asset?.theme||null})});
 }
 function start(client,backend,safe){
  if(!client||!root.crypto?.subtle||typeof root.fetch!=='function'||typeof root.URL?.createObjectURL!=='function')return null;
@@ -50,9 +51,9 @@ function start(client,backend,safe){
  });
  let queued=false;const observer=new MutationObserver(()=>{if(queued||!selected)return;queued=true;Promise.resolve().then(()=>{queued=false;update();});});observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['src']});
  const tick=()=>{controller.flush();if(!document.hidden&&navigator.onLine!==false)void controller.refresh();};
- const onShow=()=>{if(!document.hidden)tick();};document.addEventListener('visibilitychange',onShow);root.addEventListener('temgogo:view',tick);root.addEventListener('online',tick);
+ const onShow=()=>{if(!document.hidden)tick();};const onOffline=()=>{controller.fallback();};document.addEventListener('visibilitychange',onShow);root.addEventListener('temgogo:view',tick);root.addEventListener('online',tick);root.addEventListener('offline',onOffline);
  const timer=setInterval(tick,5000);void controller.refresh(true);
- return Object.freeze({flush:controller.flush,refresh:controller.refresh,stop:()=>{if(stopped)return;controller.stop();stopped=true;observer.disconnect();clearInterval(timer);document.removeEventListener('visibilitychange',onShow);root.removeEventListener('temgogo:view',tick);root.removeEventListener('online',tick);},snapshot:controller.snapshot});
+ return Object.freeze({flush:controller.flush,refresh:controller.refresh,stop:()=>{if(stopped)return;controller.stop();stopped=true;observer.disconnect();clearInterval(timer);document.removeEventListener('visibilitychange',onShow);root.removeEventListener('temgogo:view',tick);root.removeEventListener('online',tick);root.removeEventListener('offline',onOffline);},snapshot:controller.snapshot});
 }
 const api=Object.freeze({candidate,checkURL,isOriginal,create,start});
 if(typeof module==='object'&&module.exports)module.exports=api;else Object.defineProperty(root,'TG109_CAMARIM',{value:api,writable:false,configurable:false});

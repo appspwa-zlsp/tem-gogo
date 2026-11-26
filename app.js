@@ -3485,7 +3485,7 @@ async function tg26LoadFavorites(force=false){
     if(tg26FavoriteState()!==f)return false;
     const data=await callRPC('tg26_favorites_list',{});if(tg26FavoriteState()!==f)return false;
     if(!Array.isArray(data)||data.some(x=>!x||typeof x.video_id!=='string'||!/^[A-Za-z0-9_-]{11}$/.test(x.video_id)||typeof x.title!=='string'))throw Error('Lista inválida');f.items=new Map(data.map(x=>[x.video_id,x.title]));f.status='ready';return true;
-  }catch{if(tg26FavoriteState()===f)f.status='error';return false;}finally{if(tg26FavoriteState()===f){f.pending=null;tg26FavoritePaint();if($('catalog-dialog')?.open&&state.catalogFilter==='favorites')renderFullCatalog();}}});f.pending=job;return job;
+  }catch{if(tg26FavoriteState()===f)f.status='error';return false;}finally{if(tg26FavoriteState()===f){f.pending=null;tg26FavoritePaint();if($('catalog-dialog')?.open){if(state.catalogFilter==='favorites')renderFullCatalog();else tg05RenderGenreNav();}}}});f.pending=job;return job;
 }
 async function tg26ToggleFavorite(item,origin){
   const f=tg26FavoriteState(),id=youtubeId(item.video_id);if(!f.uid||origin!==f||!id||f.status!=='ready'||f.writes.has(id)||f.pending)return;
