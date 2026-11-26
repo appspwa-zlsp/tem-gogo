@@ -532,3 +532,6 @@ body.high-contrast .tg90-next-card:not([hidden]){background:#000!important;color
 
 /* R94: explicit hidden state wins over legacy flex/button rules. */
 #tg93-final-bis[hidden],#tg93-after-bis[hidden],#tg94-guest-bis[hidden],#tg123-after-prepare[hidden]{display:none!important}
+
+/* R95 — compact, informational stage direction in the authenticated festival panel. */
+.tg95-battle-show[hidden]{display:none!important}.tg95-battle-show{display:flex;gap:10px;align-items:center;padding:10px 12px;margin:6px 0;border:1px solid var(--line,rgba(156,116,211,.35));border-radius:14px;min-width:0;background:var(--panel,transparent)}.tg95-battle-show img{width:48px;height:48px;object-fit:contain;flex:none}.tg95-battle-show div{display:grid;gap:3px;min-width:0}.tg95-battle-show strong{font-size:14px;overflow-wrap:anywhere}.tg95-battle-show small{color:var(--muted,inherit);font-size:12px;overflow-wrap:anywhere}

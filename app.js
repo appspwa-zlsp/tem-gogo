@@ -3174,7 +3174,7 @@
       tg90ClearHost();tg90Upcoming={key,next,playing,scope:tg07Scope()};
       if(next)tg90HostNotice(next,playing,true);
     }
-    if(competitive)tg90Card('tg90-stage-next','Próxima etapa em breve','Competidores: aguardem a confirmação do próximo confronto.');
+    if(competitive)tg90Card('tg90-stage-next','Apresentação na reta final','Aguarde a próxima etapa oficial no painel da Batalha.');
     else tg90Card('tg90-stage-next',state.room?.room_mode==='solo'?'Seu próximo hit':'A seguir · '+songSingerLabel(next),next.title+' · prepare-se');
   }
   function tg90PaintPhone(){
@@ -4554,7 +4554,7 @@ function renderFullCatalog(){
   }
   function tg23Suspend(message,reason='security'){
     if(!state.room||state.emergencyClosing)return;
-    state.emergencyBlocked=true;tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
+    state.emergencyBlocked=true;tg89CloseSound();tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
     if(!state.emergencyLatch){
       state.emergencyLatch=true;++tg07SessionEpoch;tgR25ClearSoloReport();tgR19CancelSoloRequest();tgR20CancelMicRequest();
       // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
