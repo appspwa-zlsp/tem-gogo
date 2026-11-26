@@ -17,7 +17,7 @@
     candidateBuffer: new Map(), processedSignals: new Set(),
     signalChain: Promise.resolve(), ticker: null, signalCleaner: null,
     pendingInstall: null, inviteRoom: null, wakeLock: null, currentTheme: 'glam',
-    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, humorMode: 'debochado', gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"urbano", lastProfileSent: 0, divaVoiceEnabled: false, divaSpeakingTimer: null, divaLastSpokenAt: 0, lastGuestResultKey: null, micPermissions: new Map(), remoteLastSent:0, soloMic:null, pushAsked:false, guestMicLock:false, remoteTab:"control", remoteAutoSinger:false, remotePending:new Map(), remoteLatestCommandId:null, recoveryVerified:false, recoveryIntent:false, deviceChannelReady:false, lastDevicePoll:0, deviceId:(typeof crypto.randomUUID==="function"?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2))
+    roomReloadTimer: null, roomPoller: null, signalPoller: null, syncRunning: false, syncQueued: false, realtimeOk: false, lastMySong: null, micConnecting: false, captureSeen: false, memberVerifier: null, scoreOverlayTimer: null, gifsEnabled: true, effectsEnabled: true, reactionToken: 0, voxIndex: 0, readyRoom: null, externalSearchBlocked: false, failedVideoSong: null, catalog: [], catalogFetchedAt: 0, catalogLoading: null, catalogError: null, catalogFilter: "all", catalogQuery: "", catalogPage: 1, voxTimer: null, playMetrics: null, micActivity: null, micActivitySyncing: false, cloudMicStats: new Map(), scoreReady: new Map(), lastActivityRefresh: 0, lastMicSnapshot: 0, preflight: null, preflightTimer: null, guestPreflightSong: null, guestReady: false, avatars: new Map(), avatar: localStorage.getItem("tem-gogo-avatar")||"urbano", lastProfileSent: 0, divaVoiceEnabled: false, divaSpeakingTimer: null, divaLastSpokenAt: 0, lastGuestResultKey: null, micPermissions: new Map(), remoteLastSent:0, soloMic:null, pushAsked:false, guestMicLock:false, remoteTab:"control", remoteAutoSinger:false, remotePending:new Map(), remoteLatestCommandId:null, recoveryVerified:false, recoveryIntent:false, deviceChannelReady:false, lastDevicePoll:0, deviceId:(typeof crypto.randomUUID==="function"?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2))
   };
 
 
@@ -994,14 +994,7 @@
   // V17: Browser TTS was removed because timbre and quality are unpredictable.
   // The presenter speaks through animated on-screen text, never through robotic audio.
   function speakDiva(){ /* intentionally silent */ }
-  const tg124HumorLines={
-    familia:{opening:['Chegou a hora de cantar, minha gente! Todo mundo é estrela aqui!'],preflight:['Vamos preparar o microfone com calma. O palco espera por vocês!'],reminder:['Consegue conferir o microfone, estrela? Estamos esperando você!'],ready:['Todo mundo pronto! Anfitrião, pode começar o show!'],ending:['Muito bem, estrelas! Hora de conferir nosso placar divertido!'],queue:['Tem mais um hit na fila!'],singing:['Aproveite o show!']},
-    debochado:{opening:['A produção já chegou com a peruca e o julgamento recreativo, Brasil!'],preflight:['Alô, camarim! O close não espera, liga esse microfone!'],reminder:['Segunda chamada, minha filha! Esse camarim tá cobrando aluguel!'],ready:['Prontíssimos! A produção liberou o close — começa esse hino!'],ending:['Segura esse glitter, vou conferir esse babado de nota!'],queue:['Outra música! O palco já pediu aposentadoria e nem começou!'],singing:['Solta a voz, que o refrão é seu!']},
-    caos:{opening:['PAREM TUDO! O MAIOR ACONTECIMENTO MUSICAL DA SALA COMEÇOU!'],preflight:['PRODUÇÃO! O ELENCO PRECISA ESTAR PRONTO AGORA!'],reminder:['ALERTA DE CAMARIM! SEGUNDA CHAMADA! CADÊ O MICROFONE?'],ready:['ELENCO CONFIRMADO! ABRAM AS CORTINAS!'],ending:['O SHOW ACABOU! O VEREDITO VEM AÍ!'],queue:['MAIS UM HIT! SEGUREM ESSAS LUZES!'],singing:['É A SUA ERA MUSICAL!']},
-    lgbt:{opening:['O palco tá liberado, o carão tá pronto e o babado vai acontecer!'],preflight:['Arruma a peruca imaginária e confirma o microfone, mona!'],reminder:['O close tá atrasando, estrela! Confere o microfone!'],ready:['Tudo pronto, meu cristal! Agora entrega esse hino!'],ending:['Foi close atrás de close! Agora vem o placar, meu bem!'],queue:['Tem outro hit na fila, e a playlist não aceita flop!'],singing:['Entrega seu refrão com orgulho!']},
-    reality:{opening:['A produção anuncia: está aberta a temporada do Gogó!'],preflight:['Participantes, dirijam-se ao palco. O programa vai começar!'],reminder:['A produção convoca novamente o participante para confirmar prontidão!'],ready:['Participantes confirmados! Anfitrião, a decisão é sua: libere a apresentação!'],ending:['A votação recreativa terminou. O placar será revelado!'],queue:['Nova prova musical no palco. Participantes, preparem-se!'],singing:['Valendo a apresentação!']},
-    bafao:{opening:['Cheguei no camarim e já fiquei sabendo que hoje vai ter babado!'],preflight:['Ajeita esse carão, estrela: o camarim inteiro tá de olho!'],reminder:['Ih, lá vem nova chamada! Será que essa estrela tá passando gloss?'],ready:['Todo mundo prontinho! Vamos dar esse close na plateia!'],ending:['Acho que a produção precisa me contar uma coisa... vamos ver a nota!'],queue:['Novo babado musical na fila, minha gente!'],singing:['Faz esse palco virar notícia boa!']}
-  };
+  // R92: one presenter personality, selected by context.
   // R87 — one visible Diva speech surface per stage scene; audio takes priority.
   let tg87DivaFallback='O palco é seu! Escolha um hit para começar.',tg87DivaAudio='';
   function tg87RenderDiva(){
@@ -1011,7 +1004,8 @@
     const pre=$('diva-preflight-speech');if(pre)pre.textContent='“'+words+'”';
     const recap=$('tg87-recado-caption');if(recap){recap.textContent=tg87DivaAudio;recap.hidden=!tg87DivaAudio;}
     const result=$('tg05-result-narration');
-    if(result&&$('final-overlay')?.dataset.phase==='announcing')result.textContent=tg87DivaAudio||'Segura o glitter! A nota já vem.';
+    const overlay=$('final-overlay');if(result&&overlay?.dataset.phase==='announcing')result.textContent=tg87DivaAudio||'Segura o glitter! A nota já vem.';
+    const spoken=$('tg92-result-caption'),base=$('final-caption');if(spoken){const visible=!!tg87DivaAudio&&!overlay?.hidden&&overlay?.dataset.phase==='revealed';spoken.textContent=visible?tg87DivaAudio:'';spoken.hidden=!visible;if(base)base.hidden=visible;}
   }
   function tg87SetDivaCaption(words){tg87DivaAudio=typeof words==='string'?words.trim():'';tg87RenderDiva();}
   function showDivaBubble(line,emoji='🎤'){
@@ -1019,7 +1013,7 @@
     tg87DivaFallback=String(line);tg87RenderDiva();
   }
   function updateVoxLine(moment='opening'){
-    const pool=tg124HumorLines[state.humorMode]?.[moment]||voxMoments[moment]||voxMoments.opening;
+    const pool=voxMoments[moment]||voxMoments.opening;
     const text=chooseDifferent(pool);
     if($('vox-line'))$('vox-line').textContent=`“${text}”`;
     if(state.role==='host')showDivaBubble(text);
@@ -1063,12 +1057,10 @@
     state.guestMicGain=Math.min(1.5,Math.max(0,Number(localStorage.getItem('tem-gogo-mic-send-volume')??100)/100));
     $('playback-volume-range').value=String(state.playbackVolume);$('playback-volume-label').textContent=state.playbackVolume+'%';
     $('guest-mic-gain').value=String(Math.round(state.guestMicGain*100));$('guest-mic-gain-value').textContent=Math.round(state.guestMicGain*100)+'%';
-    state.humorMode=['familia','debochado','caos','lgbt','reality','bafao'].includes(localStorage.getItem('tem-gogo-humor'))?localStorage.getItem('tem-gogo-humor'):'debochado';
     state.gifsEnabled=localStorage.getItem('tem-gogo-gifs')!=='false';
     state.effectsEnabled=localStorage.getItem('tem-gogo-effects')!=='false';
     document.body.classList.toggle('high-contrast',localStorage.getItem('tem-gogo-contrast')==='true');
     document.body.classList.toggle('effects-off',!state.effectsEnabled);
-    $('humor-mode').value=state.humorMode;
     $('gifs-enabled').checked=state.gifsEnabled;
     $('effects-enabled').checked=state.effectsEnabled;
     $('settings-contrast').checked=document.body.classList.contains('high-contrast');
@@ -1847,7 +1839,7 @@
       const el=$(id); if(!el)continue;el.textContent=label;el.dataset.status=mode;
     }
   }
-  async function hydrateRoom() {const scope=tg07Scope();await tg83RestoreAvatar();if(!tg07Current(scope))return;await fetchRoom();if(!tg07Current(scope))return;await tg23Start();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;renderAll();void fetchRoomHumor();if(state.role==='host')void syncPartyMessages();}
+  async function hydrateRoom() {const scope=tg07Scope();await tg83RestoreAvatar();if(!tg07Current(scope))return;await fetchRoom();if(!tg07Current(scope))return;await tg23Start();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;renderAll();void fetchStageTheme();if(state.role==='host')void syncPartyMessages();}
   let tgR15SyncTicket=null;
   async function refreshRoomSnapshot(){
     if(state.emergencyBlocked||state.emergencyClosing||!state.room)return;
@@ -1859,7 +1851,7 @@
       await fetchSongs();if(!tg07Current(scope)||state.emergencyBlocked)return;
       await fetchMembers();if(!tg07Current(scope)||state.emergencyBlocked)return;
       await fetchScores();if(!tg07Current(scope)||state.emergencyBlocked)return;
-      renderAll();if(state.role==='host')void syncPartyMessages();if(state.role==='host'||state.role==='remote')void fetchRoomHumor();setSyncStatus(navigator.onLine?(state.realtimeOk?'live':'fallback'):'offline');
+      renderAll();if(state.role==='host')void syncPartyMessages();if(state.role==='host'||state.role==='remote')void fetchStageTheme();setSyncStatus(navigator.onLine?(state.realtimeOk?'live':'fallback'):'offline');
     }catch(err){if(tgR15SyncTicket===ticket&&tg07Current(scope)){console.warn('Falha ao sincronizar sala:',err);setSyncStatus('offline');}}
     finally{if(tgR15SyncTicket===ticket){tgR15SyncTicket=null;state.syncRunning=false;const queued=state.syncQueued;state.syncQueued=false;if(queued&&tg07Current(scope)&&!state.emergencyBlocked)queueChanged();}}
   }
@@ -2881,44 +2873,22 @@
       $('final-caption').textContent=results.length===singers.length?'Média das notas individuais. '+tg05ResultPhrase(mean):'Nota parcial das vozes com sinal. Nem todos tiveram dados suficientes para avaliação.';
     }else detail.hidden=true;
   }
-  /* Um veredito bem brasileiro. Os textos são originais, sem copiar falas de artistas. */
+  /* R92: one contextual, welcoming editorial personality. */
   const memes=[
-    {max:19,icon:'🫠',query:'dramatic shocked reaction',
-      familia:['A gente veio pela coragem e ficou pelo espetáculo!','Aplausos pra quem se jogou de coração!'],
-      debochado:['O microfone pediu demissão, mona!','O compositor ouviu e solicitou direito de resposta!','O importante é que você não deixou o medo cantar!'],
-      caos:['MEU DEUS! CHAMEM O RESGATE DO REFRÃO!','O microfone quer uma medida protetiva contra esse agudo!']},
-    {max:39,icon:'🐸',query:'funny confused shocked meme',
-      familia:['O talento pegou trânsito, mas sua coragem chegou!','O refrão escapou, mas coragem não faltou!'],
-      debochado:['Foi conceito. Ninguém entendeu, mas foi!','Essa versão veio direto de um universo paralelo!','A música original tá perguntando o que aconteceu!'],
-      caos:['O JÚRI DESMAIOU E FOI PARAR NA FILA DO SUS!','GENTE, O TOM DA MÚSICA FUGIU DO PAÍS!']},
-    {max:59,icon:'🤡',query:'funny applause reaction',
-      familia:['Você fez o seu show e a gente amou a energia!','Foi divertido e cheio de personalidade!'],
-      debochado:['A afinação? Mistério. O entretenimento? ENTREGUE!','A carreira tá pronta. A música ainda tá em reunião!','O importante é que teve coragem e muito carão!'],
-      caos:['ISSO NÃO FOI UMA NOTA, FOI UMA REVELAÇÃO!','PAREM AS MÁQUINAS! ALGUÉM TÁ DIVANDO FORA DO TOM!']},
-    {max:79,icon:'💃',query:'dance party celebration reaction',
-      familia:['Mandou bem demais! Queremos bis!','Que alegria! A plateia já é seu fã-clube!'],
-      debochado:['Avisa que nasceu uma subcelebridade!','Já pode cantar na festa da firma com cachê!','Foi hit, foi close, foi praticamente uma turnê!'],
-      caos:['O BRASIL ACORDOU COM UMA NOVA ESTRELA!','DIVOU TANTO QUE O PALCO PEDIU ARREGO!']},
-    {max:94,icon:'🔥',query:'diva standing ovation celebration',
-      familia:['Que apresentação maravilhosa!','Tá com cara de artista de verdade!'],
-      debochado:['Já pode anunciar a turnê pelo Brasil!','Vou abrir uma produtora só pra te agenciar!','Uma diva dessas e o povo pagando streaming?'],
-      caos:['CHAMEM A IMPRENSA! A LENDA NASCEU!','TIREM AS CRIANÇAS DA SALA: TEM ESTRELA DEMAIS!']},
-    {max:100,icon:'👑',query:'queen crown celebration confetti',
-      familia:['Uma lenda da nossa festa! Parabéns!','Você é a grande estrela da noite!'],
-      debochado:['ALÔ, GLOBO? TEMOS UMA NOVA ESTRELA!','Beyoncé, pode liberar a agenda: chegou concorrência!','O BRASIL INTEIRO PAROU PRA TE OUVIR!'],
-      caos:['PAREM TUDO! A PRÓXIMA TEMPORADA TEM PROTAGONISTA!','EU NÃO TÔ BEM! DEU 100! CHAMEM UM CAMINHÃO DE CONFETE!']}
+    {max:19,icon:'🫠',query:'funny surprised reaction',lines:['A nota ficou no camarim, mas a coragem chegou ao palco!','O importante é que você se jogou. Bora de bis?']},
+    {max:39,icon:'🐸',query:'funny confused reaction',lines:['Foi conceito, meu amor! Que tal outro hit?','A nota fez suspense e esqueceu de chegar. Ainda tem muito show!']},
+    {max:59,icon:'✨',query:'funny applause reaction',lines:['O brilho tá chegando! Bora mais uma?','A energia veio, agora quero ver o próximo close!']},
+    {max:79,icon:'💃',query:'dance party celebration reaction',lines:['Foi hit, foi close, foi praticamente uma turnê!','Mandou bem! A plateia quer bis!']},
+    {max:94,icon:'🔥',query:'diva standing ovation celebration',lines:['Já pode anunciar a turnê pelo Brasil!','Pisa menos, estrela! O palco é seu!']},
+    {max:100,icon:'👑',query:'queen crown celebration confetti',lines:['ALÔ, BRASIL! TEMOS UMA NOVA ESTRELA!','Produção, manda um caminhão de confete!']}
   ];
   function selectedMeme(score){return memes.find(m=>score<=m.max)||memes[memes.length-1];}
-  // Comentários por faixa: família nunca recebe shade, mesmo em notas baixas.
   function tg05ResultPhrase(score){
-    const tier=score<20?0:score<40?1:score<60?2:score<80?3:score<95?4:5;
-    const mode=state.humorMode;
-    const extra={lgbt:[['O glitter chegou antes da nota, amor!','O close veio, falta o bis!'],['A passarela veio antes do hit!','Foi conceito, agora bora de bis!'],['Babado em construção!','O close já tá encaminhado!'],['Serviu brilho!','Que energia, amor!'],['Pisa menos, estrela!','A pista é sua!'],['Coroa e glitter, meu amor!','O palco virou passarela!']],reality:[['O júri quer uma nova chance de show.','Corta pro confessionário!'],['A produção pede um bis!','A edição salvou o carão!'],['Tem potencial no próximo episódio.','O júri quer ver mais!'],['A bancada aprovou a energia!','O episódio ganhou seu destaque!'],['A plateia pediu final de temporada!','O júri aplaudiu!'],['Protagonista da temporada!','A edição coroou seu show!']],bafao:[['A produção pede outro capítulo!','O grupo já quer um bis!'],['O babado ficou pela metade!','O próximo hit promete!'],['Tá começando o close!','Ainda tem muito show pela frente!'],['O grupo da festa tá comentando!','Que close gostoso!'],['Chama a produção, virou notícia!','O babado foi grande!'],['O grupo entrou em colapso de alegria!','O palco virou manchete!']]};
-    const pool=extra[mode]?.[tier]||memes[tier][mode]||memes[tier].debochado;const choices=pool.filter(line=>line!==tg05ResultPhrase.last);const line=choices[Math.floor(Math.random()*choices.length)]||pool[0];tg05ResultPhrase.last=line;return line;
+    const pool=selectedMeme(score).lines;const choices=pool.filter(line=>line!==tg05ResultPhrase.last);const line=choices[Math.floor(Math.random()*choices.length)]||pool[0];tg05ResultPhrase.last=line;return line;
   }
   function tg05BeginResult(singers){
     const overlay=$('final-overlay');clearGif();overlay.dataset.phase='announcing';overlay.dataset.verdict='pending';overlay.querySelector('.tg05-result-wait').hidden=false;overlay.querySelector('.tg05-result-reveal').hidden=true;
-    tgBetaStageAvatars(singers,'result');$('final-number').textContent='—';$('final-stars').textContent='';$('final-caption').textContent='';$('final-person').textContent='';$('final-duet-details').hidden=true;
+    tgBetaStageAvatars(singers,'result');$('final-number').textContent='—';$('final-stars').textContent='';$('final-caption').textContent='';$('final-caption').hidden=false;$('tg92-result-caption').hidden=true;$('tg92-result-caption').textContent='';$('final-person').textContent='';$('final-duet-details').hidden=true;
     $('tg05-result-narration').textContent='Segura o glitter! A nota já vem.';
     overlay.hidden=false;setDivaStageState('result');
   }
@@ -2966,7 +2936,7 @@
     if(!tg13Recreational()){tg13ScorePrivacy();return;}
     const value=Math.max(0,Math.min(100,Math.round(Number(result?.score)||0)));
     const meme=selectedMeme(value);
-    const verdict=value<40?(state.humorMode==='familia'?'VAMOS TENTAR DE NOVO':'A DIVA NÃO PERDOOU'):value<60?'A DIVA QUER BIS (COM ENSAIO)':value<80?'A DIVA APROVOU':value<95?'A DIVA APLAUDIU DE PÉ':'A DIVA COROOU';
+    const verdict=value<40?'BORA DE BIS, ESTRELA!':value<60?'A DIVA QUER BIS (COM ENSAIO)':value<80?'A DIVA APROVOU':value<95?'A DIVA APLAUDIU DE PÉ':'A DIVA COROOU';
     $('tg192-result-tier').textContent=verdict;
     $('final-overlay').dataset.phase='revealed';$('final-overlay').querySelector('.tg05-result-wait').hidden=true;$('final-overlay').querySelector('.tg05-result-reveal').hidden=false;$('final-overlay').dataset.verdict=value<40?'shade':value<60?'tease':value<80?'good':value<95?'great':'legend';
     clearGif();
@@ -3033,8 +3003,6 @@
           await studio.waitForCaption?.();if(!stillCurrent())return;
           if(!spoken&&decision.count)await studio.pop('suspense','suspense:'+eventKey);
           if(!stillCurrent())return;
-          // Elogio publicado só antes de revelar, com todas as notas altas e verificadas.
-          if(decision.count===singers.length){const values=verifiedRows.map(row=>row.score);const reaction=decision.praise?'elogio':state.humorMode==='familia'?null:values.every(v=>v<40)?'nota_baixa':values.every(v=>v>=40&&v<80)?'nota_media':null;if(reaction){await studio.announce(reaction,reaction+':'+eventKey,completedSong);await studio.waitForCaption?.();}}
         }
         // Mesmo quando o áudio está desligado, dê tempo à apresentação textual antes da nota.
         await new Promise(resolve=>setTimeout(resolve,1200));
@@ -3046,11 +3014,13 @@
           $('tg192-result-tier').textContent='AGUARDANDO SINCRONIZAÇÃO';
           $('final-caption').textContent='O resultado ainda não foi confirmado nesta tela. Consulte o placar após a sincronização. Nenhuma nota foi inventada.';
         }
-        // R67: reação contextual somente com resultado completo confirmado; nunca por falta de sinal.
+        // R92: reveal the official score before the contextual reaction.
         if(decision?.count===singers.length&&studio&&stillCurrent()){
           const values=verifiedRows.map(row=>row.score),mean=values.reduce((a,b)=>a+b,0)/values.length;
-          const effect=values.every(v=>v>=95)?'celebration':decision.praise?'palmas':state.humorMode==='familia'?null:mean<40?'low':mean<60?'mid':null;
-          if(effect)void studio.pop(effect,'reveal:'+eventKey);
+          const reaction=decision.praise?'elogio':values.every(v=>v<40)?'nota_baixa':values.every(v=>v>=40&&v<80)?'nota_media':null;
+          const effect=values.every(v=>v>=95)?'celebration':decision.praise?'palmas':mean<40?'low':mean<60?'mid':null;
+          const revealToken=state.reactionToken,active=()=>stillCurrent()&&state.reactionToken===revealToken&&$('final-overlay')?.dataset.phase==='revealed';
+          void(async()=>{if(reaction&&active()){await studio.announce(reaction,reaction+':'+eventKey,completedSong);await studio.waitForCaption?.();}if(effect&&active())void studio.pop(effect,'reveal:'+eventKey);})().catch(err=>console.debug('Reação da Diva indisponível:',err));
         }
         // Nota permanece visível; painel de próximas ações aparece depois, sem avançar sozinho.
         const nextMenu=$('tg123-post-score');if(nextMenu)nextMenu.hidden=true;
@@ -3997,27 +3967,14 @@ function renderFullCatalog(){
   }
   // ----- BETA 16: scanner, senhas e permissões ----
   function canDirectDiva(){return !!state.room && !!state.user && state.room.owner_id===state.user.id && (state.role==='host'||state.role==='remote');}
-  async function persistRoomHumor(mode){
-    if(!canDirectDiva())return;
-    const {error}=await state.client.from('tg_room_settings').upsert({room_id:state.room.id,humor_mode:mode,updated_by:state.user.id},{onConflict:'room_id'});
-    if(error){toast('Humor não sincronizado: instale a migration 023 e confirme as permissões da festa.',true);return;}
-    toast('Humor da Diva sincronizado com o palco. 💅');
-    // O host lê a configuração em tempo real e também durante o refresh periódico.
-    if(state.role==='remote')await sendSignal(state.user.id,'host-room-humor',{mode}).catch(()=>{});
-  }
-  async function fetchRoomHumor(){
+  async function fetchStageTheme(){
     if(!state.room || !state.client)return;
     const roomId=state.room.id;
-    const {data,error}=await state.client.from('tg_room_settings').select('humor_mode,stage_theme').eq('room_id',roomId).maybeSingle();
+    const {data,error}=await state.client.from('tg_room_settings').select('stage_theme').eq('room_id',roomId).maybeSingle();
     if(error||!data||state.room?.id!==roomId)return;
     if(THEMES.includes(data.stage_theme)){
       if(state.role==='host'&&data.stage_theme!==state.currentTheme)applyTheme(data.stage_theme,false,'stage');
       const sel=$('tg30-remote-stage-theme');if(state.role==='remote'&&sel&&document.activeElement!==sel&&!state.remotePending.size)sel.value=data.stage_theme;
-    }
-    if(['familia','debochado','caos','lgbt','reality','bafao'].includes(data.humor_mode) && data.humor_mode!==state.humorMode){
-      state.humorMode=data.humor_mode;
-      const select=$('humor-mode');if(select)select.value=state.humorMode;
-      syncPrivateControls();updateVoxLine('opening');
     }
   }
   function syncPrivateControls(){
@@ -4025,7 +3982,7 @@ function renderFullCatalog(){
     const stage=state.role==='host'&&state.room;
     $('tg-r22-personal-heading').textContent=stage?'Tema do palco':'Tema deste aparelho';
     $('tg30-theme-scope').textContent=stage?'Tema compartilhado do palco. Os celulares dos convidados não mudam.':'Tema pessoal deste aparelho. Não altera a TV.';
-    document.querySelectorAll('[data-host-only]').forEach(el=>el.hidden=!canDirectDiva());document.querySelectorAll('[data-diva-mode]').forEach(btn=>btn.classList.toggle('chosen',btn.dataset.divaMode===state.humorMode));}
+    document.querySelectorAll('[data-host-only]').forEach(el=>el.hidden=!canDirectDiva());}
   function updateGroupChoice(host){
     const p=host?'host':'guest',chosen=document.querySelector('input[name="'+p+'-mode"]:checked')?.value||'solo';
     const group=$(p+'-duet-choice');group.querySelector('.duet-person').hidden=chosen!=='duet';
@@ -4183,10 +4140,6 @@ function renderFullCatalog(){
       document.querySelectorAll('input[name="'+prefix+'-mode"]').forEach(r=>r.addEventListener('change',()=>updateGroupChoice(host)));
       updateGroupChoice(host);
     }
-    document.querySelectorAll('[data-diva-mode]').forEach(b=>b.addEventListener('click',()=>{
-      if(!canDirectDiva()){toast('A direção do humor é exclusiva do anfitrião.',true);return;}
-      state.humorMode=b.dataset.divaMode;$('humor-mode').value=state.humorMode;syncPrivateControls();updateVoxLine('opening');void persistRoomHumor(state.humorMode);
-    }));
     $('tg17-send-message').addEventListener('click',()=>void sendGuestRecado());
     $('tg17-dictate').addEventListener('click',dictateGuestRecado);
     $('tg17-message-close').addEventListener('click',()=>tgR15FinishRecado(tgR15RecadoTicket));
@@ -4269,7 +4222,6 @@ function renderFullCatalog(){
     $('settings-done').addEventListener('click',()=>$('settings-dialog').close());
     document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>void chooseTheme(button.dataset.themeChoice)));
     $('tg05-theme-reset')?.addEventListener('click',()=>void chooseTheme('glam'));
-    $('humor-mode').addEventListener('change',e=>{if(!canDirectDiva())return;state.humorMode=e.target.value;syncPrivateControls();updateVoxLine('opening');void persistRoomHumor(state.humorMode);});
     $('gifs-enabled').addEventListener('change',e=>{state.gifsEnabled=e.target.checked;localStorage.setItem('tem-gogo-gifs',String(state.gifsEnabled));});
     $('effects-enabled').addEventListener('change',e=>{state.effectsEnabled=e.target.checked;localStorage.setItem('tem-gogo-effects',String(state.effectsEnabled));document.body.classList.toggle('effects-off',!state.effectsEnabled);});
     $('settings-contrast').addEventListener('change',e=>toggleContrast(e.target.checked));
@@ -4385,7 +4337,7 @@ function renderFullCatalog(){
     $('stage-preflight-start').addEventListener('click',()=>void startPreparedSong());
     $('stage-preflight-override').addEventListener('click',()=>void startPreparedSong(true));
     $('stage-preflight-cancel').addEventListener('click',()=>clearHostPreflight());
-    $('stage-preflight-resend').addEventListener('click',()=>{updateVoxLine('reminder');if(state.preflight&&state.humorMode!=='familia')void window.TG74_DIVA_STUDIO?.announce('espera','espera:'+state.room.id+':'+state.preflight.token,state.preflight.song.id);void sendPreflightInvites(true);});
+    $('stage-preflight-resend').addEventListener('click',()=>{updateVoxLine('reminder');if(state.preflight)void window.TG74_DIVA_STUDIO?.announce('espera','espera:'+state.room.id+':'+state.preflight.token,state.preflight.song.id);void sendPreflightInvites(true);});
     $('guest-preflight-mic').addEventListener('click',()=>{switchMobileTab('mic');openMicPermission();});
     $('guest-preflight-ready').addEventListener('click',openMicPermission);
     $('mobile-tab-score').addEventListener('click',openScoreboard);
