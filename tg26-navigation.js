@@ -5,6 +5,16 @@
  const button=(label,fn)=>{const b=el('button','button button-outline',label);b.type='button';b.addEventListener('click',fn);return b;};
  const move=(parent,...nodes)=>nodes.filter(Boolean).forEach(n=>parent.append(n));
  const legacy=n=>{if(n)n.classList.add('tg26-legacy');};
+ // R86: one menu-row component. Decorate existing buttons; do not replace their handlers.
+ const menuRow=(node,icon,label,danger=false)=>{
+   if(!node)return node;
+   node.classList.add('tg86-menu-row');node.classList.toggle('tg86-danger',danger);
+   node.dataset.tg86Icon=icon;node.textContent=label;node.setAttribute('aria-label',label);
+   return node;
+ };
+ const row=(node,icon,label,danger=false)=>menuRow(node,icon,label,danger);
+ const hideLegacy=n=>{if(n){legacy(n);n.hidden=true;}};
+ const helpRow=n=>row(n,'?','Central de ajuda');
  function stageNav(){
   const stage=$('stage'),main=q('.stage-main',stage),bar=$('tg123-host-bar'),consoleNode=$('tg17-console'),cockpit=$('tg104-cockpit'),room=q('.tg104-room-panel',cockpit),catalog=q('.tg100-catalog-panel',cockpit),side=q('.tg100-side',stage),queue=q('.stage-sidebar',side),rank=q('.stage-rank-panel',side),screen=q('.screen-row',main),header=q('.stage-header',stage);
   if(!stage||!main||!bar||!consoleNode||!room||!catalog||!side||!queue||!rank||!screen||!header||stage.dataset.tg50Ready)return;
@@ -13,7 +23,7 @@
   const heading=el('header','tg50-drawer-head'),title=el('h2','','Painel');title.id='tg50-drawer-title';const close=button('Voltar',()=>drawer.close());close.classList.add('tg61-back');heading.append(title,close);drawer.append(heading);stage.append(drawer);
   const sections=new Map();let opener=null;
   function section(key,label,...nodes){const panel=el('section','tg50-panel');panel.dataset.tg50Section=key;panel.hidden=true;move(panel,...nodes);drawer.append(panel);sections.set(key,{panel,label});return panel;}
-  function show(key,trigger){const entry=sections.get(key);if(!entry||stage.hidden)return;opener=trigger;for(const x of sections.values())x.panel.hidden=x!==entry;title.textContent=entry.label;if(!drawer.open)drawer.showModal();entry.panel.scrollTop=0;close.focus({preventScroll:true});}
+  function show(key,trigger){const entry=sections.get(key);if(!entry||stage.hidden)return;opener=trigger;for(const x of sections.values())x.panel.hidden=x!==entry;title.textContent=entry.label;drawer.dataset.tg86Menu=key;if(!drawer.open)drawer.showModal();entry.panel.scrollTop=0;close.focus({preventScroll:true});}
   drawer.addEventListener('close',()=>{if(!document.querySelector('dialog[open]')&&opener?.isConnected&&!stage.hidden)opener.focus({preventScroll:true});opener=null;});
   const quick=(label,key)=>{const b=button(label,()=>show(key,b));b.setAttribute('aria-haspopup','dialog');b.setAttribute('aria-controls',drawer.id);return b;};
   const recado=q('.tg04-stage-recado',stage),tools=q('.tg19-stage-tool-grid',room),help=q('.tg193-help-tools',room),remoteQR=$('tg30-control-qr-details');
@@ -29,8 +39,9 @@
   if(theme){theme.classList.remove('full');theme.textContent='Tema';theme.setAttribute('aria-label','Trocar tema do palco');q('.stage-actions',header)?.prepend(theme);}
   if(settings)settings.textContent='Ajustes e acessibilidade';
   const roomActions=el('div','tg50-room-actions');const switcher=$('stage-switch'),end=$('stage-exit');if(switcher)switcher.textContent='Minhas salas';if(end)end.textContent='Encerrar festa';
-  move(roomActions,settings,voice,switcher,end);if(switcher)switcher.setAttribute('title','Volta às suas salas sem encerrar a festa');if(end)end.setAttribute('title','Encerra para todos, após confirmação');room.prepend(roomActions);
-  if(remoteQR)room.append(remoteQR);if(help&&tools){move(tools,...help.children);help.remove();}
+  row(settings,'⚙','Ajustes e acessibilidade');row(voice,'♪','Identidade vocal');row(switcher,'↶','Minhas salas');row(end,'⏻','Encerrar festa',true);const stageHelp=helpRow($('open-stage-faq'));
+  move(roomActions,settings,voice,switcher,stageHelp,end);if(switcher)switcher.setAttribute('title','Volta às suas salas sem encerrar a festa');if(end)end.setAttribute('title','Encerra para todos, após confirmação');room.prepend(roomActions);
+  if(remoteQR)room.append(remoteQR);if(help)hideLegacy(help);
   window.TG74_DIVA_STUDIO?.mount();legacy($('tg74-voice-preview'));
   const voiceControls=q('.tg05-voice-controls',consoleNode);if(voiceControls)voiceControls.setAttribute('aria-label','Drag Diva');
   const catalogDetails=catalog.closest('details'),roomDetails=room.closest('details');if(roomDetails)roomDetails.open=true;if(catalogDetails)catalogDetails.open=false;
@@ -49,8 +60,8 @@
     queueButton.textContent=solo?'Minha lista':'Fila';music.textContent=solo?'Escolher música':'Músicas';roomButton.textContent=solo?'Opções':'Sala';
     sections.get('fila').label=solo?'Minha lista de músicas':'Fila e participantes';
     sections.get('sala').label=solo?'Opções da Carreira Solo':'Configurações da sala';
-    if(switcher)switcher.textContent=solo?'Voltar aos modos':'Minhas salas';
-    if(end)end.textContent=solo?'Encerrar sessão':'Encerrar festa';
+    row(switcher,'↶',solo?'Voltar aos modos':'Minhas salas');
+    row(end,'⏻',solo?'Encerrar sessão':'Encerrar festa',true);
     if(drawer.open){const entry=[...sections.values()].find(x=>!x.panel.hidden);if(entry)title.textContent=entry.label;}
   };
   new MutationObserver(syncSolo).observe(stage,{attributes:true,attributeFilter:['data-tg100-mode']});
@@ -71,7 +82,8 @@
   if(stage){stage.textContent='Abrir palco neste aparelho';stage.title='Feche o palco anterior primeiro';}
   if(appearance)appearance.textContent='Aparência da TV';
   if(moderation)moderation.textContent='Segurança';
-  group('Festa',share,back,stage,appearance,end);group('Ajuda e segurança',help,moderation);
+  row(share,'↗','Compartilhar convite');row(back,'↶','Minhas salas');row(stage,'▣','Abrir palco neste aparelho');row(appearance,'◈','Aparência da TV');row(end,'⏻','Encerrar festa para todos',true);row(moderation,'◇','Segurança');
+  const remoteHelp=helpRow(q('[data-tg193-faq]',help));group('Festa',share,back,stage,appearance);group('Ajuda e segurança',remoteHelp,moderation,end);hideLegacy(help);
   legacy($('tg-beta-remote-nav'));
   const closeMenu=()=>{if(menu.open)menu.close();};wrap.addEventListener('click',e=>{if(e.target.closest('button'))closeMenu();},true);
   menu.addEventListener('click',e=>{if(e.target===menu)closeMenu();});menu.addEventListener('close',()=>{if(!r.hidden&&!document.querySelector('dialog[open]')&&!document.body.classList.contains('tg103-remote-mic-focus'))more.focus({preventScroll:true});});
@@ -112,7 +124,7 @@
   const people=$('tg96-party-open'),help=$('open-guest-faq'),sw=$('guest-switch'),leave=$('leave-party'),helpTools=q('.tg193-help-tools',bottom);
   if(people)people.textContent='Pessoas da festa';if(sw){sw.textContent='Trocar de sala';sw.title='Volta às suas salas sem encerrar a festa';}if(leave){leave.textContent='Sair desta festa';leave.classList.add('button','button-outline','tg81-leave');}if(help)help.textContent='Ajuda';
   const group=(heading,...nodes)=>{const section=el('section','tg81-room-actions');section.append(el('h3','',heading));move(section,...nodes);room.content.append(section);};
-  group('Festa',people,sw,leave);group('Ajuda',helpTools||help);if(helpTools)legacy(help);
+  row(people,'☷','Pessoas da festa');row(sw,'↶','Trocar de sala');row(leave,'⏻','Sair desta festa',true);const guestHelp=helpRow(help||q('[data-tg193-faq]',helpTools));group('Festa',people,sw,guestHelp,leave);hideLegacy(helpTools);
   room.content.addEventListener('click',e=>{if(e.target.closest('button'))room.d.close();},true);
   const recado=$('tg17-guest-message'),recadoButton=el('button','mobile-tab tg81-recado-tab');recadoButton.id='tg81-recado-tab';recadoButton.type='button';const icon=el('span','','✉');icon.setAttribute('aria-hidden','true');recadoButton.append(icon,el('span','','Recados'));
   recadoButton.setAttribute('aria-haspopup','dialog');recadoButton.setAttribute('aria-controls','tg81-recado-dialog');
@@ -146,15 +158,20 @@
   }
   const settings=button('Aparência',()=>{quick.close();const view=$(document.body.dataset.currentView);(q('.open-settings',view)||q('.open-settings'))?.click();});
   const password=button('Alterar senha',()=>{quick.close();$('account-password-open')?.click();});
-  const logout=q('[data-tg124-action="logout"]',quick);if(logout)logout.before(settings,password);
+  const logout=q('[data-tg124-action="logout"]',quick),help=helpRow(q('[data-tg124-action="help"]',quick)),voice=q('[data-tg30-voice-open]',quick),edit=q('[data-tg124-action="edit"]',quick),history=q('[data-tg124-action="history"]',quick);
+  const inner=q('.tg124-profile-inner',quick);
+  row(edit,'✎','Nome e avatar');row(history,'★','Minhas notas');row(voice,'♪','Identidade vocal');row(settings,'◈','Aparência');row(password,'◇','Alterar senha');row(logout,'⏻','Sair da conta',true);
+  if(inner)move(inner,edit,history,voice,settings,password,help,logout);
+  for(const key of ['privacy','change','leave'])hideLegacy(q('[data-tg124-action="'+key+'"]',quick));
+  hideLegacy(q('#lobby > .tg193-help-tools'));
+  // Close the menu before opening the existing voice dialog; other actions already close it.
+  voice?.addEventListener('click',()=>{if(quick.open)quick.close();},true);
   const quickOpen=()=>{if(blocked())return;const b=window.TG_BETA_BRIDGE?.();if(!b?.user)return;
-    const lobby=document.body.dataset.currentView==='lobby',anon=b.isAnonymous(b.user);for(const key of ['change','leave','privacy']){const x=q('[data-tg124-action="'+key+'"]',quick);if(x)x.hidden=key==='privacy'||lobby;}
-    const history=q('[data-tg124-action="history"]',quick);if(history)history.hidden=anon;password.hidden=anon;
-    const exit=q('[data-tg124-action="logout"]',quick);if(exit){exit.hidden=anon;exit.textContent='Sair da conta';}
+    const anon=b.isAnonymous(b.user);if(history)history.hidden=anon;password.hidden=anon;if(logout)logout.hidden=anon;
     if(!quick.open)quick.showModal();};
   const selectors='[data-tg124-profile],[data-tg-beta-open="profile"],#tg-beta-stage-profile,#tg-beta-lobby-profile,#tg-beta-remote-profile,#edit-guest-profile,#tg18-remote-rename,[data-tg124-action="edit"],[data-tg124-action="privacy"]';
-  document.addEventListener('click',e=>{if(!e.target.closest(selectors))return;e.preventDefault();e.stopImmediatePropagation();if(e.target.closest('[data-tg83-profile-menu]'))quickOpen();else open();},true);
-  document.addEventListener('keydown',e=>{if(!['Enter',' '].includes(e.key)||!e.target.matches('[data-tg124-profile]:not(button)'))return;e.preventDefault();e.stopImmediatePropagation();open();},true);
+  document.addEventListener('click',e=>{if(!e.target.closest(selectors))return;e.preventDefault();e.stopImmediatePropagation();if(e.target.closest('[data-tg124-action="edit"],[data-tg124-action="privacy"],#edit-guest-profile,#tg18-remote-rename'))open();else quickOpen();},true);
+  document.addEventListener('keydown',e=>{if(!['Enter',' '].includes(e.key)||!e.target.matches('[data-tg124-profile]:not(button)'))return;e.preventDefault();e.stopImmediatePropagation();quickOpen();},true);
   for(const id of ['tg-beta-stage-profile','tg-beta-lobby-profile','tg-beta-remote-profile','edit-guest-profile','account-password-open','logout-button'])legacy($(id));
   legacy(q('#lobby .header-control-group .open-settings'));legacy(q('#guest .guest-live .open-settings'));
   for(const b of document.querySelectorAll('.tg124-profile-shortcut:not([data-tg83-profile-menu])'))b.textContent='Meu perfil';
@@ -165,12 +182,12 @@
     const bora=q('.tg95-bora',panel);if(bora){const links=el('details','tg60-social-options tg63-social-links');links.append(el('summary','','Bora de Rolê · link opcional'));bora.before(links);links.append(bora);}save.before(socialDetails);
   }
   const actions=(target,isGuest)=>{if(!target)return;const box=el('div','tg60-profile-actions');
-    const action=(label,fn)=>{box.append(button(label,fn));};
+    const action=(label,fn)=>{const icons={'Aparência':'◈','Identidade vocal':'♪','Minhas notas':'★','Alterar senha':'◇','Sair da conta':'⏻','Criar conta':'+'};box.append(row(button(label,fn),icons[label]||'›',label,label==='Sair da conta'));};
     const close=()=>{if(guest.open)guest.close();if(social.open)social.close();};
     action('Aparência',()=>{const view=$(document.body.dataset.currentView);close();(q('.open-settings',view)||q('.open-settings'))?.click();});
     action('Identidade vocal',()=>{close();const view=$(document.body.dataset.currentView);(q('[data-tg30-voice-open]',view)||q('[data-tg30-voice-open]'))?.click();});
     if(!isGuest){action('Minhas notas',()=>{close();q('[data-tg124-action="history"]',quick)?.click();});action('Alterar senha',()=>{close();$('account-password-open')?.click();});action('Sair da conta',()=>{close();q('[data-tg124-action="logout"]',quick)?.click();});}else{action('Criar conta',()=>{close();$('tg18-account-cta')?.click();});}
-    const notify=el('section','tg81-profile-notify');notify.append(el('h3','','Conta e notificações'));const nt=button('🔔 Avisar minha vez',()=>{close();$('tg18-push-cta')?.click();});const install=button('Instalar app',()=>{close();$('tg18-install')?.click();});notify.append(nt,install);const sync=()=>{const b=window.TG_BETA_BRIDGE?.();nt.hidden=b?.role!=='guest';};window.addEventListener('temgogo:view',sync);sync();box.append(notify);
+    const notify=el('section','tg81-profile-notify');notify.append(el('h3','','Conta e notificações'));const nt=button('🔔 Avisar minha vez',()=>{close();$('tg18-push-cta')?.click();});const install=button('Instalar app',()=>{close();$('tg18-install')?.click();});notify.append(row(nt,'♧','Avisar minha vez'),row(install,'↓','Instalar app'));const sync=()=>{const b=window.TG_BETA_BRIDGE?.();nt.hidden=b?.role!=='guest';};window.addEventListener('temgogo:view',sync);sync();box.append(notify);
     target.append(box);
   };
   actions(panel,false);actions(anonInner,true);
@@ -185,11 +202,11 @@
   const dlg=$('faq-dialog'),inner=q('.modal-inner',dlg);if(!inner)return;
   const entries=[...inner.querySelectorAll('details')];const list=el('div','tg26-faq-list');const footer=el('div','tg26-faq-footer');
   const first=entries[0];if(first){first.before(list);const priorities=['Como entro na festa?','Passo a passo: como começar uma festa na TV?','Como canto?','Como sei se o microfone funciona?','Como uso o celular para controlar a festa e cantar?','Como encontro músicas sem gastar a busca externa?','Onde vejo minha nota?','Como funciona a nota?'];const priority=d=>{const i=priorities.indexOf(q('summary',d)?.textContent.trim());return i<0?priorities.length:i;};entries.sort((x,y)=>priority(x)-priority(y));for(const d of entries)d.open=false;move(list,...entries);}
-  move(footer,q('.tg193-faq-actions',inner),$('faq-done'));inner.append(footer);
+  const faqActions=q('.tg193-faq-actions',inner);row(q('[data-tg193-tour]',faqActions),'↻','Refazer tour');row(q('[data-tg193-support]',faqActions),'?','Falar com suporte');move(footer,faqActions,$('faq-done'));inner.append(footer);
   dlg.addEventListener('close',()=>{for(const d of entries)d.open=false;const search=$('tg05-faq-search');if(search){search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));}list.scrollTop=0;});
   for(const d of entries)d.addEventListener('toggle',()=>{if(d.open)for(const x of entries)if(x!==d)x.open=false;});
  }
- function boot(){stageNav();remoteNav();guestNav();profile();faq();}
+ function boot(){stageNav();remoteNav();guestNav();profile();faq();row($('tg83-join-scan'),'▣','Ler QR Code');row($('tg83-join-code'),'⌨','Informar código');row($('tg83-join-back'),'↶','Voltar');}
  window.addEventListener('temgogo:host-cockpit-ready',()=>queueMicrotask(stageNav));
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
