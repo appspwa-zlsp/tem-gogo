@@ -23,7 +23,9 @@
 
 
   // R108-B2: camada piloto, inativa por padrão. O token fica na closure do adapter.
-  let tg108Started=false,tg108Ready=false,tg108Transition=false,tg108PairDialog=null,tg108PairTimer=null;
+  let tg108Started=false,tg108Ready=false,tg108Transition=false,tg108PairDialog=null,tg108PairTimer=null,tg108Invite=null;
+  function tg108CapturePair(){const u=new URL(location.href);const invite=window.TG108_HOST_LEASE.readPairFragment(u.hash,u.searchParams.get('room'),u.searchParams.get('remote'));if(!invite)return;u.hash='';history.replaceState(history.state,'',u.href);if(cfg.HOST_LEASE_PILOT===true)tg108Invite={...invite,received:performance.now()};}
+  function tg108ConsumePair(room){const invite=tg108Invite;tg108Invite=null;return invite?.room===room&&performance.now()-invite.received<90000?invite.code:'';}
   const tg108=window.TG108_HOST_LEASE.create({
     enabled:cfg.HOST_LEASE_PILOT===true,
     context:()=>({room:state.room?.id,uid:state.user?.id,role:state.role,epoch:tg07SessionEpoch,battle:state.room?.tg30_battle_reserved===true}),
@@ -32,7 +34,7 @@
   });
   const tg108Protected=()=>cfg.HOST_LEASE_PILOT===true&&tg13Recreational()&&tg108Started&&!tg108.snapshot().legacy;
   const tg108Safe=()=>!tg108Protected()||tg108.snapshot().live;
-  function tg108ClearPair(){clearInterval(tg108PairTimer);tg108PairTimer=null;if(tg108PairDialog){tg108PairDialog.remove();tg108PairDialog=null;}}
+  function tg108ClearPair(){clearInterval(tg108PairTimer);tg108PairTimer=null;if(tg108PairDialog){for(const input of tg108PairDialog.querySelectorAll('input'))input.value='';tg108PairDialog.replaceChildren();tg108PairDialog.remove();tg108PairDialog=null;}}
   function tg108Reset(){tg108ClearPair();tg108.reset();tg108Started=false;tg108Ready=false;tg108Transition=false;$('tg108-pair-controls')?.remove();$('tg108-pair-entry')?.remove();}
   function tg108Wait(mode){
     state.emergencyBlocked=true;
@@ -43,10 +45,10 @@
     let box=$('tg108-pair-entry');if(box)return;
     box=document.createElement('div');box.id='tg108-pair-entry';
     const label=document.createElement('label');label.textContent='Código temporário do palco';
-    const input=document.createElement('input');input.type='text';input.autocomplete='off';input.spellcheck=false;input.maxLength=64;input.setAttribute('aria-label','Código temporário de pareamento');
+    const input=document.createElement('input');input.type='text';input.autocomplete='off';input.spellcheck=false;input.maxLength=64;input.setAttribute('aria-label','Código temporário de pareamento');input.value=tg108ConsumePair(state.room?.code);
     const send=document.createElement('button');send.type='button';send.className='button button-primary';send.textContent='Solicitar vínculo';
     const status=document.createElement('p');status.setAttribute('role','status');
-    const again=document.createElement('button');again.type='button';again.textContent='Entrar novamente no controle';
+    const again=document.createElement('button');again.type='button';again.textContent='Entrar novamente no controle';again.className='button button-soft';
     send.onclick=async()=>{const code=input.value.trim().toLowerCase();input.value='';send.disabled=true;try{await tg108.request(code);status.textContent='Pedido enviado. Confirme no palco e entre novamente.';}catch{status.textContent='Código inválido, expirado ou pedido não autorizado.';}finally{send.disabled=false;}};
     again.onclick=async()=>{const room=state.room;if(room&&state.role==='remote')await enterRoomAsRemote(room);};
     label.append(input);box.append(label,send,status,again);$('tg23-emergency')?.querySelector('.tg103-emergency-inner')?.append(box);
@@ -96,14 +98,15 @@
       const d=document.createElement('dialog');d.className='tg103-emergency';d.setAttribute('aria-label','Vincular controle remoto');tg108PairDialog=d;
       const panel=document.createElement('div');panel.className='tg103-emergency-inner';
       const title=document.createElement('h2');title.textContent='Vincular controle';
-      const hint=document.createElement('p');hint.textContent='Abra o controle com a mesma conta. Cole o código temporário e confirme o pedido aqui.';
+      const hint=document.createElement('p');hint.textContent='Escaneie este QR com seu celular e entre com a mesma conta. Confirme o pedido aqui. O código vale até 90 segundos.';
+      const qr=document.createElement('div');qr.setAttribute('aria-label','QR exclusivo para vincular controle');const url=new URL(currentURL(state.room.code));url.searchParams.set('remote','1');url.hash=window.TG108_HOST_LEASE.pairFragment(result.code);if(window.QRCode){try{new window.QRCode(qr,{text:url.href,width:224,height:224,colorDark:'#171023',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});qr.querySelector('canvas')?.setAttribute('aria-label','QR temporário de pareamento do controle');}catch{qr.textContent='QR indisponível. Use o código abaixo.';}}
       const code=document.createElement('input');code.readOnly=true;code.value=result.code;code.setAttribute('aria-label','Código temporário');
       const copy=document.createElement('button');copy.type='button';copy.textContent='Copiar código';copy.onclick=async()=>{try{await navigator.clipboard.writeText(code.value);toast('Código copiado.');}catch{code.select();}};
       const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Aguardando pedido…';
       const approve=document.createElement('button');approve.type='button';approve.textContent='Autorizar celular';approve.disabled=true;approve.onclick=()=>void tg108Rotate(()=>tg108.review('approve',true));
       const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';cancel.onclick=async()=>{try{await tg108.review('cancel',true);}catch{}tg108ClearPair();};
-      d.addEventListener('cancel',e=>{e.preventDefault();cancel.click();});panel.append(title,hint,code,copy,status,approve,cancel);d.append(panel);document.body.append(d);d.showModal();
-      let polling=false;tg108PairTimer=setInterval(async()=>{if(polling||tg108Transition)return;if(!tg07Current(scope)||!tg108Safe()){tg108ClearPair();return;}polling=true;try{const r=await tg108.review('status',false);if(d!==tg108PairDialog)return;approve.disabled=r.state!=='pending'||!tg108Idle();status.textContent=r.state==='pending'?'Pedido recebido. Autorize o celular somente se for o seu.':'Aguardando pedido…';}catch{if(d===tg108PairDialog){status.textContent='Pedido expirado ou indisponível. Feche e gere outro código.';approve.disabled=true;code.value='';copy.disabled=true;clearInterval(tg108PairTimer);}}finally{polling=false;}},2000);
+      d.addEventListener('cancel',e=>{e.preventDefault();cancel.click();});panel.append(title,hint,qr,code,copy,status,approve,cancel);d.append(panel);document.body.append(d);d.showModal();
+      let polling=false;tg108PairTimer=setInterval(async()=>{if(polling||tg108Transition)return;if(!tg07Current(scope)||!tg108Safe()){tg108ClearPair();return;}polling=true;try{const r=await tg108.review('status',false);if(d!==tg108PairDialog)return;approve.disabled=r.state!=='pending'||!tg108Idle();status.textContent=r.state==='pending'?'Pedido recebido. Autorize o celular somente se for o seu.':'Aguardando pedido…';}catch{if(d===tg108PairDialog){status.textContent='Pedido expirado ou indisponível. Feche e gere outro código.';approve.disabled=true;code.value='';qr.replaceChildren();copy.disabled=true;clearInterval(tg108PairTimer);}}finally{polling=false;}},2000);
     }catch{toast('Não foi possível gerar o código. Confira o palco.',true);}
   }
   const tg108ActionMap=Object.freeze({tg30_start_song_bound:'start',tg30_finish_song_bound:'finish',karaoke_remove_song:'remove',karaoke_confirm_playback:'playback',karaoke_finalize_party:'finalize',karaoke_close_room:'close',karaoke_clean_signals:'clean'});
@@ -419,7 +422,7 @@
     }
   }
   async function handleRemoteCommand(data,recordCreatedAt){
-    if(state.emergencyBlocked)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
     if(state.role!=='host'||!state.room||state.room.status!=='open')return;
     const scope=tg07Scope(),cmd=data?.command;
     const ack=async(ok,message)=>{
@@ -902,7 +905,7 @@
     }
   }
   async function prepareSong(song){
-    if(state.emergencyBlocked)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
     if(state.role!=='host'||!song||state.finishing)return;
     if(recadoShowing){toast('Aguarde o recado do intervalo terminar.',true);return;}
     if(state.currentSong){toast('Finalize ou pule a música atual antes de preparar a próxima.',true);return;}
@@ -922,13 +925,13 @@
     state.preflightTimer=setInterval(()=>{if(state.preflight)void sendPreflightInvites(false);},12000);
   }
   async function startPreparedSong(override=false){
-    if(state.emergencyBlocked)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
     const pre=state.preflight,scope=tg07Scope();if(!pre||pre.starting)return;
     const singers=songSingers(pre.song);
     const ready=singers.every(uid=>{const s=pre.statuses.get(uid);return s?.ready&&s?.mic&&Date.now()-s.at<25000;});
     if(!ready&&!override){toast('Aguarde o microfone e a confirmação de todas as pessoas.',true);return;}
     if(!ready&&override&&!await window.TG_UI.confirm('Iniciar sem todos prontos? As pessoas sem microfone podem ficar sem voz ou nota.',{title:'Liberar apresentação',confirmText:'Iniciar mesmo assim'}))return;
-    if(state.emergencyBlocked||!tg07Current(scope)||state.preflight!==pre)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe()||!tg07Current(scope)||state.preflight!==pre)return;
     pre.starting=true;renderPreflightHost();
     const song=pre.song;
     // startSong retorna erro tratado internamente; confira no estado antes de encerrar o preparo.
@@ -1472,7 +1475,7 @@
     $('tg193-support-tickets').addEventListener('click',async event=>{const b=event.target.closest('[data-tg193-reopen]');if(!b)return;b.disabled=true;const {error}=await state.client.rpc('tg_support_reopen_ticket',{p_ticket:b.dataset.tg193Reopen});if(error){$('tg193-support-feedback').textContent='⚠ '+tg193SupportError(error);b.disabled=false;return;}$('tg193-support-feedback').textContent='✅ Chamado reaberto.';await tg193LoadTickets();});
   }
   async function init() {
-    initPWA();loadPreferences();renderAvatarOptions();
+    tg108CapturePair();initPWA();loadPreferences();renderAvatarOptions();
     document.getElementById('tg-beta-external-go')?.addEventListener('click',()=>{const input=$('tg07-external-query'),main=$('catalog-search');input.value=main.value.trim();if(input.value.length>=2)void searchYoutube(state.role==='host',true,true);else{main.focus();toast('Digite uma música ou artista na busca acima.');}});
     $('video-frame').appendChild($('stage-preflight'));
     setupHostCockpit();
@@ -2963,7 +2966,7 @@
     $('video-placeholder').hidden=!!song;setDivaStageState(song?'playing':(state.preflight?'preflight':'idle'));
   }
   async function startSong(song) {
-    if(state.emergencyBlocked)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
     if(!song||state.role!=='host'||state.finishing)return;
     const scope=tg07Scope(),generation=state.emergencyGeneration??null;
     if(state.startingSong)return;
@@ -3130,7 +3133,7 @@
   }
   function hideFinal(){if($('final-overlay')&&!$('final-overlay').hidden)window.TG74_DIVA_STUDIO?.stop();clearTimeout(state.scoreOverlayTimer);clearTimeout(window.__tg123PostScoreTimer);if($('tg123-post-score'))$('tg123-post-score').hidden=true;clearGif();$('final-overlay').hidden=true;}
   async function finishSong(skipped=false,showResults=true){
-    if(state.emergencyBlocked)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
     if(!state.currentSong||state.finishing)return;
     const completedRoom=state.room?.id,completedSong=state.currentSong.id,finishScope=tg07Scope(),generation=state.emergencyGeneration??null;
     state.finishing=true;tg90ClearHost();tgR19CancelSoloRequest();
@@ -3213,7 +3216,7 @@
   }
   let tgR13AdvanceConfirmation=null;
   async function advanceSong(options={}){
-    if(state.emergencyBlocked||state.role!=='host')return false;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe()||state.role!=='host')return false;
     if(recadoShowing){toast('Feche ou aguarde o recado do intervalo.');return false;}
     if(state.finishing||state.startingSong||state.preflight?.starting){toast('Aguarde a apresentação atual.');return false;}
     const scope=tg07Scope(),expected=state.currentSong?.id??null;
@@ -3238,7 +3241,7 @@
     setNowPlaying(null);toast('A fila acabou! Hora de escolher outro hit. 🎶');return true;
   }
   async function togglePlayback(){
-    if(state.emergencyBlocked)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
     if(!state.currentSong){await advanceSong();return;}
     if(state.finishing)return;
     if(tgR25SoloRetry===state.currentSong.id){await finishSong(false,true);return;}
@@ -4185,7 +4188,7 @@ function renderFullCatalog(){
     return 'Não foi possível confirmar o encerramento no Supabase'+reference+'. '+humanError(error);
   }
   async function exitStage(options={}){
-    if(state.emergencyBlocked)return;
+    if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
     if(!canDirectDiva()||!state.room)return;
     if(!tg13Recreational()){toast('Use a aba Prêmios do festival para encerrar o palco competitivo após o resultado oficial.',true);return;}
     if(state.role==='remote'&&callActive()){toast('Finalize sua participação antes de encerrar a festa.',true);return;}
@@ -4226,6 +4229,7 @@ function renderFullCatalog(){
     }
   }
   async function logout(){
+    tg108Invite=null;
     if(tgR17PasswordPending){toast('Aguarde a operação de senha terminar.',true);return;}
     tgR17ClearPasswordContext();state.recoveryIntent=false;
     if(state.client){const {error}=await state.client.auth.signOut();if(error){toast(humanError(error),true);return;}}
