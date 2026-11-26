@@ -26,7 +26,7 @@
 <script defer="" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script defer="" src="./qr-local.js?v=3beta05"></script>
 <script defer="" src="./config.js?v=3beta05"></script>
-<script defer src="./tg73-invitations.js?v=3beta05"></script><script defer src="./tg73-battle-gate.js?v=3beta05"></script><script defer src="./tg-dialogs.js?v=r10"></script><script defer src="./tg30-voice.js?v=3beta05"></script><script defer src="./tg30-voice-shadow.js?v=3beta05"></script><script defer src="./tg30-voice-ui.js?v=3beta05"></script><script defer src="./tg30-diva-result.js?v=3beta05"></script><script defer src="./app.js?v=r66"></script><script defer src="./beta10.js?v=r63.1"></script><script defer src="./beta12.js?v=r30"></script><script defer src="./tg124-enhance.js?v=3beta05"></script><script defer src="./tg20.js?v=3beta05"></script><script defer src="./tg21-shortcuts.js?v=3beta05"></script><script defer src="./tg70-ux.js?v=r33"></script><script defer src="./tg74-voice-catalog.js?v=3beta05"></script><script defer src="./tg74-diva-studio.js?v=r32b"></script><script defer src="./tg75-battle-core.js?v=3beta05"></script><script defer src="./tg75-battle-bridge.js?v=3beta05"></script><script defer src="./tg75-battle-panel.js?v=r63.1"></script>
+<script defer src="./tg73-invitations.js?v=3beta05"></script><script defer src="./tg73-battle-gate.js?v=3beta05"></script><script defer src="./tg-dialogs.js?v=r10"></script><script defer src="./tg30-voice.js?v=3beta05"></script><script defer src="./tg30-voice-shadow.js?v=3beta05"></script><script defer src="./tg30-voice-ui.js?v=3beta05"></script><script defer src="./tg30-diva-result.js?v=3beta05"></script><script defer src="./app.js?v=r67"></script><script defer src="./beta10.js?v=r63.1"></script><script defer src="./beta12.js?v=r30"></script><script defer src="./tg124-enhance.js?v=3beta05"></script><script defer src="./tg20.js?v=3beta05"></script><script defer src="./tg21-shortcuts.js?v=3beta05"></script><script defer src="./tg70-ux.js?v=r67"></script><script defer src="./tg74-voice-catalog.js?v=3beta05"></script><script defer src="./tg74-diva-studio.js?v=r67"></script><script defer src="./tg75-battle-core.js?v=3beta05"></script><script defer src="./tg75-battle-bridge.js?v=3beta05"></script><script defer src="./tg75-battle-panel.js?v=r63.1"></script>
 
 
 <script defer src="./tg100-story.js?v=3beta05"></script>
@@ -35,7 +35,7 @@
 
 
 <script defer src="./tg30-campaign.js?v=3beta05"></script><script defer src="./tg-premium-interface.js?v=r31"></script><link rel="stylesheet" href="./ux-r26.css?v=r34"/>
-<script defer src="./tg26-navigation.js?v=r66"></script><link rel="stylesheet" href="./ux-r57.css?v=r66"/><script defer src="./tg57-experience.js?v=r61"></script></head>
+<script defer src="./tg26-navigation.js?v=r67"></script><link rel="stylesheet" href="./ux-r57.css?v=r67"/><script defer src="./tg57-experience.js?v=r61"></script></head>
 <body data-theme="glam">
 <div aria-hidden="true" class="grain"></div>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
@@ -291,7 +291,7 @@
 <label class="setting-switch"><span><b>Reduzir animações</b><small>Transições leves e sem efeitos de movimento desnecessários.</small></span><input type="checkbox" id="tg93-reduce-motion"/></label>
 <label class="setting-switch"><span><b>Leitura ampliada</b><small>Melhora a leitura de menus, botões e mensagens.</small></span><input type="checkbox" id="tg93-large-text"/></label>
 <label class="setting-switch"><span><b>Permitir voz da Drag Diva</b><small>Ativar ou silenciar a voz neste aparelho, sem afetar os efeitos, vídeo ou microfones.</small></span><input type="checkbox" id="tg93-voice-previews" checked/></label>
-<p class="settings-note">As falas e instruções críticas permanecem em texto. As seis cenas da Batalha têm leitura visual e podem ser puladas ou revistas; narração automática ainda não foi ativada.</p>
+<p class="settings-note">As falas e instruções críticas permanecem em texto. A apresentação visual da Batalha pode ser pausada, pulada ou revista.</p>
 </details>
 <div class="settings-tip">🎤 <b>DIVA GOGÓ AVISA:</b> os memes são pela diversão. A nota não mede afinação. Os GIFs dependem de uma chave GIPHY opcional e da internet.</div><button class="button button-primary full" id="settings-done" type="button">Voltar à festa</button></div></dialog>
 <dialog aria-labelledby="tg16-password-title" class="modal" id="tg16-password-dialog"><div class="modal-inner">
@@ -319,7 +319,7 @@
 <dialog id="tg70-battle-guide" aria-labelledby="tg70-battle-guide-title" class="tg70-battle-guide"><div class="tg70-guide-inner">
  <button type="button" id="tg70-guide-close" class="tg70-guide-close" aria-label="Fechar guia">✕</button>
  <div class="tg70-guide-top"><img src="./diva-busto.png" alt="Diva Gogó"><div><small>UM NOVO SHOW ESTÁ A CAMINHO</small><h2 id="tg70-battle-guide-title">Modo Batalha</h2></div></div>
- <p id="tg70-guide-counter" class="tg70-guide-counter" aria-live="polite">Cena 1 de 6</p><progress id="tg33-guide-progress" max="6" value="1" aria-label="Progresso da apresentação"></progress><h3 id="tg70-guide-heading"></h3><p id="tg70-guide-text"></p>
+ <p id="tg70-guide-counter" class="tg70-guide-counter" aria-live="polite">Cena 1 de 6</p><progress id="tg33-guide-progress" max="6" value="1" aria-label="Progresso da apresentação"></progress><div id="tg67-guide-scene" class="tg67-guide-scene" aria-label="Cena ilustrada da Batalha"></div><h3 id="tg70-guide-heading"></h3><p id="tg70-guide-text"></p><audio id="tg67-guide-theme" src="./audio/theme.mp3" preload="none" muted></audio><div class="tg67-guide-controls"><button type="button" id="tg67-guide-toggle">Reproduzir</button><button type="button" id="tg67-guide-sound" aria-pressed="false">Ativar trilha</button></div>
  <div class="tg70-guide-buttons"><button type="button" id="tg70-guide-skip">Pular apresentação</button><button type="button" id="tg70-guide-prev">Anterior</button><button type="button" id="tg70-guide-next">Próximo</button></div>
  <button id="tg75-open-workspace" type="button" class="tg75-button">Conhecer painel da Batalha (prévia)</button><div class="tg70-guide-note">Prévia educativa. A Batalha está em preparação. Nenhuma competição, votação ou premiação pode ser iniciada.</div>
  </div></dialog>
