@@ -23,7 +23,7 @@
 
 
   // R108-B2: camada piloto, inativa por padrão. O token fica na closure do adapter.
-  let tg108Started=false,tg108Ready=false,tg108Transition=false,tg108PairDialog=null,tg108PairTimer=null,tg108Invite=null;
+  let tg108Started=false,tg108Ready=false,tg108Transition=false,tg108Ending=null,tg108PairDialog=null,tg108PairTimer=null,tg108Invite=null;
   function tg108CapturePair(){const u=new URL(location.href);const invite=window.TG108_HOST_LEASE.readPairFragment(u.hash,u.searchParams.get('room'),u.searchParams.get('remote'));if(!invite)return;u.hash='';history.replaceState(history.state,'',u.href);if(cfg.HOST_LEASE_PILOT===true)tg108Invite={...invite,received:performance.now()};}
   function tg108ConsumePair(room){const invite=tg108Invite;tg108Invite=null;return invite?.room===room&&performance.now()-invite.received<90000?invite.code:'';}
   const tg108=window.TG108_HOST_LEASE.create({
@@ -34,8 +34,9 @@
   });
   const tg108Protected=()=>cfg.HOST_LEASE_PILOT===true&&tg13Recreational()&&tg108Started&&!tg108.snapshot().legacy;
   const tg108Safe=()=>!tg108Protected()||tg108.snapshot().live;
+  const tg108EndInFlight=()=>!!tg108Ending&&tg07Current(tg108Ending.scope);
   function tg108ClearPair(){clearInterval(tg108PairTimer);tg108PairTimer=null;if(tg108PairDialog){for(const input of tg108PairDialog.querySelectorAll('input'))input.value='';tg108PairDialog.replaceChildren();tg108PairDialog.remove();tg108PairDialog=null;}}
-  function tg108Reset(){tg108ClearPair();tg108.reset();tg108Started=false;tg108Ready=false;tg108Transition=false;$('tg108-pair-controls')?.remove();$('tg108-pair-entry')?.remove();}
+  function tg108Reset(){tg108ClearPair();tg108.reset();tg108Started=false;tg108Ready=false;tg108Transition=false;tg108Ending=null;$('tg108-pair-controls')?.remove();$('tg108-pair-entry')?.remove();}
   function tg108Wait(mode){
     state.emergencyBlocked=true;
     const isRemote=state.role==='remote';
@@ -57,7 +58,7 @@
     if(cfg.HOST_LEASE_PILOT!==true||!tg13Recreational())return true;
     let s;
     if(!tg108Started){tg108Started=true;s=await tg108.begin();}else s=await tg108.refresh();
-    if(!tg07Current(scope)||state.emergencyLatch)return false;
+    if(!tg07Current(scope)||state.emergencyLatch||tg108EndInFlight())return false;
     if(initial&&state.role==='host'&&['awaiting_host','expired'].includes(s.mode)){
       const recovering=s.mode==='expired';
       const ok=await window.TG_UI.confirm(recovering?'A música interrompida ficará sem nota e poderá voltar à fila. Nenhuma música será iniciada automaticamente.':'Autorizar este aparelho como palco da festa piloto?',{title:recovering?'Recuperar festa':'Autorizar palco',confirmText:recovering?'Recuperar':'Autorizar'});
@@ -79,21 +80,20 @@
     const wrap=document.createElement('div');wrap.id='tg108-pair-controls';wrap.className='tg30-control-qr-details';
     const pair=document.createElement('button');pair.type='button';pair.className='button button-primary';pair.textContent='Vincular controle';
     const revoke=document.createElement('button');revoke.type='button';revoke.className='button button-soft';revoke.textContent='Desconectar controle';
-    pair.onclick=()=>void tg108OpenPair();revoke.onclick=async()=>{if(!tg108Idle()){toast('Aguarde o intervalo, sem chamada ou microfone ativo.',true);return;}if(!await window.TG_UI.confirm('Desconectar o celular e invalidar os comandos pendentes?',{title:'Desconectar controle',confirmText:'Desconectar',danger:true}))return;await tg108Rotate(()=>tg108.revoke(true));};
+    pair.onclick=()=>void tg108OpenPair();revoke.onclick=async()=>{if(!tg108Idle()){toast('Aguarde o intervalo, sem chamada ou microfone ativo.',true);return;}const scope=tg07Scope();if(!await window.TG_UI.confirm('Desconectar o celular e invalidar os comandos pendentes?',{title:'Desconectar controle',confirmText:'Desconectar',danger:true})||!tg07Current(scope)||!tg108Idle())return;await tg108Rotate(()=>tg108.revoke(true));};
     wrap.append(pair,revoke);root.append(wrap);
   }
   async function tg108Rotate(action){
-    if(!tg108Idle()||tg108Transition)return false;const scope=tg07Scope();tg108Transition=true;
+    if(!tg108Idle()||tg108Transition)return false;const scope=tg07Scope(),ticket={scope};tg108Transition=ticket;
     try{await state.signalChain;if(!tg07Current(scope)||!tg108Idle())return false;
       const old=tg108.snapshot().generation;await action();if(!tg07Current(scope))return false;
       if(old!==tg108.snapshot().generation){state.processedSignals.clear();state.candidateBuffer.clear();tgR14ClearRemote();tg90ResetUpcoming();}
       tg108ClearPair();toast('Vínculo do controle atualizado.');return true;
-    }catch{if(tg07Current(scope))toast('Não foi possível confirmar o vínculo. Confira o estado do palco.',true);return false;}finally{tg108Transition=false;}
+    }catch{if(tg07Current(scope))toast('Não foi possível confirmar o vínculo. Confira o estado do palco.',true);return false;}finally{if(tg108Transition===ticket)tg108Transition=false;}
   }
   async function tg108OpenPair(){
     if(!tg108Idle()){toast('Vincule o celular entre apresentações, sem chamada ou microfone ativo.',true);return;}
-    if(!await window.TG_UI.confirm('Gerar um código temporário para o celular que usa sua conta?',{title:'Vincular controle',confirmText:'Gerar código'}))return;
-    const scope=tg07Scope();if(!tg108Idle())return;
+    const scope=tg07Scope();if(!await window.TG_UI.confirm('Gerar um código temporário para o celular que usa sua conta?',{title:'Vincular controle',confirmText:'Gerar código'})||!tg07Current(scope)||!tg108Idle())return;
     try{const result=await tg108.issue(true);if(!tg07Current(scope))return;tg108ClearPair();
       const d=document.createElement('dialog');d.className='tg103-emergency';d.setAttribute('aria-label','Vincular controle remoto');tg108PairDialog=d;
       const panel=document.createElement('div');panel.className='tg103-emergency-inner';
@@ -104,7 +104,7 @@
       const copy=document.createElement('button');copy.type='button';copy.textContent='Copiar código';copy.onclick=async()=>{try{await navigator.clipboard.writeText(code.value);toast('Código copiado.');}catch{code.select();}};
       const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Aguardando pedido…';
       const approve=document.createElement('button');approve.type='button';approve.textContent='Autorizar celular';approve.disabled=true;approve.onclick=()=>void tg108Rotate(()=>tg108.review('approve',true));
-      const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';cancel.onclick=async()=>{try{await tg108.review('cancel',true);}catch{}tg108ClearPair();};
+      const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';cancel.onclick=async()=>{if(d!==tg108PairDialog||!tg07Current(scope))return;try{await tg108.review('cancel',true);}catch{}if(d===tg108PairDialog&&tg07Current(scope))tg108ClearPair();};
       d.addEventListener('cancel',e=>{e.preventDefault();cancel.click();});panel.append(title,hint,qr,code,copy,status,approve,cancel);d.append(panel);document.body.append(d);d.showModal();
       let polling=false;tg108PairTimer=setInterval(async()=>{if(polling||tg108Transition)return;if(!tg07Current(scope)||!tg108Safe()){tg108ClearPair();return;}polling=true;try{const r=await tg108.review('status',false);if(d!==tg108PairDialog)return;approve.disabled=r.state!=='pending'||!tg108Idle();status.textContent=r.state==='pending'?'Pedido recebido. Autorize o celular somente se for o seu.':'Aguardando pedido…';}catch{if(d===tg108PairDialog){status.textContent='Pedido expirado ou indisponível. Feche e gere outro código.';approve.disabled=true;code.value='';qr.replaceChildren();copy.disabled=true;clearInterval(tg108PairTimer);}}finally{polling=false;}},2000);
     }catch{toast('Não foi possível gerar o código. Confira o palco.',true);}
@@ -3998,6 +3998,7 @@ function renderFullCatalog(){
     clearInterval(state.ticker);let cycles=0;
     state.ticker=setInterval(()=>{
       if(!state.room||state.emergencyBlocked)return;
+      if(tg108EndInFlight())return;
       if(!tg108Safe()){tg23Suspend('Validade do palco não confirmada. Entre novamente.','connection');return;}
       if(tg18Recognition&&(isMyTurn()||callActive()))tg18AbortDictation();
       window.TG74_DIVA_STUDIO?.guard();window.TG75_BATTLE_PANEL?.guardShowAudio?.();
@@ -4204,6 +4205,8 @@ function renderFullCatalog(){
     const studio=window.TG74_DIVA_STUDIO,localNarration=state.role==='host'&&studio?.getAuto()===true,localSound=localNarration&&studio?.isUnlocked()===true;
     const button=$(state.role==='remote'?'tg04-remote-end':'stage-exit');
     state.finishing=true;
+    const endTicket=tg108Protected()&&state.role==='host'?{scope}:null;
+    if(endTicket){tg108Ending=endTicket;tg105Pause();studio?.stop();try{state.player?.pauseVideo();state.player?.mute();}catch{}state.isPlaying=false;}
     if(button)button.disabled=true;
     try{
       let recap;
@@ -4214,7 +4217,7 @@ function renderFullCatalog(){
         console.error('Tem Gogó: falha ao encerrar festa no Supabase',{
           code:error?.code||null,message:error?.message||String(error),hint:error?.hint||null
         });
-        if(tg07Current(scope)&&!state.emergencyClosing)toast(finalizePartyError(error),true);
+        if(tg07Current(scope)&&!state.emergencyClosing){toast(finalizePartyError(error),true);if(endTicket){tg23Suspend('Encerramento não confirmado. Consulte a situação da festa antes de reentrar.','connection');void fetchRoom().catch(()=>{});}}
         return;
       }
       // Depois do sucesso no banco, nenhuma falha de limpeza pode esconder o placar.
@@ -4227,6 +4230,7 @@ function renderFullCatalog(){
       if(state.user?.id!==scope.uid||tg07SessionEpoch!==nextEpoch||state.room)return;state.recapAvatars=avatars;
       try{if(solo)toast('Sessão Solo encerrada. Consulte o histórico quando quiser.');else{const recapScope=tg15RecapScope();showPartyRecap(recap,id,recapScope);if(localNarration)void tg93RecapFarewell(id,recapScope,localSound);}}catch(error){console.error('Festa encerrada; placar indisponível nesta tela',error);toast('A festa foi encerrada no Supabase, mas não foi possível abrir o placar. Use Rever último placar.',true);}
     }finally{
+      if(tg108Ending===endTicket)tg108Ending=null;
       if(tg07Current(scope)||!state.room){state.finishing=false;if(button)button.disabled=false;}
     }
   }
@@ -4866,15 +4870,15 @@ function renderFullCatalog(){
   }
   async function tg23Poll(initial=false){
     if(!state.room||!state.user||tg23Leaving||state.emergencyClosing)return false;
-    if(state.finishing&&tg108.snapshot().mode==='ended')return false;
+    if(tg108EndInFlight()||state.finishing&&tg108.snapshot().mode==='ended')return false;
     if(tg23Pending)return tg23Pending.promise;
     const scope=tg07Scope(),ticket={};tg23Pending=ticket;
     ticket.promise=(async()=>{let timer;
       try{
         const response=await Promise.race([state.client.rpc('tg30_room_emergency_status',{p_room:scope.room}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),4500);})]);
-        if(!tg07Current(scope)||tg23Pending!==ticket)return false;
+        if(!tg07Current(scope)||tg23Pending!==ticket||tg108EndInFlight())return false;
         if(response?.error||typeof response?.data?.suspended!=='boolean')throw Error('Estado não confirmado');
-        if(response.data.suspended){tg23Suspend('A produção suspendeu esta modalidade. Seus registros confirmados continuam no servidor.');return false;}
+        if(response.data.suspended){tg23Suspend('A produção suspendeu esta modalidade. Seus registros confirmados continuam no servidor.');void fetchRoom().catch(()=>{});return false;}
         if(state.emergencyLatch){const reason=$('tg23-emergency')?.dataset.reason||'security';tg23Dialog('O servidor voltou a responder e não indica suspensão neste momento. Saia deste palco e entre novamente; não haverá retomada automática.',reason);return false;}
         const generation=Object.hasOwn(response.data,'signal_generation')?response.data.signal_generation:null;
         if(!tg24GenerationValid(generation))throw Error('Geração de segurança inválida');
@@ -4882,9 +4886,9 @@ function renderFullCatalog(){
           tg23Suspend('Houve uma mudança de segurança enquanto este aparelho estava conectado. Entre novamente no palco para receber somente os comandos atuais.');return false;
         }
         state.emergencyGeneration=generation;
-        if(!await tg108Gate(scope,initial)||!tg07Current(scope))return false;
+        if(!await tg108Gate(scope,initial)||!tg07Current(scope)||tg108EndInFlight())return false;
         state.emergencyBlocked=false;return true;
-      }catch{if(tg07Current(scope)&&tg23Pending===ticket)tg23Suspend('Não conseguimos consultar a segurança da sala. O áudio foi interrompido por precaução; isso não confirma uma suspensão administrativa. Verifique a conexão e entre novamente.', 'connection');return false;}
+      }catch{if(tg07Current(scope)&&tg23Pending===ticket&&!tg108EndInFlight())tg23Suspend('Não conseguimos consultar a segurança da sala. O áudio foi interrompido por precaução; isso não confirma uma suspensão administrativa. Verifique a conexão e entre novamente.', 'connection');return false;}
       finally{clearTimeout(timer);if(tg23Pending===ticket)tg23Pending=null;}
     })();return ticket.promise;
   }
