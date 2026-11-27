@@ -553,3 +553,23 @@ body.high-contrast .tg90-next-card:not([hidden]){background:#000!important;color
 }
 html[data-tg-theme] body:not(.high-contrast) #stage[data-tg50-ready] #tg17-console :is(.playback-volume,.master-volume,.tg05-mixer-channel)>:is(label:not(.sr-only),span:first-child){color:var(--tg-text,var(--text))!important;opacity:1!important;text-shadow:none!important}
 html[data-tg-theme="crystal"] body:not(.high-contrast) #stage[data-tg50-ready] #tg17-console :is(.playback-volume,.master-volume,.tg05-mixer-channel)>:is(label:not(.sr-only),span:first-child){color:var(--tg-focus,#6531A9)!important}
+
+/* R113 — chamada contextual e jornada competitiva */
+#tg113-solo-call[hidden],#tg113-solo-preflight-mic[hidden],#tg113-battle-tabs[hidden]{display:none!important}
+#tg113-solo-call:not([hidden]){display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;margin:6px 0;border:1px solid var(--tg-border,#ba75d0);border-radius:14px;background:var(--tg-surface,#21132f);color:var(--tg-text,#fff);box-shadow:0 5px 18px #0003}
+#tg113-solo-call strong,#tg113-solo-call small{display:block}#tg113-solo-call small{font-size:.82rem;opacity:.9}#tg113-solo-call button,#tg113-solo-preflight-mic{min-height:44px}
+#tg113-solo-preflight-mic:not([hidden]){display:block;margin:6px auto;max-width:100%;font-weight:800}
+#tg75-battle-panel .tg113-menu-toggle{min-height:44px;flex-shrink:0;margin-left:auto}
+#tg75-battle-panel #tg113-battle-tabs:not([hidden]){display:flex;flex-wrap:wrap;overflow:visible;gap:6px}
+#tg75-battle-panel .tg113-journey{display:grid;gap:8px;padding:14px 16px;border:1px solid var(--tg-border,#725081);border-radius:16px;background:var(--tg-surface,#21172d);color:var(--tg-text,#fff)}
+#tg75-battle-panel .tg113-step-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:.85rem}
+#tg75-battle-panel .tg113-journey h3{margin:0;font-size:clamp(1.25rem,4vw,1.8rem)}
+#tg75-battle-panel .tg113-journey progress{width:100%;height:7px;accent-color:#c269e0}
+#tg75-battle-panel .tg113-step-button{min-height:44px}
+#tg75-battle-panel .tg113-hero{display:flex;align-items:center;gap:12px;border-radius:18px;padding:16px;background:linear-gradient(120deg,#341849,#171b38);color:#fff;border:1px solid #8d529c}
+#tg75-battle-panel .tg113-hero img{width:clamp(64px,22vw,140px);height:auto;object-fit:contain}
+#tg75-battle-panel .tg113-hero h3{font-size:clamp(1.3rem,4vw,2rem);margin:0}
+#tg75-battle-panel .tg113-choice{min-height:48px;margin:4px}
+#tg75-battle-panel .tg113-code{display:grid;gap:6px;overflow-wrap:anywhere}
+#tg75-battle-panel .tg113-code code{user-select:all}
+@media(max-width:670px){#tg75-battle-panel .tg75-header{flex-wrap:wrap;align-items:center}#tg75-battle-panel .tg113-choice{display:block;width:100%;margin:6px 0}#tg113-solo-call button{flex:1 1 auto}}

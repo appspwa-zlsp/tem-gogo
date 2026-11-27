@@ -128,6 +128,7 @@
       await fetchRoom();if(state.room?.id!==room||state.room.tg30_battle_reserved!==true)throw Error('Reserva não confirmada na leitura da sala.');
       renderAll();return result;
     },
+    openCompetitiveStage:openCompetitiveStage,
     refreshCompetitiveRoom:async roomId=>{if(state.room?.id===roomId&&state.room.tg30_battle_reserved===true)await fetchRoom();},
     getBattleQueue:()=>{
       if(state.role!=='host'||state.room?.owner_id!==state.user?.id||state.room?.tg30_battle_reserved!==true||state.emergencyBlocked)return [];
@@ -543,6 +544,18 @@
     return await tgR25WaitSolo(tgR25SyncSolo(a,true))&&tgR25SoloAllowed(a)&&a.sent===a.samples;
   }
   function tgR25ClearSoloReport(){tgR25SoloReport=null;tgR25SoloRetry=null;}
+  function tg113SoloPrompt(){
+    const solo=state.role==='host'&&state.room?.room_mode==='solo'&&!state.emergencyBlocked&&!state.emergencyClosing&&!state.finishing;
+    const needed=solo&&!state.soloMic&&!!(state.preflight||state.currentSong);
+    const pre=$('tg113-solo-preflight-mic'),banner=$('tg113-solo-call'),button=$('tg113-solo-call-mic');
+    if(pre){pre.hidden=!(needed&&state.preflight);pre.disabled=!!tgR19SoloRequest;}
+    if(banner)banner.hidden=!needed;
+    if(button){button.disabled=!!tgR19SoloRequest;button.textContent=tgR19SoloRequest?'Aguardando permissão…':'🎙️ Liberar microfone';}
+  }
+  function tg113StageBattleAccess(){
+    const b=$('tg08-stage-battle');if(!b)return;
+    b.hidden=!(cfg.BATTLE_API_RELEASE_ALLOWED===true&&state.role==='host'&&state.room?.owner_id===state.user?.id&&state.room?.tg30_battle_reserved===true&&state.room?.status==='open'&&!state.emergencyBlocked&&!state.emergencyClosing&&document.body.dataset.currentView==='stage');
+  }
   function tgR07SyncSoloDock(){
     const dock=$('tg192-solo-dock'),button=$('tg192-solo-off');if(!dock||!button)return;
     const active=Boolean(state.soloMic),solo=state.role==='host'&&state.room?.room_mode==='solo';
@@ -551,6 +564,7 @@
     const label=dock.querySelector('.tg192-solo-label');if(label)label.textContent=active?'MIC SOLO ATIVO':'MIC SOLO DESLIGADO';
     button.textContent=active?'Desligar':'Ativar';button.setAttribute('aria-label',active?'Desligar microfone solo':'Ativar microfone solo');button.title=button.getAttribute('aria-label');
     if(!active)for(const bar of $('tg192-solo-meter')?.children||[]){bar.classList.remove('lit');bar.style.height='12%';}
+    tg113SoloPrompt();tg113StageBattleAccess();
   }
   async function toggleSoloMic(){
     tg105Pause();
@@ -832,7 +846,7 @@
     if(state.preflight&&state.soloMic&&isSinger(state.preflight.song,state.user?.id)&&state.soloMic.stream.getAudioTracks().some(t=>t.readyState==='live'))state.preflight.statuses.set(state.user.id,{mic:true,ready:true,at:Date.now(),localSolo:true});
     else if(state.preflight?.statuses.get(state.user?.id)?.localSolo)state.preflight.statuses.delete(state.user.id);
     const pre=state.preflight,box=$('stage-preflight');
-    box.hidden=!pre;showHostCommand();if(!pre)return;
+    box.hidden=!pre;showHostCommand();tg113SoloPrompt();if(!pre)return;
     $('stage-preflight-track').textContent=pre.song.title;
     $('tg19-next-singer').textContent=state.room?.room_mode==='solo'?'PREPARE SEU MICROFONE':'VOCÊ É O PRÓXIMO: '+songSingerLabel(pre.song).toUpperCase();
     setDivaStageState('preflight');
@@ -1779,6 +1793,36 @@
   function tgR18EndRoomRequest(t){if(tgR18RoomRequest===t)tgR18RoomRequest=null;}
   function tgR18ClearReadyRoom(){state.readyRoom=null;$('ready-code').textContent='';if($('room-ready-dialog').open)$('room-ready-dialog').close();}
   function tgR18ReadyRoom(){const saved=state.readyRoom;return saved&&saved.uid===state.user?.id&&saved.epoch===tg07SessionEpoch&&saved.room.owner_id===saved.uid&&$('room-ready-dialog').open?saved:null;}
+  // R113: entrada explícita pelo festival; nunca converte uma festa em uso.
+  let tg113PendingRoom=null;
+  async function openCompetitiveStage(festivalId,reservedId,isCurrent){
+    const uid=state.user?.id;
+    if(cfg.BATTLE_API_RELEASE_ALLOWED!==true||!uid||isAnonymous(state.user)||!checkBackend()||state.emergencyBlocked||state.emergencyClosing||state.room||typeof isCurrent!=='function'||!isCurrent())throw Error('Volte ao menu principal e abra a Batalha com uma conta registrada.');
+    const ticket=tgR18BeginRoomRequest();if(!ticket)throw Error('Já existe uma abertura de palco em andamento.');
+    const current=()=>tgR18RoomRequestCurrent(ticket)&&!state.emergencyBlocked&&isCurrent();
+    try{
+      const fresh=async id=>{const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,status,current_song_id,expires_at,room_mode,tg30_battle_reserved').eq('id',id).single();if(error)throw error;if(!current()||data?.id!==id||data.owner_id!==uid||data.status!=='open'||data.room_mode!=='classic'||!(Date.parse(data.expires_at)>Date.now())||!validRoom(data.code))throw Error('Palco não confirmado. Confira Minhas festas.');return data;};
+      let room;
+      if(reservedId){room=await fresh(reservedId);if(room.tg30_battle_reserved!==true)throw Error('O palco não está reservado.');}
+      else{
+        const pending=tg113PendingRoom;
+        if(pending?.uid===uid&&pending.festival===festivalId&&pending.epoch===ticket.epoch)room=await fresh(pending.id);
+        else{
+          const rows=await callRPC('karaoke_create_room_mode',{p_title:'Palco da Batalha',p_mode:'classic'});
+          const id=rows?.[0]?.room_id;
+          if(!current()||!id||!validRoom(rows[0].room_code))throw Error('Criação não confirmada. Confira Minhas festas antes de tentar de novo.');
+          tg113PendingRoom={uid,festival:festivalId,epoch:ticket.epoch,id};room=await fresh(id);
+        }
+      }
+      if(!current())throw Error('Sessão alterada.');
+      const result=await callRPC('tg30_reserve_battle_room',{p_room:room.id,p_festival:festivalId});
+      if(!current()||result?.reserved!==true||result.room_id!==room.id)throw Error('Reserva competitiva não confirmada. Não compartilhe o QR.');
+      room=await fresh(room.id);if(room.tg30_battle_reserved!==true||!current())throw Error('Reserva não confirmada na leitura.');
+      tg113PendingRoom=null;await enterRoomAsHost(room);
+      if(state.user?.id!==uid||state.room?.id!==room.id||state.room.tg30_battle_reserved!==true||state.emergencyBlocked)throw Error('A sala foi reservada, mas o palco não foi confirmado. Confira Minhas festas.');
+      return {room_id:room.id,reserved:true};
+    }finally{tgR18EndRoomRequest(ticket);}
+  }
   async function makeRoom(event) {
     event.preventDefault();if(!checkBackend()||!state.user||isAnonymous(state.user)||state.room)return;
     const button=event.target.querySelector('[type=submit]');if(button.disabled)return;const ticket=tgR18BeginRoomRequest();if(!ticket)return;setLoading(button,true,'Montando seu palco…');ticket.narration=$('tg64-create-narration')?.checked===true;
@@ -2965,7 +3009,7 @@
     $('now-title').textContent=song?.title||'O palco tá esperando você! 🎶';
     $('now-by').textContent=song?'Com '+songSingerLabel(song):'Adicione a primeira música pelo celular ou pelo painel.';
     $('song-pill').textContent=song?'✦ Faça barulho!':'✦ Prontos para o show?';
-    $('video-placeholder').hidden=!!song;setDivaStageState(song?'playing':(state.preflight?'preflight':'idle'));
+    $('video-placeholder').hidden=!!song;setDivaStageState(song?'playing':(state.preflight?'preflight':'idle'));tg113SoloPrompt();
   }
   async function startSong(song) {
     if(state.emergencyBlocked||tg108Transition||!tg108Safe())return;
@@ -4564,6 +4608,8 @@ function renderFullCatalog(){
     $('contrast-toggle').addEventListener('click',()=>toggleContrast(!document.body.classList.contains('high-contrast')));
     $('tg103-solo-entry')?.addEventListener('click',startSingleDeviceMode);
     $('tg18-solo-button').addEventListener('click',()=>void toggleSoloMic());$('tg192-solo-off').addEventListener('click',()=>void toggleSoloMic());
+    for(const id of ['tg113-solo-preflight-mic','tg113-solo-call-mic'])$(id)?.addEventListener('click',()=>{if(state.room?.room_mode==='solo'&&!state.soloMic&&!state.emergencyBlocked&&(state.preflight||state.currentSong))void toggleSoloMic();});
+    window.addEventListener('temgogo:view',()=>{tg113StageBattleAccess();tg113SoloPrompt();});
     $('tg18-remote-open').addEventListener('click',()=>{
       if(!state.room)return;
       const url=new URL(currentURL(state.room.code));url.searchParams.set('remote','1');
@@ -4751,6 +4797,7 @@ function renderFullCatalog(){
   function tg100SyncRoomMode(){
     if(state.role!=='host'||!state.room)return;
     const solo=state.room.room_mode==='solo';document.body.classList.toggle('tg104-single-device',solo);
+    const callout=$('tg113-solo-call'),bar=$('tg123-host-bar');if(callout&&bar&&bar.nextElementSibling!==callout)bar.after(callout);
     const stage=$('stage');if(!stage)return;
     stage.dataset.tg100Mode=solo?'solo':'classic';
     tgR07SyncSoloDock();
