@@ -4797,7 +4797,7 @@ function renderFullCatalog(){
   function tg100SyncRoomMode(){
     if(state.role!=='host'||!state.room)return;
     const solo=state.room.room_mode==='solo';document.body.classList.toggle('tg104-single-device',solo);
-    const callout=$('tg113-solo-call'),bar=$('tg123-host-bar');if(callout&&bar&&bar.nextElementSibling!==callout)bar.after(callout);
+    const callout=$('tg113-solo-call'),bar=$('tg123-host-bar');if(callout&&bar&&callout.parentElement!==bar)bar.prepend(callout);
     const stage=$('stage');if(!stage)return;
     stage.dataset.tg100Mode=solo?'solo':'classic';
     tgR07SyncSoloDock();

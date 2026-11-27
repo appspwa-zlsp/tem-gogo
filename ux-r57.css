@@ -573,3 +573,5 @@ html[data-tg-theme="crystal"] body:not(.high-contrast) #stage[data-tg50-ready] #
 #tg75-battle-panel .tg113-code{display:grid;gap:6px;overflow-wrap:anywhere}
 #tg75-battle-panel .tg113-code code{user-select:all}
 @media(max-width:670px){#tg75-battle-panel .tg75-header{flex-wrap:wrap;align-items:center}#tg75-battle-panel .tg113-choice{display:block;width:100%;margin:6px 0}#tg113-solo-call button{flex:1 1 auto}}
+
+#stage[data-tg50-ready] #tg123-host-bar>#tg113-solo-call:not([hidden]){flex:1 0 100%;width:100%;margin:0;box-sizing:border-box;order:-1}
