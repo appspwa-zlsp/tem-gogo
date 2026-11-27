@@ -141,13 +141,28 @@ const f03Windows=s=>(s?.voting_windows||[]).filter(w=>['paused','closed'].includ
 async function f03Read(id){
  const {data,error}=await ctx().getClient().rpc('tg57_f03_incident',{p_action:'status',p_payload:{window_id:id}});
  if(error||data?.individual_ballots_visible!==false||!Object.prototype.hasOwnProperty.call(data,'case'))throw Error('Não foi possível confirmar o incidente. Atualize a votação.');
- const c=data.case;
- if(c!==null&&(!c||c.window_id!==id||!api.UUID.test(c.case_id)||typeof c.authorized!=='boolean'||typeof c.full_revote_callable!=='boolean'||!['reported','needs_admin_review','resume_authorized','rejected'].includes(c.status)||!Number.isSafeInteger(c.attempt_no)||c.attempt_no<1))throw Error('Estado do incidente não reconhecido.');
- return c;
+ return f03Normalize(data,id);
+}
+// C109: somente o caso vigente autoriza ações. Histórico exclusivamente informativo.
+function f03Normalize(data,id){
+ const valid=c=>!!c&&typeof c.case_id==='string'&&api.UUID.test(c.case_id)&&typeof c.authorized==='boolean'&&['reported','needs_admin_review','resume_authorized','rejected'].includes(c.status)&&Number.isSafeInteger(c.attempt_no)&&c.attempt_no>=1&&(c.pause_id===null||(typeof c.pause_id==='string'&&api.UUID.test(c.pause_id)));
+ const c=data.case,h=data.last_case,n=data.history_count;
+ if((c!==null&&(!valid(c)||c.window_id!==id||typeof c.full_revote_callable!=='boolean'))||
+    !Number.isSafeInteger(n)||n<0||(n===0&&(h!==null||c!==null))||(n>0&&!valid(h))||
+    (c!==null&&n===1&&h.case_id!==c.case_id))throw Error('Estado ou histórico do incidente não reconhecido.');
+ return {current:c===null?null:{case_id:c.case_id,status:c.status,window_id:c.window_id,attempt_no:c.attempt_no,pause_id:c.pause_id,authorized:c.authorized,full_revote_callable:c.full_revote_callable},historyCount:n,last:h===null?null:{case_id:h.case_id,status:h.status,attempt_no:h.attempt_no,pause_id:h.pause_id,authorized:h.authorized}};
+}
+function f03History(entry){
+ if(!entry.historyCount)return '';
+ const previous=entry.historyCount-(entry.current?1:0);
+ if(!previous)return '';
+ const names={reported:'registrado',needs_admin_review:'encaminhado para revisão',resume_authorized:'retomada autorizada',rejected:'rejeitado'};
+ const last=entry.last&&entry.last.case_id!==entry.current?.case_id?entry.last:null;
+ return '<details><summary>Histórico de incidentes ('+esc(previous)+')</summary>'+empty('Registros anteriores: somente consulta, sem autorização para esta ocorrência.')+(last?empty('Último registro anterior: '+(last.authorized?'nova tentativa autorizada':names[last.status])+' · tentativa '+last.attempt_no):empty('O registro mais recente corresponde à ocorrência atual.'))+'</details>';
 }
 function f03Allowed(action,p,cases=f03Cases){
  if(!voteFresh()||!ctrl()||!f03Windows(snap).some(w=>w.id===p.window_id)||!cases.has(p.window_id))return false;
- const c=cases.get(p.window_id);
+ const c=cases.get(p.window_id).current;
  if(action==='report')return c===null;
  if(!c||c.case_id!==p.case_id||c.authorized)return false;
  if(action==='escalate')return c.status==='reported';
@@ -159,7 +174,9 @@ function f03ReportForm(w){return '<form data-reason-action="report" data-kind="i
 function f03Panel(w){
  if(!ctrl()||!f03Windows(snap).some(x=>x.id===w.id))return '';
  if(!f03Cases.has(w.id))return empty('Incidente: confirmação indisponível. Atualize antes de retomar ou apurar.')+btn('Atualizar estado','refresh',{},'local');
- const c=f03Cases.get(w.id);
+ const entry=f03Cases.get(w.id);return f03CurrentPanel(w,entry.current)+f03History(entry);
+}
+function f03CurrentPanel(w,c){
  if(c===null)return '<details><summary>Falha de votação</summary>'+f03ReportForm(w)+'</details>';
  if(c.authorized)return empty('Nova tentativa já autorizada. Confira a etapa atual.');
  if(c.status==='reported')return empty('Incidente registrado. Votos preservados.')+(['qualifying','bracket'].includes(state())&&w.state==='paused'?reasonForm('Falha resolvida · retomar votação','resume_recovered',{window_id:w.id,case_id:c.case_id},'incident'):'')+reasonForm('Encaminhar para revisão','escalate',{window_id:w.id,case_id:c.case_id},'incident');
@@ -167,7 +184,7 @@ function f03Panel(w){
  if(c.status==='needs_admin_review')return empty(c.full_revote_callable?'Parecer e prontidão confirmados.':'Aguardando revisão independente ou validação MFA.')+(c.full_revote_callable?reasonForm('Autorizar nova apresentação e votação','authorize_full_revote',{window_id:w.id,case_id:c.case_id},'incident'):mfaNote());
  return empty('Incidente em revisão. Consulte a Central.');
 }
-const f03ContinuationAllowed=(w,cases=f03Cases)=>cases.has(w.id)&&(cases.get(w.id)===null||(!cases.get(w.id)?.authorized&&cases.get(w.id)?.status==='resume_authorized'));
+const f03ContinuationAllowed=(w,cases=f03Cases)=>cases.has(w.id)&&(cases.get(w.id).current===null||(!cases.get(w.id).current?.authorized&&cases.get(w.id).current?.status==='resume_authorized'));
 const voteActions=new Set(['cast_vote','extend_vote','close_vote','finalize_due','pause_vote','resume_vote','commit_result','start_rematch']);
 function mayVoteAction(action,p){if(!voteActions.has(action))return true;if(!voteFresh())return false;const w=(snap?.voting_windows||[]).find(x=>x.id===p.window_id);if(!w)return false;const deadline=Date.parse(w.deadline_at);if(action==='cast_vote')return w.state==='open'&&w.eligible===true&&w.my_ballot_submitted===false&&Number.isFinite(deadline)&&Date.now()<deadline&&(!w.has_b?p.stars_b===null:p.stars_b!==null);if(!ctrl())return false;if(action==='resume_vote')return w.state==='paused'&&f03ContinuationAllowed(w);if(action==='commit_result'||action==='start_rematch')return w.state==='closed'&&!w.result_confirmed&&f03ContinuationAllowed(w);if(action==='extend_vote')return w.state==='open'&&Number.isFinite(deadline)&&Date.now()<deadline;return w.state==='open';}
 const lease=()=>({g:gen,u:uid,f:festivalId,v:version()});
