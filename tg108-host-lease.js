@@ -13,7 +13,7 @@ function create({rpc,context,clock=()=>performance.now(),random=b=>crypto.getRan
  function halt(){if(closed)return;closed=true;mode='blocked';token=null;requestId=null;until=0;++seq;onStop();}
  function ensure(s){if(s!==seq||!same()||closed)throw invalid();}
  async function invoke(name,args,s){ensure(s);let timer;try{const r=await Promise.race([Promise.resolve().then(()=>rpc(name,args)),new Promise((_,reject)=>{timer=setTimeout(()=>reject(invalid()),timeout);})]);ensure(s);return r;}finally{clearTimeout(timer);}}
- function schedule(fn,{generation=false,critical=true}={}){const s=seq,old=g;if(queued>=64)return Promise.reject(invalid());queued++;const work=tail.then(async()=>{ensure(s);if(generation&&old!==g)throw invalid();try{return await fn(s);}catch(e){if(critical&&s===seq&&same())halt();throw e;}});tail=work.catch(()=>{});return work.finally(()=>{if(s===seq)queued--;});}
+ function schedule(fn,{generation=false,critical=true}={}){const s=seq,old=g;if(queued>=64)return Promise.reject(invalid());queued++;const work=tail.then(async()=>{ensure(s);if(mode==='ended'||generation&&old!==g)throw invalid();try{return await fn(s);}catch(e){if(critical&&s===seq&&same())halt();throw e;}});tail=work.catch(()=>{});return work.finally(()=>{if(s===seq)queued--;});}
  function auth(){if(!live()||ctx.role!=='host'||device!=='host'||!token)throw invalid();return {p_room:ctx.room,p_token:token,p_generation:g};}
  function key(){return Array.from(random(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');}
  function accept(r,t,rotate=false){if(!uuid(r?.generation)||!Number.isFinite(Date.parse(r?.expires_at))||(!rotate&&g&&g!==r.generation)||clock()>=t+22000)throw invalid();g=r.generation;mode='live';device='host';until=t+22000;renewAt=t+8000;}
