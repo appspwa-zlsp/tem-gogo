@@ -604,3 +604,7 @@ html[data-tg-theme="crystal"] body:not(.high-contrast) #stage[data-tg50-ready] #
 #tg75-battle-panel .tg115-invite{padding:12px;border:1px solid var(--tg-border,#755383);border-radius:14px}
 #tg75-battle-panel .tg115-invite summary{cursor:pointer;min-height:32px;font-weight:700}
 #tg75-battle-panel .tg115-invite code{display:block;overflow-wrap:anywhere;margin:6px 0}
+
+/* Não exibir identificação enquanto a sessão do convite explícito é consultada. */
+body.tg115-checking-invite #guest-access > :not(#tg115-invite-status){display:none!important}
+#tg115-invite-status{padding:14px;text-align:center;font-weight:600}

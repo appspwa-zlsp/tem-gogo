@@ -1299,6 +1299,7 @@
       return true;
     }catch(err){if(tgR18RoomRequestCurrent(ticket))console.warn('Retomada indisponível:',err.message);return false;}finally{tgR18EndRoomRequest(ticket);}
   }
+  function tg115FinishInviteCheck(){document.body.classList.remove('tg115-checking-invite');$('tg115-invite-status')?.remove();}
   // R115A: convite explícito de conta permanente; a RPC existente valida a sala.
   async function tg115RegisteredInvite(code){
     if(!state.user||isAnonymous(state.user)||!validRoom(code)||state.room||state.recoveryIntent||document.body.dataset.currentView!=='landing')return false;
@@ -1510,11 +1511,11 @@
     const targetRoom=window.TG73_INVITES.initial({linkRoom,savedRoom,recoveryIntent:state.recoveryIntent,remoteIntent});
     if(targetRoom && validRoom(linkRoom) && !remoteIntent)holdInvitation(linkRoom); // URL recente prevalece.
     if(!state.recoveryIntent&&!remoteIntent&&linkRoom && url.searchParams.get('auth')!=='login'){
-      showGuestEntry(linkRoom);
-      $('invite-welcome').querySelector('p')?.replaceChildren(document.createTextNode('🎟️ Convite recebido! Informe seu apelido e escolha seu avatar para entrar.'));
+      document.body.classList.add('tg115-checking-invite');showGuestEntry(linkRoom);
+      const status=document.createElement('p');status.id='tg115-invite-status';status.setAttribute('role','status');status.textContent='🎟️ Conferindo o convite e sua conta…';$('guest-access').prepend(status);
     }
-    if(!configured()){$('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';return;}
-    if(!window.supabase?.createClient){toast('Não foi possível carregar a biblioteca Supabase. Verifique a internet.',true);return;}
+    if(!configured()){tg115FinishInviteCheck();$('auth-state').textContent='⚙️ Confira config.js e a instalação SQL do Tem Gogó para ativar as salas.';return;}
+    if(!window.supabase?.createClient){tg115FinishInviteCheck();toast('Não foi possível carregar a biblioteca Supabase. Verifique a internet.',true);return;}
     state.client=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     // Camarim: somente visual; não muda som, nota, ranking nem credenciais.
     try{window.TG109_CAMARIM?.start(state.client,cfg.SUPABASE_URL,()=>!state.currentSong&&!state.room?.current_song_id&&!state.preflight&&!state.startingSong&&!state.finishing&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.peers.size&&!recadoShowing&&$('final-overlay')?.hidden!==false);}catch{}
@@ -1583,7 +1584,7 @@
         }
       }else if(state.user&&!isAnonymous(state.user))await openLobby();
       // Sem convite na URL, abrir o login limpo, inclusive no PWA instalado.
-    }catch(err){toast(humanError(err),true);}
+    }catch(err){toast(humanError(err),true);}finally{tg115FinishInviteCheck();}
   }
   function isAnonymous(user) {return user?.is_anonymous===true || user?.app_metadata?.provider==='anonymous';}
   function checkBackend() {if (!state.client){toast('Antes de usar, configure o Supabase em config.js.',true);return false;}return true;}
