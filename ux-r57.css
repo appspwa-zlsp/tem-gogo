@@ -587,3 +587,20 @@ html[data-tg-theme="crystal"] body:not(.high-contrast) #stage[data-tg50-ready] #
 #tg114-monitor label{display:flex;justify-content:space-between;gap:8px;font-size:.9rem}
 #tg114-monitor input[type=range]{width:100%;min-width:0}
 #tg114-monitor-status{margin:0;font-size:.85rem}
+
+/* R115A — Diva contextual e Camarim leve; sem novos recursos de rede. */
+#tg75-battle-panel .tg115-diva-guide{display:flex;align-items:flex-end;gap:10px;min-width:0;margin:2px 0 8px}
+#tg75-battle-panel .tg115-diva-guide img{width:clamp(58px,14vw,100px);height:auto;flex-shrink:0;object-fit:contain}
+#tg75-battle-panel .tg115-bubble{position:relative;min-width:0;flex:1;border:1px solid var(--tg-border,#80568c);border-radius:18px 18px 18px 5px;background:var(--tg-surface,#26182f);color:var(--tg-text,#fff);padding:12px 14px}
+#tg75-battle-panel .tg115-bubble strong{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}
+#tg75-battle-panel .tg115-bubble p{margin:5px 0;line-height:1.4}
+#tg75-battle-panel .tg115-festival{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--tg-border,#755383);min-width:0}
+#tg75-battle-panel .tg115-festival strong,#tg75-battle-panel .tg115-festival small,#tg75-battle-panel .tg115-person small{display:block;overflow-wrap:anywhere}
+#tg75-battle-panel .tg115-person{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 0;border-bottom:1px solid var(--tg-border,#5c4567)}
+#tg75-battle-panel .tg115-person:last-child{border-bottom:0}
+#tg75-battle-panel .tg115-person-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#704090;color:#fff;flex-shrink:0}
+#tg75-battle-panel .tg115-person-name{flex:1;min-width:90px}
+#tg75-battle-panel .tg115-person-actions{display:flex;gap:6px;flex-wrap:wrap}
+#tg75-battle-panel .tg115-invite{padding:12px;border:1px solid var(--tg-border,#755383);border-radius:14px}
+#tg75-battle-panel .tg115-invite summary{cursor:pointer;min-height:32px;font-weight:700}
+#tg75-battle-panel .tg115-invite code{display:block;overflow-wrap:anywhere;margin:6px 0}

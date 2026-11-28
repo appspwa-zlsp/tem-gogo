@@ -1260,7 +1260,8 @@
     if(code && validRoom(code)){
       const u=new URL('./',location.href);u.searchParams.set('room',code);
       history.replaceState(null,'',u.href);
-      showGuestEntry(code);
+      if(state.user&&!isAnonymous(state.user)){show('landing');if(!await tryResumeMembership(code))await tg115RegisteredInvite(code);}
+      else showGuestEntry(code);
     }else{
       forgetInvitation();cleanInvitationURL();showGuestEntry('');
     }
@@ -1292,11 +1293,18 @@
       const rows=await callRPC('karaoke_resume_room',{p_code:code});
       if(!tgR18RoomRequestCurrent(ticket)||!rows?.length)return false;
       const r=rows[0];
-      await enterRoomAsGuest({id:r.room_id,code:r.room_code,title:r.room_title,owner_id:r.owner_id},r.display_name);
+      if(await enterRoomAsGuest({id:r.room_id,code:r.room_code,title:r.room_title,owner_id:r.owner_id},r.display_name)===false||state.role!=='guest'||state.room?.id!==r.room_id)return false;
       switchMobileTab('queue');
       toast('Bem-vinda de volta! Sua festa continua e a fila te espera. 🎶');
       return true;
     }catch(err){if(tgR18RoomRequestCurrent(ticket))console.warn('Retomada indisponível:',err.message);return false;}finally{tgR18EndRoomRequest(ticket);}
+  }
+  // R115A: convite explícito de conta permanente; a RPC existente valida a sala.
+  async function tg115RegisteredInvite(code){
+    if(!state.user||isAnonymous(state.user)||!validRoom(code)||state.room||state.recoveryIntent||document.body.dataset.currentView!=='landing')return false;
+    $('guest-code').value=code;holdInvitation(code);state.inviteRoom=code;
+    $('auth-state').textContent='Conferindo seu convite…';
+    return await joinRoomByCode(code,{auto:true});
   }
   // R35: aviso de atualização somente fora do palco/camarim, sem reload forçado.
   let tg35UpdatePending=false;
@@ -1563,7 +1571,10 @@
       if(targetRoom){
         const resumed=await tryResumeMembership(targetRoom);
         if(!resumed){
-          if(linkRoom){showGuestEntry(linkRoom);toast('Confira o convite da festa e escolha seu avatar para entrar. 🎭');}
+          if(validRoom(linkRoom)){
+            if(state.user&&!isAnonymous(state.user)){await tg115RegisteredInvite(linkRoom);}
+            else{showGuestEntry(linkRoom);toast('Confira o convite da festa e escolha seu avatar para entrar. 🎭');}
+          }
           else{
             localStorage.removeItem('tem-gogo-pending-room');
             if(state.user&&!isAnonymous(state.user))await openLobby();
@@ -1711,8 +1722,7 @@
       if(validRoom(returnRoom)){
         const cleanUrl=new URL('./',location.href);cleanUrl.searchParams.set('room',returnRoom);
         history.replaceState(null,'',cleanUrl.href);
-        holdInvitation(returnRoom);showGuestEntry(returnRoom);
-        toast('Conta conectada! Confira seu apelido e entre na festa. 🎤');return;
+        holdInvitation(returnRoom);if(!await tryResumeMembership(returnRoom))await tg115RegisteredInvite(returnRoom);return;
       }
       await openLobby();
     }catch(err){$('auth-state').textContent=humanError(err);toast(humanError(err),true);}finally{setLoading(button,false);}
@@ -1773,7 +1783,7 @@
         if(validRoom(returnRoom)){
           const cleanUrl=new URL('./',location.href);cleanUrl.searchParams.set('room',returnRoom);
           history.replaceState(null,'',cleanUrl.href);
-          holdInvitation(returnRoom);showGuestEntry(returnRoom);toast('Conta criada! Confirme seus dados para participar. 🌟');}
+          holdInvitation(returnRoom);if(!await tryResumeMembership(returnRoom))await tg115RegisteredInvite(returnRoom);}
         else {await openLobby();toast('Conta criada! Agora o palco é seu. 🌟');}
       }
       else {
