@@ -6,7 +6,8 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const cfg = window.TEM_GOGO_CONFIG || {};
-  let tg115bAuthEpoch=0;
+  let tg115bAuthEpoch=0,tg115bSessionId=null;
+  function tg115bReadSessionId(session){try{const p=session?.access_token?.split('.')[1];if(!p)return null;return JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/'))).session_id||null;}catch{return null;}}
   const state = {
     client: null, user: null, room: null, role: null, emergencyBlocked:true, emergencyLatch:false, emergencyGeneration:undefined,
     songs: [], members: [], scores: [], channel: null,
@@ -1526,7 +1527,7 @@
     try{window.TG109_CAMARIM?.start(state.client,cfg.SUPABASE_URL,()=>!state.currentSong&&!state.room?.current_song_id&&!state.preflight&&!state.startingSong&&!state.finishing&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.peers.size&&!recadoShowing&&$('final-overlay')?.hidden!==false);}catch{}
     // IMPORTANTE: receber PASSWORD_RECOVERY antes de ler/restaurar convites ou abrir o lobby.
     state.client.auth.onAuthStateChange((event,session)=>{
-      if(state.user?.id!==session?.user?.id||state.user?.is_anonymous!==session?.user?.is_anonymous||['SIGNED_OUT','USER_UPDATED','PASSWORD_RECOVERY'].includes(event)){tg115bAuthEpoch++;window.TG115_UI?.reset({forget:!!state.user||event==='SIGNED_OUT'||event==='PASSWORD_RECOVERY'});}
+      const tg115bNextSession=tg115bReadSessionId(session);if(state.user?.id!==session?.user?.id||state.user?.is_anonymous!==session?.user?.is_anonymous||tg115bSessionId!==tg115bNextSession||['SIGNED_OUT','USER_UPDATED','PASSWORD_RECOVERY'].includes(event)){tg115bAuthEpoch++;window.TG115_UI?.reset({forget:!!state.user||event==='SIGNED_OUT'||event==='PASSWORD_RECOVERY'});}tg115bSessionId=tg115bNextSession;
       const favoriteIdentityChanged=tg26FavoriteAccount()!==tg36FavoriteIdentity(session?.user);
       if(favoriteIdentityChanged)tg36ClearFavoriteIdentity();
       if(state.user?.id!==session?.user?.id){
@@ -1725,6 +1726,7 @@
     try {
       const {data,error}=await state.client.auth.signInWithPassword({email:$('auth-email').value.trim(),password:$('auth-password').value});
       if(error)throw error; state.user=data.user;
+      if(window.TG115_UI?.hasPending()){await openLobby();return;}
       if(localStorage.getItem('tem-gogo-pending-remote')&&await resumeRemoteAfterLogin())return;
       const returnRoom=normalizeRoom(sessionStorage.getItem('tg20-auth-return-room'));
       sessionStorage.removeItem('tg20-auth-return-room');
@@ -1787,6 +1789,7 @@
       $('auth-email').value=email;
       if(data.session){
         state.user=data.user;closeSignup();
+        if(window.TG115_UI?.hasPending()){await openLobby();return;}
         const returnRoom=normalizeRoom(sessionStorage.getItem('tg20-auth-return-room'));
         sessionStorage.removeItem('tg20-auth-return-room');
         if(validRoom(returnRoom)){
