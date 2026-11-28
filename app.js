@@ -119,8 +119,9 @@
     getClient:()=>state.client,
     getUser:()=>state.user,
     getAccessScope:()=>tg115bAuthEpoch+':'+tg07SessionEpoch,
+    notifyAccess:message=>toast(message,true),
     openAccessLogin:()=>{show('landing');$('invite-welcome').hidden=true;$('access-tabs').hidden=false;$('tab-host').click();},
-    createAccessGuest:async()=>{if(cfg.R115B_ACCESS_ALLOWED!==true||state.user||state.room)throw Error('Entrada indisponível.');const {data,error}=await state.client.auth.signInAnonymously();if(error||!data?.user?.id||data.user.is_anonymous!==true||state.user?.id&&state.user.id!==data.user.id)throw Error('Não foi possível entrar como convidado.');state.user=data.user;return true;},
+    createAccessGuest:async()=>{if(cfg.R115B_QA_ONLY===true||cfg.R115B_ACCESS_ALLOWED!==true||state.user||state.room)throw Error('Entrada indisponível.');const {data,error}=await state.client.auth.signInAnonymously();if(error||!data?.user?.id||data.user.is_anonymous!==true||state.user?.id&&state.user.id!==data.user.id)throw Error('Não foi possível entrar como convidado.');state.user=data.user;return true;},
     getRole:()=>state.role,
     getRoomId:()=>state.room?.id||null,
     getCompetitiveRoom:()=>state.role==='host'&&state.room?.owner_id===state.user?.id?{id:state.room.id,reserved:state.room.tg30_battle_reserved===true}:null,
@@ -1758,6 +1759,7 @@
     finally{tg30Resending=false;buttons.forEach(b=>b.disabled=false);}
   }
   function openSignup() {
+    if(cfg.R115B_QA_ONLY===true){toast('Homologação restrita. Use uma conta de teste já autorizada.',true);return;}
     $('signup-feedback').textContent='';
     $('signup-form').reset();['signup-password','signup-confirm'].forEach(id=>$(id).type='password');
     $('signup-email').value=$('auth-email').value.trim();
@@ -1767,6 +1769,7 @@
   function closeSignup(){ $('signup-dialog').close(); }
   async function signup(event) {
     event.preventDefault();
+    if(cfg.R115B_QA_ONLY===true){toast('Novos cadastros indisponíveis nesta homologação.',true);return;}
     if(!checkBackend()||tgR17PasswordPending||$('signup-submit').disabled)return;
     const name=$('signup-name').value.trim();
     const email=$('signup-email').value.trim().toLowerCase();
@@ -1870,6 +1873,7 @@
     const sameCode=()=>normalizeRoom($('guest-code').value)===code;
     try{
       if(!state.user){
+        if(cfg.R115B_QA_ONLY===true){toast('Use uma sessão temporária de teste já autorizada.',true);return false;}
         const {data,error}=await state.client.auth.signInAnonymously();
         if(error)throw error;
         if(!data?.user?.id||tgR18RoomRequest!==ticket||ticket.epoch!==tg07SessionEpoch||ticket.view!==document.body.dataset.currentView||(state.user&&state.user.id!==data.user.id))return false;
