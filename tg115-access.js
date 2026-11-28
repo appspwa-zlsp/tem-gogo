@@ -51,6 +51,9 @@ function make({getClient,getUser,getScope,allowRelease=()=>false}){
   need(d?.ok===true&&d.member_id===m&&d.decision===p&&d.status===(p==='refused'?'rejected':'approved'));
   return {ok:true,member_id:m,decision:p,status:d.status};
  }),
+ revokeCurrent:(f,p)=>run(async a=>{
+  need(uuid.test(f)&&purpose(p));need(a.k==='permanent');const d=await rpc(a,'tg115_revoke_current',{p_festival:f,p_purpose:p});need(d?.revoked===true&&Number.isInteger(d.count)&&d.count>=0&&d.count<=1,'Revogação não confirmada.');return {revoked:true,count:d.count};
+ }),
  revoke:(f,i)=>run(async a=>{
   need(uuid.test(f)&&uuid.test(i));need(a.k==='permanent');const d=await rpc(a,'tg115_revoke_invite',{p_festival:f,p_invite:i});need(typeof d==='boolean');return d;
  })

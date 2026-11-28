@@ -136,7 +136,7 @@ async function saveProfile(){
  const b=account();if(!b||!profile||!ready107||busy107||profileOwner!==b.user.id||session107!==b.sessionEpoch||$('tg-p-save').disabled)return;
  const e=profileEpoch,uid=b.user.id,nick=val('tg-p-nick'),current=()=>current107(b,e);
  const avatar=document.querySelector('input[name="tg-avatar"]:checked')?.value||profile.avatar_key||'urbano';
- if(nick.length<2||nick.length>(window.TG115_UI?.enabled()?30:24)||!AV[avatar]){status(window.TG115_UI?.enabled()?'Use um apelido de 2 a 30 caracteres e escolha um avatar.':'Use um apelido de 2 a 24 caracteres e escolha um avatar.');return;}
+ if(nick.length<2||nick.length>24||!AV[avatar]){status('Use um apelido de 2 a 24 caracteres e escolha um avatar.');return;}
  const {social,changed}=social107(profile),explicit=receipt107==='missing'&&$('tg-p-legal').checked===true&&!$('tg-p-legal').disabled,useRPC=adultSocial115()&&(changed||explicit);
  if(useRPC&&window.TG115_UI?.enabled()&&!await window.TG115_UI.socialStatus()){status('Confirme sua elegibilidade adulta antes de salvar as opções sociais.');return;}
  if(!current())return;
@@ -288,7 +288,6 @@ function makeUI(){const root=document.createElement('div');root.id='tg-beta-root
  <div class="tg96-party-inner"><header><h2 id="tg96-party-title">🎤 Pessoas nesta festa</h2><button type="button" id="tg96-party-close" class="button button-outline">Fechar</button></header>
  <p>Selecione um participante desta mesma festa para ver o miniperfil permitido. Sem busca geral, chat ou seguidores.</p>
  <div id="tg96-party-list"></div></div></dialog>`;document.body.append(root);
- if(window.TG115_UI?.enabled())$('tg-p-nick').maxLength=30;
  $('tg115b-adult-options').onclick=async()=>{if(busy107)return;const b=account(),e=profileEpoch;if(await window.TG115_UI.ensure(true)&&current107(b,e))openTab('profile');};
  document.querySelectorAll('[data-tg-beta-open]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaOpen)));document.querySelectorAll('[data-tg-beta-tab]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tgBetaTab)));
  $('tg-beta-emergency').addEventListener('cancel',e=>e.preventDefault());
