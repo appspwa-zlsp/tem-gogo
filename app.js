@@ -1862,7 +1862,7 @@
     if(!validRoom(code)){if(!auto)toast('Confira o código da festa no QR ou na TV.',true);return false;}
     let name=($('guest-name').value||'').trim();
     if((!state.user||isAnonymous(state.user))&&name.length<2){toast('Escolha um apelido com pelo menos 2 caracteres antes de entrar.',true);return false;}
-    if(name.length>24)name=name.slice(0,24);
+    if(name.length>24){if(cfg.R115B_ACCESS_ALLOWED===true){if(name.length>30){toast('Use um apelido de até 30 caracteres.',true);return false;}}else name=name.slice(0,24);}
     if(state.room)return false;const ticket=tgR18BeginRoomRequest();if(!ticket)return false;
     const sameCode=()=>normalizeRoom($('guest-code').value)===code;
     try{
@@ -1877,7 +1877,7 @@
         const {data:identity,error:identityError}=await state.client.from('tg_profiles').select('nickname').eq('user_id',ticket.uid).maybeSingle();
         if(!tgR18RoomRequestCurrent(ticket)||!sameCode())return false;if(identityError)throw identityError;
         name=String(identity?.nickname||state.user.user_metadata?.display_name||'').trim();
-        if(name.length<2||name.length>24)throw Error('Atualize o apelido em Meu perfil (2 a 24 caracteres) antes de entrar.');
+        if(name.length<2||name.length>(cfg.R115B_ACCESS_ALLOWED===true?30:24))throw Error('Atualize o apelido em Meu perfil antes de entrar.');
       }
       if(window.TG115_UI?.enabled()&&!await window.TG115_UI.ensure())return false;
       if(!tgR18RoomRequestCurrent(ticket)||!sameCode())return false;
