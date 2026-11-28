@@ -38,7 +38,7 @@
   function tg108ClearPair(){clearInterval(tg108PairTimer);tg108PairTimer=null;if(tg108PairDialog){for(const input of tg108PairDialog.querySelectorAll('input'))input.value='';tg108PairDialog.replaceChildren();tg108PairDialog.remove();tg108PairDialog=null;}}
   function tg108Reset(){tg108ClearPair();tg108.reset();tg108Started=false;tg108Ready=false;tg108Transition=false;tg108Ending=null;$('tg108-pair-controls')?.remove();$('tg108-pair-entry')?.remove();}
   function tg108Wait(mode){
-    state.emergencyBlocked=true;
+    state.emergencyBlocked=true;tg114Stop('Retorno desligado por segurança.',true);
     const isRemote=state.role==='remote';
     const message=mode==='expired'?'O palco anterior perdeu a validade. Abra o palco para recuperar a festa com confirmação.':mode==='occupied'?'Outro palco está autorizado. Aguarde a expiração antes de recuperar.':mode==='awaiting_host'?'Aguardando autorização inicial do palco.':isRemote?'Vincule este celular no palco antes de controlar a festa.':'Aguardando o palco autorizado. Entre novamente quando estiver disponível.';
     tg23Dialog(message,'lease');
@@ -2426,6 +2426,77 @@
     }
     return pc;
   }
+  // R114: monitor local opcional. Sem WebRTC, gravação, nota, RPC ou alteração do ganho dos celulares.
+  let tg114Monitor=null,tg114Volume=10,tg114Device='',tg114Status='';
+  function tg114Allowed(){
+    return state.role==='host'&&!!state.room&&!!state.user&&state.room.owner_id===state.user.id&&state.room.room_mode==='classic'&&state.room.status==='open'&&Date.parse(state.room.expires_at)>Date.now()&&!state.emergencyBlocked&&!state.emergencyClosing&&tg108Safe()&&navigator.onLine!==false&&!document.hidden&&document.body.dataset.currentView==='stage';
+  }
+  function tg114Paint(){
+    const box=$('tg114-monitor'),toggle=$('tg114-monitor-toggle'),level=$('tg114-monitor-volume'),device=$('tg114-monitor-device'),status=$('tg114-monitor-status');
+    if(!box||!toggle||!level||!device||!status)return;
+    const allowed=tg114Allowed(),active=tg114Monitor?.phase==='on',pending=tg114Monitor?.phase==='pending';
+    box.hidden=!allowed;toggle.disabled=!allowed;toggle.setAttribute('aria-pressed',String(active));
+    toggle.textContent=active?'Desligar retorno':pending?'Cancelar ativação':'Liberar retorno de voz';
+    level.disabled=!active;level.value=String(tg114Volume);$('tg114-monitor-level').textContent=tg114Volume+'%';
+    device.disabled=!!tg114Monitor;status.textContent=tg114Status||(active?'Retorno ativo neste aparelho.':pending?'Aguardando permissão do microfone…':'Desligado · começa com volume baixo.');
+  }
+  function tg114Dispose(t){
+    if(!t)return;
+    clearInterval(t.guard);
+    try{if(t.gain)t.gain.gain.value=0;}catch{}
+    for(const node of [t.source,t.gain])try{node?.disconnect();}catch{}
+    for(const track of t.stream?.getTracks()||[])try{track.onended=null;track.stop();}catch{}
+    try{if(t.ctx&&t.ctx.state!=='closed')void Promise.resolve(t.ctx.close()).catch(()=>{});}catch{}
+  }
+  function tg114Stop(message='',reset=false){
+    const old=tg114Monitor;tg114Monitor=null;tg114Dispose(old);tg114Status=message;
+    tg114Volume=10;
+    if(reset){tg114Device='';const select=$('tg114-monitor-device');if(select){select.replaceChildren(new Option('Microfone padrão do aparelho',''));select.value='';}}
+    tg114Paint();
+  }
+  function tg114Current(t){return tg114Monitor===t&&tg07Current(t.scope)&&tg114Allowed();}
+  function tg114Guard(){if(tg114Monitor&&!tg114Current(tg114Monitor))tg114Stop('Retorno desligado por segurança.');else tg114Paint();}
+  async function tg114Devices(t){
+    if(!navigator.mediaDevices?.enumerateDevices)return;
+    try{
+      const list=await navigator.mediaDevices.enumerateDevices();if(!tg114Current(t))return;
+      const select=$('tg114-monitor-device');if(!select)return;
+      const inputs=list.filter(d=>d.kind==='audioinput'&&d.deviceId&&d.deviceId!=='default');
+      select.replaceChildren(new Option('Microfone padrão do aparelho',''),...inputs.map((d,i)=>new Option(d.label||'Microfone '+(i+1),d.deviceId)));
+      select.value=inputs.some(d=>d.deviceId===tg114Device)?tg114Device:'';
+      tg114Device=select.value;tg114Paint();
+    }catch{}
+  }
+  async function tg114Toggle(){
+    if(tg114Monitor){tg114Stop();return;}
+    if(!tg114Allowed())return;
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx||!navigator.mediaDevices?.getUserMedia){tg114Status='Este navegador não permite retorno local.';tg114Paint();return;}
+    const t={scope:tg07Scope(),phase:'pending',ctx:null,stream:null,source:null,gain:null,guard:null};
+    tg114Monitor=t;tg114Volume=10;tg114Status='';tg114Paint();tg105Pause();
+    t.guard=setInterval(tg114Guard,500);
+    try{
+      t.ctx=new AudioCtx({latencyHint:'interactive'});
+      // A permissão é solicitada somente neste clique local; iniciar sem saída até confirmar.
+      const resume=Promise.resolve(t.ctx.resume()).then(()=>true,()=>false);
+      const audio={echoCancellation:true,noiseSuppression:false,autoGainControl:false,...(tg114Device?{deviceId:{exact:tg114Device}}:{})};
+      t.stream=await navigator.mediaDevices.getUserMedia({audio,video:false});
+      if(!tg114Current(t)){tg114Dispose(t);return;}
+      if(!await resume||!tg114Current(t)||t.ctx.state!=='running'||!t.stream.getAudioTracks().some(track=>track.readyState==='live'&&track.enabled))throw Error('Áudio não liberado');
+      t.source=t.ctx.createMediaStreamSource(t.stream);t.gain=t.ctx.createGain();t.gain.gain.value=0;
+      t.source.connect(t.gain);t.gain.connect(t.ctx.destination);
+      if(!tg114Current(t)){tg114Dispose(t);return;}
+      for(const track of t.stream.getAudioTracks())track.onended=()=>{if(tg114Monitor===t)tg114Stop('Microfone desconectado. Libere novamente.');};
+      t.ctx.onstatechange=()=>{if(tg114Monitor===t&&t.phase==='on'&&t.ctx.state!=='running')tg114Stop('Áudio interrompido. Libere novamente.');};
+      t.phase='on';t.gain.gain.setTargetAtTime(tg114Volume/100,t.ctx.currentTime,.02);tg114Paint();void tg114Devices(t);
+    }catch(err){
+      if(tg114Monitor===t)tg114Stop('Não foi possível liberar o retorno. Confira a permissão e o microfone.');else tg114Dispose(t);
+    }
+  }
+  function tg114Adjust(value){
+    const t=tg114Monitor,n=Number(value);if(t?.phase!=='on'||!tg114Current(t)||!Number.isFinite(n))return;
+    tg114Volume=Math.max(0,Math.min(100,Math.round(n)));t.gain.gain.setTargetAtTime(tg114Volume/100,t.ctx.currentTime,.025);tg114Paint();
+  }
   async function ensureOutputContext() {
     if(!state.context)state.context=new (window.AudioContext||window.webkitAudioContext)();
     return state.context;
@@ -2442,7 +2513,7 @@
       state.role==='host'&&state.room?.owner_id===state.user?.id&&state.room?.status==='open'&&Date.parse(state.room.expires_at)>Date.now()&&
       tg13Recreational()&&['classic','solo'].includes(state.room.room_mode)&&!state.emergencyBlocked&&!state.emergencyClosing&&
       !state.currentSong&&!state.room.current_song_id&&!state.isPlaying&&!state.preflight&&!state.startingSong&&!state.finishing&&
-      !state.soloMic&&!state.localStream&&!state.peers.size&&!recadoShowing&&!tg87DivaAudio&&
+      !tg114Monitor&&!state.soloMic&&!state.localStream&&!state.peers.size&&!recadoShowing&&!tg87DivaAudio&&
       document.body.dataset.currentView==='stage'&&!document.hidden&&navigator.onLine!==false&&
       $('final-overlay')?.hidden===true&&$('video-placeholder')?.hidden===false&&!document.querySelector('dialog[open]:not(#tg50-drawer):not(#catalog-dialog):not(#settings-dialog)')&&tg105Volume()>0);
   }
@@ -4054,7 +4125,7 @@ function renderFullCatalog(){
     },140);
   }
   async function stopSession(){
-    tg108Reset();tg105Reset();tg100ReportReset();tg102ReleaseWake();
+    tg114Stop('',true);tg108Reset();tg105Reset();tg100ReportReset();tg102ReleaseWake();
     window.TG75_BATTLE_PANEL?.stopShowAudio?.();++tg07SessionEpoch;tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();tg89CloseSound();tg89SoundOffered=null;tgR25ClearSoloReport();tgR18ClearReadyRoom();tgR09ClearHistory();state.emergencyClosing=true;clearInterval(tg23Timer);tg23Timer=null;tg23Pending=null;tg15ClearRecap();tg18AbortDictation();
     for(const id of ["tg124-choice-dialog","tg17-singer-dialog","tg16-confirm-music","catalog-dialog","song-dialog"]){const dlg=$(id);if(dlg?.open)dlg.close();}
     searchMemory.clear();state.externalSearchBlocked=false;state.catalogIncomplete=false;
@@ -4248,7 +4319,7 @@ function renderFullCatalog(){
     const id=state.room.id,scope=tg07Scope();
     const studio=window.TG74_DIVA_STUDIO,localNarration=state.role==='host'&&studio?.getAuto()===true,localSound=localNarration&&studio?.isUnlocked()===true;
     const button=$(state.role==='remote'?'tg04-remote-end':'stage-exit');
-    state.finishing=true;
+    tg114Stop('',true);state.finishing=true;
     const endTicket=tg108Protected()&&state.role==='host'?{scope}:null;
     if(endTicket){tg108Ending=endTicket;tg105Pause();studio?.stop();try{state.player?.pauseVideo();state.player?.mute();}catch{}state.isPlaying=false;}
     if(button)button.disabled=true;
@@ -4667,6 +4738,11 @@ function renderFullCatalog(){
       if(state.micGainNode)state.micGainNode.gain.setTargetAtTime(state.guestMicGain,state.localAudioContext.currentTime,.015);
       localStorage.setItem('tem-gogo-mic-send-volume',String(value));
     });
+    $('tg114-monitor-toggle')?.addEventListener('click',()=>void tg114Toggle());
+    $('tg114-monitor-volume')?.addEventListener('input',e=>tg114Adjust(e.target.value));
+    $('tg114-monitor-device')?.addEventListener('change',e=>{if(!tg114Monitor&&tg114Allowed())tg114Device=e.target.value;});
+    window.addEventListener('temgogo:view',tg114Guard);window.addEventListener('offline',()=>tg114Stop('Retorno desligado por segurança.',true));window.addEventListener('pagehide',()=>tg114Stop('',true));
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)tg114Stop('Retorno desligado ao sair da tela.',true);else tg114Guard();});
     $('volume-range').addEventListener('input',event=>{
       state.masterGain=Number(event.target.value)/100;
       $('volume-label').textContent=event.target.value+'%';
@@ -4800,7 +4876,7 @@ function renderFullCatalog(){
     const callout=$('tg113-solo-call'),bar=$('tg123-host-bar');if(callout&&bar&&callout.parentElement!==bar)bar.prepend(callout);
     const stage=$('stage');if(!stage)return;
     stage.dataset.tg100Mode=solo?'solo':'classic';
-    tgR07SyncSoloDock();
+    tgR07SyncSoloDock();tg114Guard();
     const title=stage.querySelector('.stage-sidebar .sidebar-top h2');if(title)title.textContent=solo?'SUAS MÚSICAS':'PRÓXIMOS A CANTAR';
     const call=stage.querySelector('[data-tg123-host-command="call"]');if(call)call.textContent=solo?'🎤 Preparar música':'🎤 Chamar cantor';
     const hint=stage.querySelector('.vox-idle-copy small');if(hint)hint.textContent=solo?'Escolha sua música pelo catálogo. A Drag Diva acompanha seu show!':'Escolha sua música pelo QR ou pelo catálogo. A Drag Diva tá de olho!';
@@ -4881,7 +4957,7 @@ function renderFullCatalog(){
   }
   function tg23Suspend(message,reason='security'){
     if(!state.room||state.emergencyClosing)return;
-    state.emergencyBlocked=true;tg108Reset();tg105Reset();tg102ReleaseWake();window.TG75_BATTLE_PANEL?.stopShowAudio?.();tg89CloseSound();tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
+    state.emergencyBlocked=true;tg114Stop('Retorno desligado por segurança.',true);tg108Reset();tg105Reset();tg102ReleaseWake();window.TG75_BATTLE_PANEL?.stopShowAudio?.();tg89CloseSound();tg94QueueScope=null;tg94BisPending=null;tg94PaintBis();tg90ResetUpcoming();
     if(!state.emergencyLatch){
       state.emergencyLatch=true;++tg07SessionEpoch;tgR25ClearSoloReport();tgR19CancelSoloRequest();tgR20CancelMicRequest();
       // Invalida respostas pendentes antes de fechar mídia. Não chama finishSong nem flush.
@@ -4934,7 +5010,7 @@ function renderFullCatalog(){
         }
         state.emergencyGeneration=generation;
         if(!await tg108Gate(scope,initial)||!tg07Current(scope)||tg108EndInFlight())return false;
-        state.emergencyBlocked=false;return true;
+        state.emergencyBlocked=false;tg114Guard();return true;
       }catch{if(tg07Current(scope)&&tg23Pending===ticket&&!tg108EndInFlight())tg23Suspend('Não conseguimos consultar a segurança da sala. O áudio foi interrompido por precaução; isso não confirma uma suspensão administrativa. Verifique a conexão e entre novamente.', 'connection');return false;}
       finally{clearTimeout(timer);if(tg23Pending===ticket)tg23Pending=null;}
     })();return ticket.promise;
@@ -4954,7 +5030,7 @@ function renderFullCatalog(){
   async function tg23ExitLocal(){if(tg23Leaving)return;tg23Leaving=true;try{await stopSession();history.replaceState(null,'',new URL('./',location.href).href);localStorage.removeItem('tem-gogo-pending-room');localStorage.removeItem('tem-gogo-pending-remote');if(state.user&&!isAnonymous(state.user))await openLobby();else showGuestEntry('');}finally{tg23Leaving=false;}}
   // Bloqueio administrativo – recursos locais param quando o estado chega ao navegador.
   window.TG_MAINTENANCE_STOP=async()=>{
-    tg93StopFarewell();
+    tg93StopFarewell();tg114Stop('Retorno desligado por segurança.',true);
     if(state.room){tg23Suspend('Manutenção geral. O palco foi interrompido neste aparelho.');return;}
     tg18AbortDictation();window.TG74_DIVA_STUDIO?.reset();
     try{if(state.player?.pauseVideo)state.player.pauseVideo();}catch(e){console.warn('Pausa por manutenção',e);}
