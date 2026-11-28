@@ -3,3 +3,30 @@
 /* QA2: a lista extensa deixa a próxima ação visível e permite rolagem própria. */
 .tg115b-music-list{max-height:min(42dvh,320px);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
 .tg115b-music-list:focus-visible{outline:2px solid #c5f8b0;outline-offset:3px}
+
+/* R115B QA3 — selectors scoped to battle only. */
+#tg75-battle-panel .tg120-categories{display:flex;gap:6px;overflow:auto;white-space:nowrap;padding:6px 0}
+#tg75-battle-panel .tg120-categories button{flex:none;min-width:0}
+#tg75-battle-panel .tg120-categories button[aria-pressed=true]{outline:2px solid #da9eff;background:#66378a;color:#fff}
+#tg75-battle-panel .tg120-search{padding:10px 0}
+#tg75-battle-panel .tg120-search summary,#tg75-battle-panel .tg120-grid summary{cursor:pointer}
+#tg75-battle-panel .tg120-wait{display:grid;gap:12px;justify-items:center;text-align:center;padding:24px 10px}
+#tg75-battle-panel .tg120-wait img{width:min(180px,45vw);height:auto}
+#tg75-battle-panel .tg120-wait form{width:100%}
+#tg75-battle-panel .tg120-cinema{border:1px solid #8054a0;border-radius:18px;padding:16px;margin:8px 0;background:radial-gradient(ellipse at 25% 35%,#63398b,#241331 58%,#14091c);color:#fff;text-align:center;overflow:hidden}
+#tg75-battle-panel .tg120-versus{display:flex;align-items:center;justify-content:center;gap:clamp(12px,4vw,40px);padding:15px 4px}
+#tg75-battle-panel .tg120-fighter{display:grid;justify-items:center;gap:8px;flex:1;min-width:0;animation:tg120-enter .55s ease-out both}
+#tg75-battle-panel .tg120-fighter:last-child{animation-delay:.35s}
+#tg75-battle-panel .tg120-fighter img,#tg75-battle-panel .tg120-avatar{width:clamp(52px,14vw,110px);height:clamp(52px,14vw,110px);border-radius:50%;border:3px solid #e5b4ff;box-shadow:0 0 24px #d05dfc66;object-fit:cover;display:grid;place-items:center;font-size:2rem;background:#75458f}
+#tg75-battle-panel .tg120-fighter strong{overflow-wrap:anywhere}
+#tg75-battle-panel .tg120-versus>b{font-size:clamp(25px,6vw,56px);font-style:italic;color:#ffdc80;animation:tg120-reveal .45s .2s both}
+#tg75-battle-panel .tg120-hit,#tg75-battle-panel .tg120-winner{animation:tg120-reveal .7s 1s both;color:#ffdb86}
+#tg75-battle-panel .tg120-bracket{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:10px 0}
+#tg75-battle-panel .tg120-bracket article{background:#2c1e40;border:1px solid #9060ad;padding:10px;border-radius:10px;display:grid;gap:6px}
+#tg75-battle-panel .tg120-bracket article strong{color:#ffdb86}
+#tg75-battle-panel .tg120-podium{display:flex;align-items:end;justify-content:center;flex-wrap:wrap;gap:8px}
+#tg75-battle-panel .tg120-podium div{display:grid;gap:8px;min-width:74px;padding:16px;background:#452c57;border-radius:10px;animation:tg120-reveal .6s both}
+#tg75-battle-panel .tg120-podium b{font-size:2rem}
+@keyframes tg120-enter{from{opacity:0;transform:translateY(12px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes tg120-reveal{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#tg75-battle-panel .tg120-cinema *{animation:none!important}}

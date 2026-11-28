@@ -1822,10 +1822,15 @@
   let tg113PendingRoom=null;
   async function openCompetitiveStage(festivalId,reservedId,isCurrent){
     const uid=state.user?.id;
-    if(cfg.BATTLE_API_RELEASE_ALLOWED!==true||!uid||isAnonymous(state.user)||!checkBackend()||state.emergencyBlocked||state.emergencyClosing||state.room||typeof isCurrent!=='function'||!isCurrent())throw Error('Volte ao menu principal e abra a Batalha com uma conta registrada.');
+    if(cfg.BATTLE_API_RELEASE_ALLOWED!==true||!uid||isAnonymous(state.user)||!checkBackend()||state.emergencyClosing||state.emergencyLatch||state.room||typeof isCurrent!=='function'||!isCurrent())throw Error('Volte ao menu principal e abra a Batalha com uma conta registrada.');
     const ticket=tgR18BeginRoomRequest();if(!ticket)throw Error('Já existe uma abertura de palco em andamento.');
-    const current=()=>tgR18RoomRequestCurrent(ticket)&&!state.emergencyBlocked&&isCurrent();
+    const current=()=>tgR18RoomRequestCurrent(ticket)&&!state.emergencyClosing&&!state.emergencyLatch&&isCurrent();
     try{
+      // No room exists yet: the room-specific latch must stay closed until hydrateRoom/tg23Start.
+      if(window.TG115_UI?.enabled()&&!await window.TG115_UI.ensure())throw Error('Acesso à Batalha não confirmado.');
+      if(!current())throw Error('Sessão alterada.');
+      const [availability,capabilities]=await Promise.all([state.client.rpc('tg30_mode_availability'),state.client.rpc('tg_battle_v1_capabilities')]);
+      if(!current()||availability.error||capabilities.error||availability.data?.modes?.classic?.status!=='available'||capabilities.data?.enabled!==true||capabilities.data?.api_version!==1)throw Error('O servidor não confirmou a disponibilidade do palco. Confira a manutenção e tente novamente.');
       const fresh=async id=>{const {data,error}=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,status,current_song_id,expires_at,room_mode,tg30_battle_reserved').eq('id',id).single();if(error)throw error;if(!current()||data?.id!==id||data.owner_id!==uid||data.status!=='open'||data.room_mode!=='classic'||!(Date.parse(data.expires_at)>Date.now())||!validRoom(data.code))throw Error('Palco não confirmado. Confira Minhas festas.');return data;};
       let room;
       if(reservedId){room=await fresh(reservedId);if(room.tg30_battle_reserved!==true)throw Error('O palco não está reservado.');}
