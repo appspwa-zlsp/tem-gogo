@@ -497,24 +497,39 @@ function tg121Playlist(){
 }
 function tg121Readiness(){
  const people=(snap?.members||[]).filter(m=>m.status==='approved'&&m.is_competitor),choices=music?.choices||[],ready=people.filter(m=>choices.some(c=>c.member_id===m.id)).length;
- return tg121H('Vamos começar o show?')+tg121Diva(ready===people.length?'Tudo pronto, meu amor!':'Cada estrela está escolhendo seu hit individual.')+'<div class="tg121-counts"><div><b>'+ready+'/'+people.length+'</b><small>Músicas individuais</small></div><div><b>'+ (music?.tracks?.filter(t=>t.available).length||0)+'</b><small>Hits dos duelos</small></div></div>'+people.map(m=>'<div class="tg121-row"><strong>'+esc(m.display_name)+'</strong><small>'+ (choices.some(c=>c.member_id===m.id)?'✓ Confirmada':'Escolhendo')+'</small></div>').join('')+(ownCompetitor()&&!music?.my_choice?btn('Escolher minha música','personal_view',{},'local'):'')+tg121Next('Iniciar classificatória','lock_roster',F(),'execute',!(musicCanLock()&&people.length>=2&&ready===people.length));
+ return tg121H('Vamos começar o show?')+tg121Diva(ready===people.length?'Tudo pronto, meu amor!':'Cada estrela está escolhendo seu hit individual.')+'<div class="tg121-counts"><div><b>'+ready+'/'+people.length+'</b><small>Músicas individuais</small></div><div><b>'+ (music?.tracks?.filter(t=>t.available).length||0)+'</b><small>Hits dos duelos</small></div></div>'+people.map(m=>'<div class="tg121-row"><strong>'+esc(m.display_name)+'</strong><small>'+ (choices.some(c=>c.member_id===m.id)?'✓ Confirmada':'Escolhendo')+'</small></div>').join('')+(ownCompetitor()&&!music?.my_choice?btn('Escolher minha música','personal_view',{},'local'):'')+tg121Next('Iniciar classificatória','lock_roster',F(),'execute',!(musicCanLock()&&people.length>=2&&ready===people.length&&!(snap?.members||[]).some(m=>m.status==='pending')));
 }
+
+function tg121Performance(m){
+ const binding=(snap?.bindings||[]).find(b=>b.match_id===m.id&&b.attempt_no===m.attempt_no),z=mediaFor(m),live=ctx()?.getBattlePerformance?.(),room=ctx()?.getCompetitiveRoom?.();
+ const status=({ready:'Preparando',singing:'No palco',result_pending:'Aguardando avaliação',voting:'Votação',postponed:'Pausado'})[m.state]||'Aguardando';
+ let primary='';
+ if(m.state==='postponed'&&binding?.state==='invalidated')primary=tg121Next('Preparar nova tentativa','retry_invalidated',{binding_id:binding.id,_match:m.id,_attempt:m.attempt_no});
+ else if(m.state==='result_pending'&&binding?.state==='captured')primary=tg121Next('Abrir votação','open_vote',{...F(),match_id:m.id,_attempt:m.attempt_no,_binding:binding.id});
+ else if(m.state==='singing'&&binding?.state==='bound')primary=tg121Next('Confirmar avaliação após o canto','capture_performance',{binding_id:binding.id,_match:m.id,_attempt:m.attempt_no},'execute',!!live);
+ else if(m.state==='ready'&&!z)primary=tg121Next(m.kind==='qualifier'?'Confirmar hit individual':'Sortear o hit','music_resolve',{match_id:m.id,attempt_no:m.attempt_no},'local');
+ else if(m.state==='ready'&&z&&!binding&&live&&z.song_id===live.song_id&&z.room_id===live.room_id)primary=tg121Next('Confirmar apresentação em andamento','bind_live',{match_id:m.id,_attempt:m.attempt_no,_room:live.room_id,_song:live.song_id},'local');
+ else if(m.state==='ready'&&z&&!z.song_id){const qs=queuedFor(m,z);primary=qs.length?tg121Next('Preparar música','music_prepare',{match_id:m.id,attempt_no:m.attempt_no,room_id:qs[0].room_id,song_id:qs[0].id},'local'):empty('A faixa está definida. Prepare a música e os cantores no palco.');}
+ const stage=room?.reserved?'<button type="button" class="tg75-button tg121-stage-link" data-tg113-stage-back>Voltar à telona</button>':'';
+ return '<section class="tg121-performance"><small>'+esc(status)+'</small><h3>'+esc(m.name_a||'A definir')+(m.name_b?' × '+esc(m.name_b):'')+'</h3>'+(z?'<p>♫ '+esc(z.title)+'</p>':'')+primary+stage+tg121Details('Ações da apresentação',matchRow(m))+'</section>';
+}
+
 function tg121Match(qualifier){
  const ms=(snap?.matches||[]).filter(m=>qualifier?m.kind==='qualifier':m.kind!=='qualifier'),active=ms.filter(m=>['singing','result_pending','voting','postponed'].includes(m.state)),next=ms.find(m=>m.state==='ready'),m=active[0]||next,room=ctx()?.getCompetitiveRoom?.();
  if(!voteFresh())return tg121H('Aguarde um instante')+tg121Diva('Estamos confirmando a conexão.');
  let html=tg121H(qualifier?'Classificatória':'Duelo de estrelas');
  if(!room?.reserved)return html+tg121Diva('Vamos preparar o palco para cantar.')+stageCard();
- if(m){html+=tg121Diva(m.state==='singing'?'A estrela está no palco!':'Vamos preparar a próxima apresentação.');html+=matchRow(m);}
+ if(m){html+=tg121Diva(m.state==='singing'?'A estrela está no palco!':'Vamos preparar a próxima apresentação.');html+=tg121Performance(m);}
  else if(snap?.active_stage_order!=null)html+=tg121Diva('Apresentações concluídas. Confira a etapa.')+tg121Next('Concluir etapa','complete_stage',{...F(),stage_order:snap.active_stage_order});
  else if(snap?.next_stage_order!=null)html+=tg121Diva('Preparados para a próxima etapa?')+tg121Next('Preparar próxima etapa','prepare_stage',{...F(),stage_order:snap.next_stage_order});
  else html+=tg121Diva(qualifier?'Vamos descobrir a classificação!':'Vamos conferir o resultado oficial!')+tg121Next(qualifier?'Revelar classificação':'Confirmar chave',qualifier?'freeze_seeds':'freeze_bracket',F());
  if(ms.length)html+=tg121Details('Apresentações e resultados',ms.filter(x=>x.id!==m?.id).map(matchRow).join(''));
- return html+tg121Details('Opções avançadas',stageCard()+matchScreen(qualifier));
+ return html+tg121Details('Opções avançadas',matchScreen(qualifier));
 }
 function tg121Host(){
  if(!snap)return tg121Entry();
  if(!voteFresh())return tg121H('Aguarde um instante')+tg121Diva('Estamos conferindo a conexão com a Batalha.');
- if(tg121Personal&&approved())return tg121Participant();
+ if(tg121Personal&&approved())return tg120Participant();
  if(['recuperacao','seguranca'].includes(tab))return tg121H(stepLabels[tab])+screens[tab]();
  if(tab==='inicio')return tg121H('Minha Batalha')+tg121Next('Continuar de onde parei','current_step',{},'local')+tg121Details('Pausa, saída e encerramento',inicio());
  if(tab==='elenco')return tg121Camarim();
@@ -525,7 +540,7 @@ function tg121Host(){
 }
 function tg121Paint(){
  const live=online(),controller=live&&!!snap&&ctrl(),ownerOnly=live&&!!snap&&owner()&&!ctrl(),participant=live&&!!snap&&!controller&&!ownerOnly;
- dialog.dataset.tg121=live?'journey':'preview';
+ dialog.dataset.tg121=live?'journey':'preview';dialog.dataset.tg33Mode=live?'live':'preview';dialog.dataset.tg62Audience=participant&&voterView()?((ctx()?.getUser()?.is_anonymous===true||ctx()?.getUser()?.app_metadata?.provider==='anonymous')?'temporary':'account'):'';
  const phase=state(),w=(snap?.voting_windows||[]).find(w=>['open','paused','closed'].includes(w.state)&&!w.result_confirmed),key=phase+':'+(w?.id||'')+':'+(w?.state||'');
  if(snap&&controller&&tg121SeenPhase!==key){if(tg121SeenPhase!==null&&phase!=='registration'){tab=suggestedTab(snap);tg121Review=false;}tg121SeenPhase=key;}
  if(participant)tab=suggestedTab(snap);
@@ -533,8 +548,10 @@ function tg121Paint(){
  const tabs=$('tg113-battle-tabs'),menu=$('tg113-battle-menu');menu.hidden=participant||!snap;if(menu.hidden)menuOpen=false;tabs.hidden=!menuOpen;
  menu.setAttribute('aria-expanded',String(menuOpen));menu.textContent=menuOpen?'✕ Etapas':'☰ Etapas';
  const personal=controller&&!!me()&&me().status==='approved',nav=personal?'<nav class="tg121-personal-tabs" aria-label="Participação"><button type="button" class="tg75-button" data-action="production_view" data-kind="local" data-payload="{}" aria-pressed="'+(!tg121Personal)+'">Controle</button><button type="button" class="tg75-button" data-action="personal_view" data-kind="local" data-payload="{}" aria-pressed="'+tg121Personal+'">'+(ownCompetitor()?'Meu canto':'Meu voto')+'</button></nav>':'';
+ const expanded=new Set([...content.querySelectorAll('details[open]')].map(x=>x.querySelector('summary')?.textContent).filter(Boolean));
  content.innerHTML=(live?(participant?tg120Participant():tg121Host()):previewScreen(tab))+nav;
- for(const b of tabs.querySelectorAll('[data-tg75-tab]')){const k=b.dataset.tg75Tab;b.hidden=participant||!snap||(!controller&&!['recuperacao','seguranca'].includes(k))||(controller&&state()!=='registration'&&['elenco','playlist'].includes(k));b.setAttribute('aria-selected',String(k===tab));b.tabIndex=k===tab?0:-1;}
+ for(const d of content.querySelectorAll('details'))if(expanded.has(d.querySelector('summary')?.textContent))d.open=true;
+ for(const b of tabs.querySelectorAll('[data-tg75-tab]')){const k=b.dataset.tg75Tab;b.hidden=participant||!snap||(!controller&&!['recuperacao','seguranca'].includes(k))||(controller&&(['draft','registration'].includes(state())?['classificatoria','chave','votacao','premios'].includes(k):['elenco','playlist'].includes(k)));b.setAttribute('aria-selected',String(k===tab));b.tabIndex=k===tab?0:-1;}
  content.setAttribute('aria-labelledby',content.querySelector('#tg113-step-heading')?'tg113-step-heading':'tg75-battle-title');
  $('tg75-battle-title').textContent='Batalha de Estrelas';$('tg63-voter-profile').hidden=true;
  if(controller&&!tg121Personal&&['classificatoria','chave','votacao','premios'].includes(tab))tg120PaintScene();else tg120ClearScene();
@@ -553,7 +570,7 @@ function payload(el){return JSON.parse(el.dataset.payload||'{}');}
 const guideSeen=new Set();
 function safeGuide(){return dialog.open&&!document.body.classList.contains('tg103-mic-focus')&&!document.body.classList.contains('tg103-remote-mic-focus')&&!document.body.classList.contains('tg18-singing')&&!(snap?.voting_windows||[]).some(w=>['open','paused'].includes(w.state))&&!(snap?.matches||[]).some(m=>m.state==='singing');}
 function maybeGuide(){if(introShown||!online()||!voteFresh()||!safeGuide()||!['draft','registration'].includes(state())||!festivalId||!uid)return;const key=uid+':'+festivalId;if(guideSeen.has(key))return;try{if(sessionStorage.getItem('tg82-guide:'+key)==='1')return;}catch{}if(window.TG82_BATTLE_GUIDE?.open({fromPanel:true})){guideSeen.add(key);try{sessionStorage.setItem('tg82-guide:'+key,'1');}catch{}}}
-async function invoke(action,p={},kind='execute',l=lease()){if(busy||!liveLease(l))return;if(window.TG115_UI?.enabled()&&action==='join'){message('Use o convite atualizado.');return;}if(action==='lock_roster'&&!musicCanLock()){message('Confira a playlist e o elenco antes de fechar.');return;}if(!mayVoteAction(action,p)){message('O estado da votação mudou. Atualize antes de confirmar.');return;}if(!mayMatchAction(action,p)){message('A apresentação ou tentativa mudou. Atualize antes de confirmar.');return;}const run=gen;busy=true;message('Verificando com o servidor…');try{let result;
+async function invoke(action,p={},kind='execute',l=lease()){if(busy||!liveLease(l))return;if(window.TG115_UI?.enabled()&&action==='join'){message('Use o convite atualizado.');return;}if(action==='lock_roster'&&(!musicCanLock()||(tg121Review&&((snap?.members||[]).some(m=>m.status==='pending')||(snap?.members||[]).filter(m=>m.status==='approved'&&m.is_competitor).some(m=>!music?.choices?.some(c=>c.member_id===m.id)))))){message('Confira a playlist e o elenco antes de fechar.');return;}if(!mayVoteAction(action,p)){message('O estado da votação mudou. Atualize antes de confirmar.');return;}if(!mayMatchAction(action,p)){message('A apresentação ou tentativa mudou. Atualize antes de confirmar.');return;}const run=gen;busy=true;message('Verificando com o servidor…');try{let result;
  if(matchActions.has(action)){
   // Nova leitura antes da escrita; o banco ainda precisa rejeitar corridas entre RPCs.
   const seq=reloadSeq+1;
@@ -587,7 +604,7 @@ async function invoke(action,p={},kind='execute',l=lease()){if(busy||!liveLease(
   if(action==='current_step'){if(!ctrl())return;tab=suggestedTab(snap);tg121Review=false;render();return;}
   if(action.startsWith('music_')){await musicAction(action,p,l);return;}
   if(action==='guide'){if(!safeGuide())throw Error('A apresentação não está disponível durante sua vez ou votação.');window.TG82_BATTLE_GUIDE?.open({fromPanel:true});return;}
-  if(action==='select'){f03Cases.clear();musicReset();festivalId=p.id;snap=null;voteVerifiedAt=null;cancelIntent=null;dirty=false;await reload();tab=suggestedTab(snap);render();return;}
+  if(action==='select'){tg121Personal=false;tg121Review=false;tg121SeenPhase=null;f03Cases.clear();musicReset();festivalId=p.id;snap=null;voteVerifiedAt=null;cancelIntent=null;dirty=false;await reload();tab=suggestedTab(snap);render();return;}
   if(action==='refresh'){dirty=false;await reload();render();return;}
   if(action==='open_competitive_stage'){if(!ctrl()||!voteFresh()||!ctx()?.openCompetitiveStage||ctx()?.getRoomId())throw Error('Atualize o festival no menu principal.');const id=festivalId,room=p.room_id;if(room!==null&&!(snap?.reserved_rooms||[]).some(r=>r.id===room&&r.status==='open'&&r.owner_is_controller===true))throw Error('Palco não confirmado.');if(!await window.TG_UI.confirm(room?'Retome somente após fechar o palco anterior neste ou em outro aparelho.':'O palco desta Batalha ficará pronto para as apresentações e microfones. Não será criada outra Batalha.',{title:room?'Retomar palco':'Abrir palco da Batalha',confirmText:room?'Palco anterior fechado · Abrir':'Abrir palco'}))return;if(!liveLease(l)||!voteFresh())throw Error('Atualize o festival antes de abrir o palco.');window.TG74_DIVA_STUDIO?.unlock();const opened=await ctx().openCompetitiveStage(id,room,()=>liveLease(l));if(opened?.reserved!==true||!liveLease(l))return;lastStage={uid,room:opened.room_id,festival:id};close();return;}
   if(action==='reserve_room'){if(!ctrl()||!ctx()?.reserveCompetitiveRoom)throw Error('Abra o palco como anfitrião.');if(!await window.TG_UI.confirm('Este palco ficará permanentemente separado do placar recreativo. Reserve somente uma sala nova e vazia.',{title:'Reservar palco competitivo',confirmText:'Reservar',danger:true}))return;if(!liveLease(l))return;result=await ctx().reserveCompetitiveRoom(festivalId);}

@@ -70,3 +70,7 @@
 #tg75-battle-panel .tg121-personal-tabs button[aria-pressed=true]{outline:2px solid #dca5fa;background:#743ca0;color:#fff}
 #tg75-battle-panel .tg121-personal-tabs button{min-height:44px}
 #tg75-battle-panel[data-tg121=journey] .tg120-cinema{aspect-ratio:auto;min-height:200px;display:grid;align-content:center;gap:10px}
+
+#tg75-battle-panel .tg121-performance{padding:14px;border:1px solid var(--tg-border,#654482);border-radius:14px;display:grid;gap:8px}
+#tg75-battle-panel .tg121-performance h3{margin:0;font-size:clamp(1.2rem,3vw,1.8rem)}
+#tg75-battle-panel .tg121-stage-link{min-height:44px}
