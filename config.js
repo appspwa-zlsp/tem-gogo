@@ -28,5 +28,7 @@ window.TEM_GOGO_CONFIG = {
   BATTLE_API_RELEASE_ALLOWED: true,
   // R108: somente sala piloto expressamente autorizada no Supabase. Não ativar em produção.
   HOST_LEASE_PILOT: false,
+  // Candidato: não ativar antes de banco, documentos e homologação coordenados.
+  R115B_ACCESS_ALLOWED: false,
   MAX_ACTIVE_MICS: 8
 };

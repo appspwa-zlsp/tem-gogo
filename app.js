@@ -6,6 +6,7 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const cfg = window.TEM_GOGO_CONFIG || {};
+  let tg115bAuthEpoch=0;
   const state = {
     client: null, user: null, room: null, role: null, emergencyBlocked:true, emergencyLatch:false, emergencyGeneration:undefined,
     songs: [], members: [], scores: [], channel: null,
@@ -116,6 +117,9 @@
   Object.defineProperty(window,'TG_APP_CONTEXT',{value:Object.freeze({
     getClient:()=>state.client,
     getUser:()=>state.user,
+    getAccessScope:()=>tg115bAuthEpoch+':'+tg07SessionEpoch,
+    openAccessLogin:()=>{show('landing');$('invite-welcome').hidden=true;$('access-tabs').hidden=false;$('tab-host').click();},
+    createAccessGuest:async()=>{if(cfg.R115B_ACCESS_ALLOWED!==true||state.user||state.room)throw Error('Entrada indisponível.');const {data,error}=await state.client.auth.signInAnonymously();if(error||!data?.user?.id||data.user.is_anonymous!==true||state.user?.id&&state.user.id!==data.user.id)throw Error('Não foi possível entrar como convidado.');state.user=data.user;return true;},
     getRole:()=>state.role,
     getRoomId:()=>state.room?.id||null,
     getCompetitiveRoom:()=>state.role==='host'&&state.room?.owner_id===state.user?.id?{id:state.room.id,reserved:state.room.tg30_battle_reserved===true}:null,
@@ -1283,6 +1287,7 @@
   }
   async function tryResumeMembership(code){
     if(!state.client||!state.user||!validRoom(code)||state.room)return false;
+    if(window.TG115_UI?.enabled()&&!await window.TG115_UI.ensure())return false;
     const ticket=tgR18BeginRoomRequest();if(!ticket)return false;
     try{
       const own=await state.client.from('karaoke_rooms').select('id,code,title,owner_id,room_mode')
@@ -1521,6 +1526,7 @@
     try{window.TG109_CAMARIM?.start(state.client,cfg.SUPABASE_URL,()=>!state.currentSong&&!state.room?.current_song_id&&!state.preflight&&!state.startingSong&&!state.finishing&&!state.isPlaying&&!state.localStream&&!state.soloMic&&!state.peers.size&&!recadoShowing&&$('final-overlay')?.hidden!==false);}catch{}
     // IMPORTANTE: receber PASSWORD_RECOVERY antes de ler/restaurar convites ou abrir o lobby.
     state.client.auth.onAuthStateChange((event,session)=>{
+      if(state.user?.id!==session?.user?.id||state.user?.is_anonymous!==session?.user?.is_anonymous||['SIGNED_OUT','USER_UPDATED','PASSWORD_RECOVERY'].includes(event)){tg115bAuthEpoch++;window.TG115_UI?.reset({forget:!!state.user||event==='SIGNED_OUT'||event==='PASSWORD_RECOVERY'});}
       const favoriteIdentityChanged=tg26FavoriteAccount()!==tg36FavoriteIdentity(session?.user);
       if(favoriteIdentityChanged)tg36ClearFavoriteIdentity();
       if(state.user?.id!==session?.user?.id){
@@ -1569,6 +1575,7 @@
         }else showRemoteLogin(linkRoom);
         return;
       }
+      if(window.TG115_UI?.hasPending()){show('landing');await window.TG115_UI.startInvite();return;}
       if(targetRoom){
         const resumed=await tryResumeMembership(targetRoom);
         if(!resumed){
@@ -1588,7 +1595,7 @@
   }
   function isAnonymous(user) {return user?.is_anonymous===true || user?.app_metadata?.provider==='anonymous';}
   function checkBackend() {if (!state.client){toast('Antes de usar, configure o Supabase em config.js.',true);return false;}return true;}
-  async function callRPC(name,params) {const action=tg108ActionMap[name];if(action&&tg108Protected()){if(state.role!=='host'||params?.p_room!==state.room?.id||!tg108Safe()||tg108Transition)throw Error('Comando exige o palco autorizado.');return tg108.command(action,{song:params.p_song,emergencyGeneration:params.p_generation,skipped:params.p_skipped,results:params.p_results,played:params.p_played_seconds,duration:params.p_duration_seconds});}const {data,error}=await state.client.rpc(name,params);if(error)throw error;return data;}
+  async function callRPC(name,params) {if(window.TG115_UI?.enabled()&&['karaoke_create_room_mode','karaoke_create_room'].includes(name)&&!await window.TG115_UI.ensure())throw Error('Confirme seu acesso recreativo antes de criar uma festa.');const action=tg108ActionMap[name];if(action&&tg108Protected()){if(state.role!=='host'||params?.p_room!==state.room?.id||!tg108Safe()||tg108Transition)throw Error('Comando exige o palco autorizado.');return tg108.command(action,{song:params.p_song,emergencyGeneration:params.p_generation,skipped:params.p_skipped,results:params.p_results,played:params.p_played_seconds,duration:params.p_duration_seconds});}const {data,error}=await state.client.rpc(name,params);if(error)throw error;return data;}
 
   function openGuestEntry(roomCode) {
     $('tab-host').classList.remove('active');$('tab-host').setAttribute('aria-selected','false');
@@ -1632,6 +1639,7 @@
     $('tg92-hub-history')?.setAttribute('aria-expanded','false');
     void tg12ModeAvailability();
     void tg83RestoreAvatar();
+    if(window.TG115_UI?.enabled()&&!state.room){if(window.TG115_UI.hasPending())await window.TG115_UI.startInvite();else await window.TG115_UI.ensure();}
     await loadMyRooms();
   }
   let tg15RoomsSerial=0;
@@ -1871,6 +1879,8 @@
         name=String(identity?.nickname||state.user.user_metadata?.display_name||'').trim();
         if(name.length<2||name.length>24)throw Error('Atualize o apelido em Meu perfil (2 a 24 caracteres) antes de entrar.');
       }
+      if(window.TG115_UI?.enabled()&&!await window.TG115_UI.ensure())return false;
+      if(!tgR18RoomRequestCurrent(ticket)||!sameCode())return false;
       const result=await callRPC('karaoke_join_room',{p_code:code,p_name:name});
       if(!tgR18RoomRequestCurrent(ticket)||!sameCode())return false;
       const codeError=result?.[0]?.error_code;
